@@ -27,9 +27,6 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-// Custom validation error sentinel
-// var ErrValidation = fmt.Errorf("input validation failed")
-
 // logrusLoggerHook forwards logrus entries to our custom logger instance
 type logrusLoggerHook struct {
 	logger *logrus.Logger
@@ -48,6 +45,32 @@ func (h *logrusLoggerHook) Fire(entry *logrus.Entry) error {
 // Levels implements logrus.Hook.Levels
 func (h *logrusLoggerHook) Levels() []logrus.Level {
 	return logrus.AllLevels
+}
+
+// --- New Helper Function for Error Mapping ---
+func mapErrorToResponse(ctx context.Context, err error) (int, string) {
+	code := http.StatusInternalServerError
+	httpErrMessage := "An unexpected internal server error occurred"
+
+	var validationErr *commonErrors.ValidationError
+	var dbErr *commonErrors.DatabaseError
+
+	if errors.As(err, &validationErr) {
+		code = http.StatusBadRequest
+		httpErrMessage = validationErr.Error()
+		log.WithContext(ctx).WithError(err).Warn("Validation error")
+	} else if errors.Is(err, commonErrors.ErrProductNotFound) {
+		code = http.StatusNotFound
+		httpErrMessage = commonErrors.ErrProductNotFound.Error()
+		log.WithContext(ctx).WithError(err).Warn("Resource not found")
+	} else if errors.As(err, &dbErr) {
+		code = http.StatusInternalServerError
+		httpErrMessage = "An internal database error occurred"
+		log.WithContext(ctx).WithFields(logrus.Fields{"operation": dbErr.Operation}).WithError(dbErr.Err).Error("Database error")
+	} else {
+		log.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
+	}
+	return code, httpErrMessage
 }
 
 func main() {
@@ -110,42 +133,13 @@ func main() {
 
 	app := fiber.New(fiber.Config{
 		AppName: fmt.Sprintf("%s v%s", config.SERVICE_NAME, config.SERVICE_VERSION),
-		// --- Add Fiber Error Handler for OTel Integration ---
+		// --- Use updated Fiber Error Handler ---
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			ctx := c.UserContext()
-
-			// Default status code
-			code := http.StatusInternalServerError
-			httpErrMessage := "An unexpected internal server error occurred"
-
-			// Map error types to appropriate status codes
-			var validationErr *commonErrors.ValidationError
-			var dbErr *commonErrors.DatabaseError
-
-			if errors.As(err, &validationErr) {
-				code = http.StatusBadRequest
-				httpErrMessage = validationErr.Error()
-				log.WithContext(ctx).WithError(err).Warn("Validation error")
-			} else if errors.Is(err, commonErrors.ErrProductNotFound) {
-				code = http.StatusNotFound
-				httpErrMessage = commonErrors.ErrProductNotFound.Error()
-				log.WithContext(ctx).WithError(err).Warn("Resource not found")
-			} else if errors.As(err, &dbErr) {
-				code = http.StatusInternalServerError
-				httpErrMessage = "An internal database error occurred" // Generic user message
-				// Log the specific internal error details
-				log.WithContext(ctx).WithFields(logrus.Fields{
-					"operation": dbErr.Operation,
-				}).WithError(dbErr.Err).Error("Database error")
-			} else {
-				// Default case for unhandled errors
-				log.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
-			}
-
-			// Return the error response to the client
-			return c.Status(code).JSON(fiber.Map{
-				"error": httpErrMessage,
-			})
+			// Call the mapping function
+			code, message := mapErrorToResponse(ctx, err)
+			// Return the response
+			return c.Status(code).JSON(fiber.Map{"error": message})
 		},
 	})
 

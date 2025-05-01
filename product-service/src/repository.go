@@ -13,8 +13,6 @@ import (
 	commonErrors "github.com/narender/common-module/errors" // Alias this import
 	"github.com/narender/common-module/telemetry"
 
-	// Model is in the same package, no need to import it separately.
-
 	"github.com/sirupsen/logrus"
 )
 

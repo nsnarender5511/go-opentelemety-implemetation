@@ -1,4 +1,4 @@
-.cursor 
+.cursor
 /cart-service
 /order-service
 /user-service
@@ -12,6 +12,9 @@ go.sum
 
 # Local environment configuration (DO NOT COMMIT)
 .env
+
+# Anomalous src file if generated
+product-service/src/src
 
 
 

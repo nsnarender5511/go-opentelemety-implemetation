@@ -8,6 +8,8 @@ import (
 	"github.com/narender/common-module/telemetry"
 
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ProductService defines the interface for product business logic
@@ -29,6 +31,27 @@ func NewProductService(repo ProductRepository) ProductService {
 	}
 }
 
+// --- New OTel-Aligned Helper Function ---
+// Assumes the span is passed down or retrieved from context within the calling method
+func (s *productService) handleRepoError(span trace.Span, log *logrus.Entry, opDesc string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// OTel Standard: Record error on the span
+	span.RecordError(err)
+	// OTel Standard: Set span status to Error
+	span.SetStatus(codes.Error, fmt.Sprintf("Repository error during %s", opDesc))
+
+	log.WithError(err).Errorf("Service: Repository error during %s", opDesc)
+
+	if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
+		return commonErrors.ErrProductNotFound // Return the sentinel error directly
+	}
+	// Wrap other errors generically
+	return fmt.Errorf("repository error during %s: %w", opDesc, err)
+}
+
 // GetAll handles fetching all products
 func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	log := logrus.WithContext(ctx)
@@ -37,11 +60,10 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetAll")
 	defer span.End()
 
-	products, err := s.repo.GetAll(ctx)
-	if err != nil {
-		telemetry.RecordError(span, err, "failed to fetch all products from repo")
-		log.WithError(err).Error("Service: Failed to fetch all products from repo")
-		return nil, fmt.Errorf("failed to find all products: %w", err)
+	products, repoErr := s.repo.GetAll(ctx)
+	// Call the OTel-aligned helper, passing the current span
+	if err := s.handleRepoError(span, log, "GetAll", repoErr); err != nil {
+		return nil, err
 	}
 
 	telemetry.AddAttribute(span, "db.result.count", len(products))
@@ -59,15 +81,10 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 
 	telemetry.AddAttribute(span, "product.id", productID)
 
-	product, err := s.repo.GetByID(ctx, productID)
-	if err != nil {
-		telemetry.RecordError(span, err, "failed to find product by ID in repo")
-		log.WithError(err).Error("Service: Failed to find product by ID in repo")
-		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
-			return Product{}, commonErrors.ErrProductNotFound
-		} else {
-			return Product{}, fmt.Errorf("failed to find product by id '%s': %w", productID, err)
-		}
+	product, repoErr := s.repo.GetByID(ctx, productID)
+	// Call the OTel-aligned helper, passing the current span
+	if err := s.handleRepoError(span, log, fmt.Sprintf("GetByID for '%s'", productID), repoErr); err != nil {
+		return Product{}, err // Return zero-value Product for error cases
 	}
 
 	return product, nil
@@ -83,15 +100,12 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 
 	telemetry.AddAttribute(span, "product.id", productID)
 
-	product, err := s.repo.GetByID(ctx, productID)
-	if err != nil {
-		telemetry.RecordError(span, err, "failed to get product for stock check from repo")
-		log.WithError(err).Error("Service: Failed to get product for stock check from repo")
-		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
-			return 0, commonErrors.ErrProductNotFound
-		} else {
-			return 0, fmt.Errorf("failed to get product for stock check (id '%s'): %w", productID, err)
-		}
+	// Note: This calls GetByID internally, which now uses handleRepoError.
+	// We still need to handle the error returned *from* GetByID here.
+	product, repoErr := s.repo.GetByID(ctx, productID)
+	// Call the OTel-aligned helper, passing the current span
+	if err := s.handleRepoError(span, log, fmt.Sprintf("GetStock (via GetByID) for '%s'", productID), repoErr); err != nil {
+		return 0, err // Return zero stock for error cases
 	}
 
 	stock := product.Stock
@@ -101,5 +115,3 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 }
 
 // --- Helper Functions ---
-
-// Removed local logServiceError function
