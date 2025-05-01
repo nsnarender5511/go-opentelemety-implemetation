@@ -1,66 +1,73 @@
-# Stage 1: Build the application
-# Use a specific Go version Alpine image for smaller size
+# ---- Builder Stage ----
+# Use a specific Go version matching your development environment
 FROM golang:1.24-alpine AS builder
-LABEL stage=builder
 
-# Set necessary environment variables
-ENV CGO_ENABLED=0 GOOS=linux GOPROXY=direct
-# Set the working directory **outside** GOPATH to ensure module mode
-WORKDIR /app
+# Set working directory inside the builder stage
+WORKDIR /build
 
-# Install git for go mod tidy/download
-RUN apk add --no-cache git
+# Install build tools if needed (e.g., git for private repos)
+# RUN apk add --no-cache git
 
-# --- Go Modules Handling ---
-# Copy go.mod and go.sum files first to leverage Docker cache
-# IMPORTANT: Assumes the Docker build context is the ROOT directory (Signoz_assignment/)
+# --- Dependency Resolution ---
+# Copy ONLY the necessary go.mod/go.sum files first to leverage build cache
 COPY common/go.mod common/go.sum ./common/
 COPY product-service/go.mod product-service/go.sum ./product-service/
 
-# Create a dummy go.work file to satisfy Go tools if needed, or rely on replace
-# RUN go work init ./common ./product-service
+# Create the necessary directory structure *required* by the replace directive
+# This allows `go mod download` within product-service to find `../common`
+# Needs to mirror the relative path in product-service/go.mod's replace directive
+RUN mkdir -p ./common
 
-# Copy the rest of the source code for common module
+# Change to the product-service directory. This respects the replace directive.
+WORKDIR /build/product-service
+
+# Download dependencies. This should fetch external dependencies for both
+# product-service and the replaced common module.
+# Use "go mod vendor" if you prefer vendoring dependencies
+RUN go mod download
+# RUN go mod vendor # Alternative: if vendoring
+
+# --- Source Code Copy ---
+# Now copy the *source code* needed for the build
+# Copy common module source (still needed due to local replace)
+WORKDIR /build
 COPY common/ ./common/
-# Copy the rest of the source code for product-service
-COPY product-service/ ./product-service/
+# Copy product-service source
+COPY product-service/src ./product-service/src
+# Optionally copy other necessary files like templates, assets etc. for product-service
 
-# --- Add replace directive needed for build ---
-# This tells the Go build to use the local common module
-# Make sure the path matches the copied structure
-RUN echo "replace github.com/narender/common => ../common" >> ./product-service/go.mod
-RUN cat ./product-service/go.mod # Verify replace was added (optional)
+# --- Build ---
+WORKDIR /build/product-service
+# Build the application binary within the product-service context
+# Use CGO_ENABLED=0 for static linking (good for Alpine)
+# Use -ldflags="-w -s" to strip debug symbols for smaller binary
+# Output the binary to a known location for the final stage
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/product-service ./src
+# If using vendor: go build -mod=vendor ...
 
-# Tidy dependencies within the service context
-# WORKDIR /app/product-service # <- Keep this commented or remove if not needed before build
-# RUN go mod tidy # Tidy should happen relative to the go.mod file
-# RUN go mod download
-
-# Change WORKDIR to where the main Go files are
-WORKDIR /app/product-service/src
-
-# Build the static binary
-# Use -ldflags "-s -w" to strip debug symbols and reduce binary size
-# Build from the src directory, outputting to /product-service
-RUN go build -ldflags="-s -w" -o /product-service .
-
-# Stage 2: Runtime image
-# Use a minimal distroless static image OR alpine
-# FROM gcr.io/distroless/static-debian11
+# ---- Final Stage ----
+# Use a minimal base image
 FROM alpine:latest
-LABEL stage=runtime
 
+# Security updates and timezone data (good practice)
+RUN apk update && apk add --no-cache ca-certificates tzdata && rm -rf /var/cache/apk/*
+
+# Set working directory in the final image
 WORKDIR /app
 
-# Copy the static binary from the builder stage
-COPY --from=builder /product-service /app/product-service
+# Copy ONLY the compiled binary from the builder stage
+COPY --from=builder /app/product-service /app/product-service
 
-# Copy data file into the image (Alternatively, use a volume)
-# Ensure the path matches DATA_FILE_PATH env var used in compose/config
-COPY ./product-service/data.json /app/data.json
+# DO NOT copy data.json here. It will be mounted as a volume via docker-compose.
 
 # Expose the port the application listens on (matches PRODUCT_SERVICE_PORT env var)
+# This is informational; the actual port comes from PRODUCT_SERVICE_PORT env var in compose/env
 EXPOSE 8082
 
-# Set the entrypoint command
-ENTRYPOINT ["/app/product-service"] 
+# Set the entrypoint to run the binary
+# Use ENTRYPOINT exec form to handle signals properly
+ENTRYPOINT ["/app/product-service"]
+
+# Optional: Define a non-root user for better security
+# RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# USER appuser 
