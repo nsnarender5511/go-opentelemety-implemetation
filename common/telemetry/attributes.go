@@ -7,26 +7,35 @@ import (
 
 // Standard Span Attribute Keys
 // Using constants improves consistency and reduces typos.
-// Prefixed with 'App' for custom attributes to avoid clashes with semantic conventions.
+// Prefixes align with semantic conventions (db, app, code, etc.) where possible.
 var (
+	// General Application
+	AppOperationKey = attribute.Key("app.operation") // e.g., "json_unmarshal"
+
 	// Product specific
-	AppProductIDKey    = attribute.Key("app.product.id")
-	AppProductStockKey = attribute.Key("app.product.stock")
-	AppProductCountKey = attribute.Key("app.product.count")
+	AppProductIDKey    = attribute.Key("app.product.id")    // Application-level product identifier
+	AppProductStockKey = attribute.Key("app.product.stock") // Application-level stock value
+	AppProductCountKey = attribute.Key("app.product.count") // Application-level count of products
 
-	// DB/Repo related
-	DBSystemJSONFile         = semconv.DBSystemKey.String("jsonfile") // Reusable value
-	DBOperationRead          = semconv.DBOperationKey.String("read")  // Reusable value
-	DBResultCountKey         = attribute.Key("db.result.count")
-	DBResultFoundKey         = attribute.Key("db.result.found")
-	DBQueryParamProductIDKey = attribute.Key("db.query.parameter.product_id")
-	FilePathKey              = semconv.CodeFilepathKey // Using semconv for file path
+	// DB/Repo related (using Semantic Conventions where applicable)
+	DBSystemKey              = semconv.DBSystemKey                      // Value: "json_file"
+	DBOperationKey           = semconv.DBOperationKey                   // Value: "read"
+	DBStatementKey           = semconv.DBStatementKey                   // Value: "FindAll", "FindByProductID", etc.
+	DBFilePathKey            = attribute.Key("db.file.path")            // Specific key for file path in DB context
+	DBResultCountKey         = attribute.Key("db.result.count")         // Count of results (e.g., from FindAll)
+	DBResultFoundKey         = attribute.Key("db.result.found")         // Boolean indicating if FindBy* found data
+	DBQueryParamProductIDKey = attribute.Key("db.parameter.product_id") // Parameter used in query
 
-	// Operation status
-	AppLookupSuccessKey     = attribute.Key("app.lookup.success")
-	AppStockCheckSuccessKey = attribute.Key("app.check.success")
+	// File operations (using Semantic Conventions)
+	CodeFilepathKey = semconv.CodeFilepathKey // General file path (used if not DB specific)
 
-	// Add other common keys as needed...
+	// Operation status (application level)
+	AppLookupSuccessKey     = attribute.Key("app.lookup.success")    // Success status for product lookup
+	AppStockCheckSuccessKey = attribute.Key("app.check.success")     // Success status for stock check
+	AppOperationSuccessKey  = attribute.Key("app.operation.success") // General operation success boolean
+
+	// Error related (using Semantic Conventions)
+	ErrorTypeKey = semconv.ExceptionTypeKey // Type of error encountered
 )
 
 // --- Log Field Keys ---

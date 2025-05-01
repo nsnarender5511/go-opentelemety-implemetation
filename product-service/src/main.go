@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	// Updated common imports to use correct module path
-	config "example.com/product-service/common/config"
-	commonErrors "example.com/product-service/common/errors"
-	"example.com/product-service/common/telemetry"
+	// Updated common imports to use new module path
+	config "github.com/narender/common-module/config"
+	commonErrors "github.com/narender/common-module/errors"
+	"github.com/narender/common-module/telemetry"
 
 	// Removed handler import as handler.go is now package main
 	// "product-service/src/handler"

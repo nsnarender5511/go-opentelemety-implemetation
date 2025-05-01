@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	// Use correct module path for common packages
-	"example.com/product-service/common/errors"
-	"example.com/product-service/common/telemetry"
+	"github.com/narender/common-module/errors"
+	"github.com/narender/common-module/telemetry"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -70,6 +70,8 @@ func (r *productRepository) FindAll(ctx context.Context) ([]Product, error) {
 	// Start span manually
 	ctx, span := tracer.Start(ctx, "repository.FindAll")
 	defer span.End()
+	// Add DB statement attribute
+	span.SetAttributes(telemetry.DBStatementKey.String("FindAll"))
 
 	// Call readData with the new context
 	data, err = r.readData(ctx)
@@ -104,7 +106,10 @@ func (r *productRepository) FindByProductID(ctx context.Context, productID strin
 	ctx, span := tracer.Start(ctx, "repository.FindByProductID")
 	defer span.End()
 
-	span.SetAttributes(telemetry.DBQueryParamProductIDKey.String(productID))
+	span.SetAttributes(
+		telemetry.DBStatementKey.String("FindByProductID"),
+		telemetry.DBQueryParamProductIDKey.String(productID),
+	)
 
 	// Call readData with the new context
 	data, err := r.readData(ctx)
@@ -120,8 +125,8 @@ func (r *productRepository) FindByProductID(ctx context.Context, productID strin
 		log.Warn("Repo: Product not found in file")
 		span.SetAttributes(telemetry.DBResultFoundKey.Bool(false))
 		err = errors.ErrProductNotFound
-		span.RecordError(err)                    // Record the specific not found error
-		span.SetStatus(codes.Error, err.Error()) // Set status for not found
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return Product{}, err
 	}
 
@@ -145,7 +150,10 @@ func (r *productRepository) FindStockByProductID(ctx context.Context, productID 
 	ctx, span := tracer.Start(ctx, "repository.FindStockByProductID")
 	defer span.End()
 
-	span.SetAttributes(telemetry.DBQueryParamProductIDKey.String(productID))
+	span.SetAttributes(
+		telemetry.DBStatementKey.String("FindStockByProductID"),
+		telemetry.DBQueryParamProductIDKey.String(productID),
+	)
 
 	// Call readData with the new context
 	data, err := r.readData(ctx)
@@ -177,59 +185,57 @@ func (r *productRepository) FindStockByProductID(ctx context.Context, productID 
 }
 
 // readData reads the JSON file and returns the product map.
+// It now uses manual span management internally.
 func (r *productRepository) readData(ctx context.Context) (map[string]Product, error) {
 	var data map[string]Product
 	var bytes []byte
-	var err error
-	var fileReadErr error
-	var unmarshalErr error
+	var err error // Consolidated error variable
 
-	tracer := r.getTracer()
+	tracer := r.getTracer() // Use package-level tracer helper
 
-	// Span for file read
+	// --- File Read Span ---
+	// Start the span using the incoming context
 	ctxRead, spanRead := tracer.Start(ctx, "repository.readDataFile")
-	spanRead.SetAttributes(telemetry.DBSystemJSONFile, telemetry.DBOperationRead, telemetry.FilePathKey.String(r.filePath))
+	spanRead.SetAttributes(
+		telemetry.DBSystemKey.String("json_file"), // Use constant key, provide value
+		telemetry.DBOperationKey.String("read"),   // Use constant key, provide value
+		telemetry.DBFilePathKey.String(r.filePath),
+	)
 
 	r.mu.RLock()
 	fileBytes, fileReadErr := os.ReadFile(r.filePath)
 	r.mu.RUnlock()
+
 	if fileReadErr != nil {
-		logrus.WithContext(ctxRead).WithError(fileReadErr).Error("Repo: Failed to read data file", "filePath", r.filePath)
-		// Wrap error
 		err = fmt.Errorf("%w: %w", errors.ErrDatabaseOperation, fileReadErr)
+		logrus.WithContext(ctxRead).WithError(err).Error("Repo: Failed to read data file") // Log with span context
 		spanRead.RecordError(err)
 		spanRead.SetStatus(codes.Error, err.Error())
-		spanRead.End() // End this span before returning
+		spanRead.End() // End span *before* returning
 		return nil, err
 	}
-	bytes = fileBytes
-	spanRead.End() // End file read span successfully
+	spanRead.End()    // End span successfully
+	bytes = fileBytes // Assign bytes only after successful read and span end
 
-	if err != nil {
-		// This block should technically be unreachable now if fileReadErr causes return
-		logrus.WithContext(ctx).WithError(err).Error("Repo: Error during file read operation")
-		return nil, err
-	}
+	// --- Unmarshal Span ---
+	// Start this span using the context possibly updated by the previous span
+	ctxUnmarshal, spanUnmarshal := tracer.Start(ctxRead, "repository.unmarshalData")
+	spanUnmarshal.SetAttributes(
+		telemetry.AppOperationKey.String("json_unmarshal"),
+		telemetry.DBFilePathKey.String(r.filePath),
+	)
 
-	// Span for unmarshal
-	ctxUnmarshal, spanUnmarshal := tracer.Start(ctx, "repository.unmarshalData")
-	unmarshalErr = json.Unmarshal(bytes, &data)
+	unmarshalErr := json.Unmarshal(bytes, &data)
 	if unmarshalErr != nil {
-		logrus.WithContext(ctxUnmarshal).WithError(unmarshalErr).Error("Repo: Failed to unmarshal JSON", "filePath", r.filePath)
-		// Wrap error
 		err = fmt.Errorf("%w: %w", errors.ErrDatabaseOperation, unmarshalErr)
+		logrus.WithContext(ctxUnmarshal).WithError(err).Error("Repo: Failed to unmarshal JSON data") // Log with span context
 		spanUnmarshal.RecordError(err)
 		spanUnmarshal.SetStatus(codes.Error, err.Error())
-		spanUnmarshal.End() // End this span before returning
+		spanUnmarshal.End() // End span *before* returning
 		return nil, err
 	}
-	spanUnmarshal.End() // End unmarshal span successfully
+	spanUnmarshal.End() // End span successfully
 
-	if err != nil {
-		// This block should technically be unreachable now if unmarshalErr causes return
-		logrus.WithContext(ctx).WithError(err).Error("Repo: Error during JSON unmarshal operation")
-		return nil, err
-	}
-
+	// If we reached here, both operations were successful
 	return data, nil
 }

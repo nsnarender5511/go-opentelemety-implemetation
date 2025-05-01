@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"example.com/product-service/common/telemetry"
+	"github.com/narender/common-module/telemetry"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -55,7 +55,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 
-	span.SetAttributes(telemetry.AppProductCountKey.Int(len(products)))
+	span.SetAttributes(telemetry.DBResultCountKey.Int(len(products)))
 
 	return products, nil
 }

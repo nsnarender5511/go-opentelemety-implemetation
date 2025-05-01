@@ -1,11 +1,11 @@
-module product-service
+module github.com/narender/product-service
 
 go 1.24.1 // Or your desired Go version
 
 require (
-	example.com/product-service/common v0.0.0
 	github.com/gofiber/contrib/otelfiber/v2 v2.2.2
 	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/narender/common-module v0.0.0
 	github.com/sirupsen/logrus v1.9.3
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/metric v1.35.0
@@ -70,5 +70,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// Restore replace directive to help go get find local common module
-replace example.com/product-service/common => ../common
+// Add replace directive to explicitly use local common module
+replace github.com/narender/common-module => ../common
+
+// REMOVED replace directive as go.work is now used for local development
+// replace example.com/product-service/common => ../common

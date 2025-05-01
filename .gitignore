@@ -8,7 +8,7 @@
 go.sum
 
 # Signoz deployment directory
-signoz
+.signoz
 
 
 

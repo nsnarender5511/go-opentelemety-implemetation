@@ -1,4 +1,4 @@
-module example.com/product-service/common
+module github.com/narender/common-module
 
 go 1.24.1 // Or the same Go version as product-service
 

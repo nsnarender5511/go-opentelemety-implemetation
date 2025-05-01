@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	// Import the main config package
-	"example.com/product-service/common/config"
+	// Import the main config package using the new module path
+	"github.com/narender/common-module/config"
 	// No need to import sub-packages like trace, metric, log here
 )
 
