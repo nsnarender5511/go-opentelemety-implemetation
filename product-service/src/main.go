@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -95,9 +94,9 @@ func main() {
 		log.WithError(err).Fatal("Failed to initialize OpenTelemetry")
 	}
 
-	// Use the application logger for all further logging
-	logrus.SetOutput(io.Discard)                                    // Disable standard logrus output
-	logrus.StandardLogger().AddHook(&logrusLoggerHook{logger: log}) // Forward to our logger
+	// Add the OpenTelemetry hook to the logrus instance
+	log.AddHook(telemetry.NewOtelHook(logrus.AllLevels))
+	log.Info("Added OpenTelemetry log hook to logrus")
 
 	log.Info("Starting Product Service", "port", config.PRODUCT_SERVICE_PORT)
 

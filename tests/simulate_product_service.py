@@ -4,20 +4,36 @@ import random
 import threading
 import uuid
 import os
+import json # Import json module
 
 # Configuration
 BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 5
 SIMULATION_DURATION_SECONDS = 30
-# Use actual IDs from data.json
-known_product_ids = [
-    "prod_elec_001", "prod_elec_002", "prod_home_001", "prod_home_002",
-    "prod_book_001", "prod_cloth_001", "prod_gadget_001", "prod_toy_001"
-]
+# Path to the data file relative to the script or workspace
+# Adjust this path if the script is run from a different directory
+DATA_FILE_PATH = "../product-service/data.json" # Relative path to data.json
 
-# Product IDs from repository.go
-EXISTING_PRODUCT_IDS = ["prod_123", "prod_456", "prod_789"]
+# --- Load Product Data ---
+try:
+    with open(DATA_FILE_PATH, 'r') as f:
+        product_data = json.load(f)
+    # Use actual IDs from data.json
+    known_product_ids = list(product_data.keys())
+    if not known_product_ids:
+        print(f"Warning: No product IDs found in {DATA_FILE_PATH}. Using fallback.")
+        known_product_ids = ["prod_fallback_1", "prod_fallback_2"] # Basic fallback
+except FileNotFoundError:
+    print(f"Error: data.json not found at {DATA_FILE_PATH}. Using fallback IDs.")
+    known_product_ids = ["prod_fallback_1", "prod_fallback_2"]
+except json.JSONDecodeError:
+    print(f"Error: Could not decode JSON from {DATA_FILE_PATH}. Using fallback IDs.")
+    known_product_ids = ["prod_fallback_1", "prod_fallback_2"]
+
+
+# Product IDs from repository.go (Keep for reference or specific tests if needed)
+# EXISTING_PRODUCT_IDS = ["prod_123", "prod_456", "prod_789"]
 NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}" # Generate a random non-existing ID
 INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
@@ -74,19 +90,21 @@ def worker(worker_id):
             if action_type == 'get_all':
                 get_all_products()
             elif action_type == 'get_one_ok':
+                # Use IDs loaded from data.json
                 get_product_by_id(random.choice(known_product_ids), expected_status=200)
             elif action_type == 'get_one_404':
                 get_product_by_id(NON_EXISTING_PRODUCT_ID, expected_status=404)
             elif action_type == 'get_one_invalid':
-                # Depending on router, might be 400 or 404 - check service logs
-                get_product_by_id(INVALID_FORMAT_PRODUCT_ID, expected_status=404) 
+                # Expected 404 based on Fiber routing for invalid path param format
+                get_product_by_id(INVALID_FORMAT_PRODUCT_ID, expected_status=404)
             elif action_type == 'get_stock_ok':
+                # Use IDs loaded from data.json
                 get_product_stock(random.choice(known_product_ids), expected_status=200)
             elif action_type == 'get_stock_404':
                 get_product_stock(NON_EXISTING_PRODUCT_ID, expected_status=404)
             elif action_type == 'get_stock_invalid':
-                # Depending on router, might be 400 or 404
-                get_product_stock(INVALID_FORMAT_PRODUCT_ID, expected_status=404) 
+                # Expected 404 based on Fiber routing for invalid path param format
+                get_product_stock(INVALID_FORMAT_PRODUCT_ID, expected_status=404)
             elif action_type == 'bad_path':
                 hit_invalid_path()
 

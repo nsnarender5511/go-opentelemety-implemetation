@@ -119,8 +119,9 @@ func InitTelemetry(ctx context.Context, config TelemetryConfig) (shutdown func(c
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
 
-	// Initialize logger provider
-	loggerShutdown, err := configureLoggerProvider(ctx, config, res)
+	// Initialize logger provider - Replace stub call with actual initialization
+	// loggerShutdown, err := configureLoggerProvider(ctx, config, res)
+	loggerShutdown, err := initLoggerProvider(ctx, config.Endpoint, config.Insecure, res) // Call the real init function
 	if err != nil {
 		// Logger is less critical, so we log the error but continue
 		logger.WithError(err).Warn("Failed to initialize logger provider, continuing without telemetry logging")
