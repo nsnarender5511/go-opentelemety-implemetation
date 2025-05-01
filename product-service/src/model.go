@@ -4,6 +4,13 @@ import (
 	"time"
 )
 
+// Constants for JSON field names
+const (
+	JSONFieldProductID = "productId"
+	JSONFieldStock     = "stock"
+	JSONFieldError     = "error"
+)
+
 // Product defines the structure for product data, simplified for in-memory
 type Product struct {
 	ID          uint      `json:"-"`

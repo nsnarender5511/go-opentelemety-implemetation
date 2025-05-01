@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"signoz-common/telemetry"
+
+	"example.com/product-service/common/telemetry"
 
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -19,16 +20,19 @@ type ProductService interface {
 
 // productService implements the ProductService interface
 type productService struct {
-	repo   ProductRepository
-	tracer trace.Tracer
+	repo ProductRepository
 }
 
 // NewProductService creates a new product service
 func NewProductService(repo ProductRepository) ProductService {
 	return &productService{
-		repo:   repo,
-		tracer: telemetry.GetTracer("product-service/service"),
+		repo: repo,
 	}
+}
+
+// getTracer is a helper to get the tracer instance consistently
+func (s *productService) getTracer() trace.Tracer {
+	return otel.Tracer("product-service/service")
 }
 
 // GetAll handles fetching all products
@@ -36,10 +40,14 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	log := logrus.WithContext(ctx)
 	log.Info("Service: Fetching all products")
 
-	ctx, span := s.tracer.Start(ctx, "GetAllService")
+	var products []Product
+	var err error
+
+	tracer := s.getTracer()
+	ctx, span := tracer.Start(ctx, "service.GetAll")
 	defer span.End()
 
-	products, err := s.repo.FindAll(ctx)
+	products, err = s.repo.FindAll(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -47,49 +55,60 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 
-	span.SetAttributes(attribute.Int("product.count", len(products)))
+	span.SetAttributes(telemetry.AppProductCountKey.Int(len(products)))
+
 	return products, nil
 }
 
 // GetByID handles fetching a product by its ID
 func (s *productService) GetByID(ctx context.Context, productID string) (Product, error) {
-	log := logrus.WithContext(ctx)
-	log.Info("Service: Fetching product by ID", "productID", productID)
+	log := logrus.WithContext(ctx).WithField(telemetry.LogFieldProductID, productID)
+	log.Info("Service: Fetching product by ID")
 
-	ctx, span := s.tracer.Start(ctx, "GetByIDService",
-		trace.WithAttributes(attribute.String("product.id", productID)),
-	)
+	var product Product
+	var err error
+
+	tracer := s.getTracer()
+	ctx, span := tracer.Start(ctx, "service.GetByID")
 	defer span.End()
 
-	product, err := s.repo.FindByProductID(ctx, productID)
+	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+
+	product, err = s.repo.FindByProductID(ctx, productID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		log.WithError(err).Error("Service: Failed to find product by ID in repo", "productID", productID)
+		log.WithError(err).Error("Service: Failed to find product by ID in repo")
 		return Product{}, err
 	}
+
 	return product, nil
 }
 
 // GetStock handles fetching stock for a product
 func (s *productService) GetStock(ctx context.Context, productID string) (int, error) {
-	log := logrus.WithContext(ctx)
-	log.Info("Service: Checking stock for product ID", "productID", productID)
+	log := logrus.WithContext(ctx).WithField(telemetry.LogFieldProductID, productID)
+	log.Info("Service: Checking stock for product ID")
 
-	ctx, span := s.tracer.Start(ctx, "GetStockService",
-		trace.WithAttributes(attribute.String("product.id", productID)),
-	)
+	var stock int
+	var err error
+
+	tracer := s.getTracer()
+	ctx, span := tracer.Start(ctx, "service.GetStock")
 	defer span.End()
 
-	stock, err := s.repo.FindStockByProductID(ctx, productID)
+	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+
+	stock, err = s.repo.FindStockByProductID(ctx, productID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		log.WithError(err).Error("Service: Failed to get stock for product ID from repo", "productID", productID)
+		log.WithError(err).Error("Service: Failed to get stock for product ID from repo")
 		return 0, err
 	}
 
-	span.SetAttributes(attribute.Int("product.stock", stock))
+	span.SetAttributes(telemetry.AppProductStockKey.Int(stock))
+
 	return stock, nil
 }
 

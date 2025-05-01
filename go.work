@@ -1,0 +1,6 @@
+go 1.24.1 // Use the version required by the modules
+
+use (
+    ./common
+    ./product-service
+) 

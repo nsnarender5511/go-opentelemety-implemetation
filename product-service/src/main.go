@@ -2,20 +2,30 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	config "signoz-common/config"
-	"signoz-common/telemetry"
+	// Updated common imports to use correct module path
+	config "example.com/product-service/common/config"
+	commonErrors "example.com/product-service/common/errors"
+	"example.com/product-service/common/telemetry"
+
+	// Removed handler import as handler.go is now package main
+	// "product-service/src/handler"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
-	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// Custom validation error sentinel
+// var ErrValidation = fmt.Errorf("input validation failed")
 
 func main() {
 	// --- Initialize OpenTelemetry ---
@@ -54,20 +64,72 @@ func main() {
 
 	logrus.Info("Starting Product Service", "port", config.PRODUCT_SERVICE_PORT) // Use Logrus
 
-	productRepo := NewProductRepository()
-	productService := NewProductService(productRepo)
-	productHandler := NewProductHandler(productService)
+	// --- Initialize Tracer and Meter --- Removed explicit Get global instances
+	// tracer := otel.Tracer("product-service/main") // No longer needed here
+	// meter := otel.Meter("product-service/main")   // No longer needed here
+
+	// --- Inject Dependencies --- Removed passing tracer/meter
+	productRepo, err := NewProductRepository() // Removed tracer
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to initialize ProductRepository")
+	}
+	productService := NewProductService(productRepo)    // Removed tracer
+	productHandler := NewProductHandler(productService) // Removed tracer and meter
 
 	app := fiber.New(fiber.Config{
-		// Consider adding ErrorHandler for better OTel error reporting
-		// ErrorHandler: func(c *fiber.Ctx, err error) error { ... }
+		// --- Add Fiber Error Handler for OTel Integration ---
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			ctx := c.UserContext()
+			// Get the current span from the context
+			span := trace.SpanFromContext(ctx)
+
+			// Determine the correct HTTP status code based on error type
+			code := http.StatusInternalServerError  // Default
+			var httpErrMessage string = err.Error() // Default message
+
+			if errors.Is(err, commonErrors.ErrProductNotFound) {
+				code = http.StatusNotFound
+				httpErrMessage = commonErrors.ErrProductNotFound.Error()
+			} else if errors.Is(err, commonErrors.ErrDatabaseOperation) {
+				// Keep 500 but maybe provide a less specific message to client
+				httpErrMessage = "An internal database error occurred"
+			} else if errors.Is(err, ErrValidation) { // Check against ErrValidation (local package)
+				code = http.StatusBadRequest
+				// Extract the original validation message if wrapped
+				unwrappedErr := errors.Unwrap(err)
+				if unwrappedErr != nil {
+					httpErrMessage = unwrappedErr.Error()
+				}
+			}
+			// Add checks for other specific commonErrors if needed
+
+			// Log the original error with context (includes trace/span IDs via hook)
+			logEntry := logrus.WithContext(ctx).WithError(err)
+			if code >= 500 {
+				logEntry.Errorf("Unhandled error in handler: %v", err)
+			} else {
+				// Log client errors (4xx) at Warn level
+				logEntry.Warnf("Client error in handler: %v", err)
+			}
+
+			// Record the error on the span
+			span.RecordError(err)
+			// Set span status to Error (standard practice for any handler error)
+			span.SetStatus(codes.Error, err.Error())
+
+			// Return the error response to the client using the determined code and message
+			return c.Status(code).JSON(fiber.Map{
+				// Use the JSONFieldError constant (defined in handler.go, now part of package main)
+				JSONFieldError: httpErrMessage,
+			})
+		},
 	})
 
 	// --- Add OTel Middleware FIRST ---
 	app.Use(otelfiber.Middleware())
 
 	// Optional: Keep Fiber's built-in logger or rely solely on OTel/Logrus logs
-	app.Use(fiberlogger.New())
+	// app.Use(fiberlogger.New()) // REMOVED
 
 	api := app.Group("/products")
 	api.Get("/", productHandler.GetAllProducts)

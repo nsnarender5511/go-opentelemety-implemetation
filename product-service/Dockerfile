@@ -3,9 +3,11 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Copy all necessary source code from the build context root
-# This assumes the build context is the workspace root, containing both 'common' and 'product-service'
-COPY . .
+# Copy common module first
+COPY common/ ./common/
+
+# Copy the entire product service code
+COPY product-service/ ./product-service/
 
 # Change working directory INTO product-service
 WORKDIR /app/product-service
@@ -24,9 +26,6 @@ WORKDIR /app
 
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main .
-
-# Copy the data file required by the application
-COPY product-service/data.json .
 
 # Expose the default port the service runs on
 EXPOSE 8082
