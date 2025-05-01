@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 RUN pip install --no-cache-dir requests
 
 # Copy the simulation script into the container
-COPY simulate_product_service.py .
+COPY tests/simulate_product_service.py .
 
 # Command to run the script
 ENTRYPOINT ["python", "./simulate_product_service.py"] 

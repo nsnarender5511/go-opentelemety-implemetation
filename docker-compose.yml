@@ -17,6 +17,20 @@ services:
       - signoz-net # Connect to the externally defined network
     env_file:
       - .env # Load environment variables (like OTLP endpoint, service name) from .env file
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   # --- Product Simulator Service (Based on tests/Dockerfile) ---
   product-simulator:

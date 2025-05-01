@@ -6,9 +6,11 @@ import (
 	"fmt"
 
 	commonErrors "github.com/narender/common/errors"
-	"github.com/narender/common/telemetry"
+	// "github.com/narender/common/telemetry" // Replaced by otel
 	"github.com/sirupsen/logrus"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute" // Import attribute
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -22,13 +24,15 @@ type ProductService interface {
 
 // productService implements the ProductService interface
 type productService struct {
-	repo ProductRepository
+	repo   ProductRepository
+	tracer trace.Tracer // Add tracer field
 }
 
 // NewProductService creates a new product service
 func NewProductService(repo ProductRepository) ProductService {
 	return &productService{
-		repo: repo,
+		repo:   repo,
+		tracer: otel.Tracer("product-service"), // Initialize tracer
 	}
 }
 
@@ -43,9 +47,14 @@ func (s *productService) handleRepoError(ctx context.Context, span trace.Span, o
 
 	logrus.WithContext(ctx).WithError(err).Errorf("Service: Repository error during %s", opDesc)
 
-	if errors.Is(err, commonErrors.ErrProductNotFound) {
-		return commonErrors.ErrProductNotFound
+	// Check if the underlying error is ErrNotFound
+	if errors.Is(err, commonErrors.ErrNotFound) {
+		// Return the original error (which is likely an AppError)
+		// Or potentially return a new commonErrors.NotFound if we want to reset context?
+		// Let's return the original error for now.
+		return err
 	}
+	// Wrap other repository errors
 	return fmt.Errorf("repository error during %s: %w", opDesc, err)
 }
 
@@ -53,7 +62,7 @@ func (s *productService) handleRepoError(ctx context.Context, span trace.Span, o
 func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	logrus.WithContext(ctx).Info("Service: Fetching all products")
 
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetAll")
+	ctx, span := s.tracer.Start(ctx, "service.GetAll")
 	defer span.End()
 
 	products, repoErr := s.repo.GetAll(ctx)
@@ -61,7 +70,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 
-	telemetry.AddAttribute(span, "db.result.count", len(products))
+	span.SetAttributes(attribute.Int("db.result.count", len(products)))
 	span.SetStatus(codes.Ok, "")
 
 	return products, nil
@@ -71,10 +80,10 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 func (s *productService) GetByID(ctx context.Context, productID string) (Product, error) {
 	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Fetching product by ID")
 
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetByID")
+	ctx, span := s.tracer.Start(ctx, "service.GetByID")
 	defer span.End()
 
-	telemetry.AddAttribute(span, "app.product.id", productID)
+	span.SetAttributes(attribute.String("app.product.id", productID))
 
 	product, repoErr := s.repo.GetByID(ctx, productID)
 	if err := s.handleRepoError(ctx, span, fmt.Sprintf("GetByID for '%s'", productID), repoErr); err != nil {
@@ -89,10 +98,10 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 func (s *productService) GetStock(ctx context.Context, productID string) (int, error) {
 	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Checking stock for product ID")
 
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetStock")
+	ctx, span := s.tracer.Start(ctx, "service.GetStock")
 	defer span.End()
 
-	telemetry.AddAttribute(span, "app.product.id", productID)
+	span.SetAttributes(attribute.String("app.product.id", productID))
 
 	product, err := s.repo.GetByID(ctx, productID)
 	if err != nil {
@@ -100,7 +109,7 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 	}
 
 	stock := product.Stock
-	telemetry.AddAttribute(span, "app.product.stock", stock)
+	span.SetAttributes(attribute.Int("app.product.stock", stock))
 	span.SetStatus(codes.Ok, "")
 
 	return stock, nil

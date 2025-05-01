@@ -6,12 +6,18 @@ import (
 	"net/http"
 
 	commonErrors "github.com/narender/common/errors"
-	"github.com/narender/common/telemetry"
 	"github.com/sirupsen/logrus"
 
 	"github.com/gofiber/fiber/v2"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+)
+
+// Define custom attribute keys specific to this service
+var (
+	AttrAppProductID    = attribute.Key("app.product.id")
+	AttrAppProductStock = attribute.Key("app.product.stock")
 )
 
 // ProductHandler handles HTTP requests for products
@@ -38,7 +44,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 		return err
 	}
 
-	span.SetAttributes(telemetry.AttrProductCount.Int(len(products)))
+	span.SetAttributes(attribute.Int("app.product.count", len(products)))
 	span.SetStatus(codes.Ok, "")
 
 	logrus.WithContext(ctx).WithField("count", len(products)).Debug("Handler: Responding successfully for GetAllProducts")
@@ -55,9 +61,9 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 		return validationErr
 	}
 
-	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
+	span.SetAttributes(AttrAppProductID.String(productID))
 
-	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
+	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
 
 	product, err := h.service.GetByID(ctx, productID)
 
@@ -67,7 +73,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	span.SetStatus(codes.Ok, "")
 
-	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
+	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
 	return c.Status(http.StatusOK).JSON(product)
 }
 
@@ -81,9 +87,9 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 		return validationErr
 	}
 
-	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
+	span.SetAttributes(AttrAppProductID.String(productID))
 
-	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
+	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
 
 	stock, err := h.service.GetStock(ctx, productID)
 
@@ -91,12 +97,12 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 		return err
 	}
 
-	span.SetAttributes(telemetry.AttrAppProductStock.Int(stock))
+	span.SetAttributes(AttrAppProductStock.Int(stock))
 	span.SetStatus(codes.Ok, "")
 
 	logrus.WithContext(ctx).WithFields(logrus.Fields{
-		string(telemetry.AttrAppProductID):    productID,
-		string(telemetry.AttrAppProductStock): stock,
+		string(AttrAppProductID):    productID,
+		string(AttrAppProductStock): stock,
 	}).Debug("Handler: Responding successfully for GetProductStock")
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
@@ -144,19 +150,16 @@ func (h *ProductHandler) MapErrorToResponse(c *fiber.Ctx, err error) error {
 	spanMessage := httpErrMessage
 	logLevel := logrus.ErrorLevel // Default log level for errors
 
-	var validationErr *commonErrors.ValidationError
+	var appErr *commonErrors.AppError
 	var dbErr *commonErrors.DatabaseError
 
-	if errors.As(err, &validationErr) {
-		code = http.StatusBadRequest
-		httpErrMessage = validationErr.Error()
+	if errors.As(err, &appErr) {
+		code = appErr.StatusCode
+		httpErrMessage = appErr.Error()
 		spanMessage = httpErrMessage
-		logLevel = logrus.WarnLevel
-	} else if errors.Is(err, commonErrors.ErrProductNotFound) {
-		code = http.StatusNotFound
-		httpErrMessage = commonErrors.ErrProductNotFound.Error()
-		spanMessage = httpErrMessage
-		logLevel = logrus.WarnLevel
+		if code < 500 { // Generally, client errors are warnings
+			logLevel = logrus.WarnLevel
+		}
 	} else if errors.As(err, &dbErr) {
 		// Keep 500 for database errors, but log details
 		httpErrMessage = "An internal database error occurred"

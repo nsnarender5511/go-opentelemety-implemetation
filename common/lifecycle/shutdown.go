@@ -2,86 +2,199 @@ package lifecycle
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
 )
 
-// WaitForGracefulShutdown blocks until a SIGINT or SIGTERM signal is received,
-// then coordinates the graceful shutdown of the provided server and telemetry.
-// It uses timeout configurations from the common/config package.
-func WaitForGracefulShutdown(ctx context.Context, server Shutdowner, telemetryShutdown func(context.Context) error) {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-quit
+// Shutdowner defines an interface for components that support graceful shutdown
+type Shutdowner interface {
+	Shutdown(ctx context.Context) error
+}
 
-	// Use the globally configured logrus logger
-	logger := logrus.StandardLogger()
+// ShutdownManager handles the graceful shutdown of components
+type ShutdownManager struct {
+	logger     *logrus.Logger
+	components []namedComponent
+	timeout    time.Duration
+	signalChan chan os.Signal
+	stopChan   chan struct{}
+	shutdownWg sync.WaitGroup
+}
 
-	logger.WithField("signal", sig.String()).Info("Received shutdown signal, initiating graceful shutdown...")
+type namedComponent struct {
+	name      string
+	component Shutdowner
+	timeout   time.Duration
+}
 
-	// Use background context for shutdown process, independent of initial context
-	shutdownTotalTimeout := config.ShutdownTotalTimeout()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTotalTimeout)
+// NewShutdownManager creates a new shutdown manager
+func NewShutdownManager(logger *logrus.Logger) *ShutdownManager {
+	if logger == nil {
+		logger = logrus.StandardLogger()
+	}
+
+	return &ShutdownManager{
+		logger:     logger,
+		components: []namedComponent{},
+		timeout:    30 * time.Second, // Default total timeout
+		signalChan: make(chan os.Signal, 1),
+		stopChan:   make(chan struct{}),
+	}
+}
+
+// WithTimeout sets the total timeout for shutdown
+func (m *ShutdownManager) WithTimeout(timeout time.Duration) *ShutdownManager {
+	m.timeout = timeout
+	return m
+}
+
+// Register adds a component to be shut down
+func (m *ShutdownManager) Register(name string, component Shutdowner, timeout time.Duration) *ShutdownManager {
+	m.components = append(m.components, namedComponent{
+		name:      name,
+		component: component,
+		timeout:   timeout,
+	})
+	return m
+}
+
+// Start begins listening for shutdown signals
+func (m *ShutdownManager) Start(ctx context.Context) {
+	signal.Notify(m.signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	m.shutdownWg.Add(1)
+	go func() {
+		defer m.shutdownWg.Done()
+
+		select {
+		case sig := <-m.signalChan:
+			m.logger.WithField("signal", sig.String()).Info("Received shutdown signal")
+			m.executeShutdown(ctx)
+		case <-m.stopChan:
+			m.logger.Info("Shutdown requested programmatically")
+			m.executeShutdown(ctx)
+		case <-ctx.Done():
+			m.logger.Info("Shutdown triggered by context cancellation")
+			m.executeShutdown(context.Background()) // Use a new context since the original is canceled
+		}
+	}()
+}
+
+// Stop triggers a shutdown programmatically
+func (m *ShutdownManager) Stop() {
+	select {
+	case m.stopChan <- struct{}{}:
+		// Signal sent
+	default:
+		// Channel already closed or shutdown in progress
+	}
+
+	// Wait for shutdown to complete
+	m.shutdownWg.Wait()
+}
+
+// executeShutdown performs the actual shutdown sequence
+func (m *ShutdownManager) executeShutdown(ctx context.Context) {
+	// Create a context with timeout for the shutdown process
+	shutdownCtx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
 
-	var shutdownErrs error
-	// Define shutdown order and specific timeouts from config
-	shutdownTasks := []struct {
-		name     string
-		timeout  time.Duration // Specific timeout for this task
-		shutdown func(context.Context) error
-	}{
-		{"server", config.ShutdownServerTimeout(), server.Shutdown},
-		{"telemetry", config.ShutdownOtelMinTimeout(), telemetryShutdown},
-	}
+	var shutdownErrors []error
 
-	// Process shutdowns sequentially
-	for _, task := range shutdownTasks {
-		if task.shutdown == nil {
-			logger.Debugf("Skipping shutdown for %s (nil function)", task.name)
-			continue
-		}
+	// Shutdown components in reverse order (LIFO)
+	for i := len(m.components) - 1; i >= 0; i-- {
+		comp := m.components[i]
 
-		// Create context with specific timeout for this task, derived from the overall shutdown context.
-		// This ensures the task doesn't exceed its allocated time AND respects the overall deadline.
-		taskCtx, taskCancel := context.WithTimeout(shutdownCtx, task.timeout)
+		// Create a context with the component's timeout
+		compCtx, compCancel := context.WithTimeout(shutdownCtx, comp.timeout)
 
-		logger.Infof("Attempting to shut down %s (timeout: %s)...", task.name, task.timeout)
-		if err := task.shutdown(taskCtx); err != nil {
-			logger.WithError(err).Errorf("Error during %s shutdown", task.name)
-			shutdownErrs = errors.Join(shutdownErrs, fmt.Errorf("%s shutdown error: %w", task.name, err))
-			// If the error is context deadline exceeded, log it specifically
-			if errors.Is(err, context.DeadlineExceeded) {
-				logger.Warnf("%s shutdown timed out after %s", task.name, task.timeout)
-			}
+		m.logger.WithField("component", comp.name).Info("Shutting down component")
+		startTime := time.Now()
+
+		if err := comp.component.Shutdown(compCtx); err != nil {
+			m.logger.WithError(err).WithField("component", comp.name).Error("Error shutting down component")
+			shutdownErrors = append(shutdownErrors, fmt.Errorf("shutdown error for %s: %w", comp.name, err))
 		} else {
-			logger.Infof("%s shutdown complete", task.name)
+			duration := time.Since(startTime)
+			m.logger.WithFields(logrus.Fields{
+				"component": comp.name,
+				"duration":  duration,
+			}).Info("Component shutdown successful")
 		}
-		taskCancel() // Cancel this task's context immediately
 
-		// Check if the *overall* shutdown context has timed out after this step
+		compCancel()
+
+		// Check if the overall context is done
 		if shutdownCtx.Err() != nil {
-			logger.Warnf("Overall shutdown timeout (%s) exceeded during %s shutdown. Aborting further steps.", shutdownTotalTimeout, task.name)
-			// Ensure the timeout error is captured if not already
-			if !errors.Is(shutdownErrs, context.DeadlineExceeded) {
-				shutdownErrs = errors.Join(shutdownErrs, fmt.Errorf("overall shutdown timeout exceeded: %w", shutdownCtx.Err()))
-			}
-			break // Stop processing further shutdown tasks
+			m.logger.Warn("Overall shutdown timeout exceeded, skipping remaining components")
+			break
 		}
 	}
 
-	if shutdownErrs != nil {
-		logger.WithError(shutdownErrs).Error("Application shutdown completed with errors")
-		os.Exit(1) // Exit with error code if any shutdown step failed
+	if len(shutdownErrors) > 0 {
+		m.logger.Error("Shutdown completed with errors")
+		// Force exit with error code
+		os.Exit(1)
 	} else {
-		logger.Info("Application shutdown completed successfully")
-		os.Exit(0) // Exit normally
+		m.logger.Info("Graceful shutdown completed successfully")
+		os.Exit(0)
 	}
+}
+
+// FiberAdapter adapts a Fiber app to the Shutdowner interface
+type FiberAdapter struct {
+	App *fiber.App
+}
+
+// Shutdown implements the Shutdowner interface
+func (a *FiberAdapter) Shutdown(ctx context.Context) error {
+	if a.App == nil {
+		return nil
+	}
+	return a.App.ShutdownWithContext(ctx)
+}
+
+// WaitForGracefulShutdown provides backward compatibility with the previous API
+func WaitForGracefulShutdown(ctx context.Context, server Shutdowner, telemetryShutdown func(context.Context) error) {
+	cfg := config.GetConfig()
+	logger := logrus.StandardLogger()
+
+	// Create a shutdown manager
+	manager := NewShutdownManager(logger).WithTimeout(cfg.ShutdownTotalTimeout)
+
+	// Register components
+	manager.Register("server", server, cfg.ShutdownServerTimeout)
+
+	// Adapt the telemetry shutdown function to a Shutdowner
+	if telemetryShutdown != nil {
+		telemetryComp := &functionAdapter{fn: telemetryShutdown}
+		manager.Register("telemetry", telemetryComp, cfg.ShutdownOtelMinTimeout)
+	}
+
+	// Start the manager and wait for signals
+	manager.Start(ctx)
+
+	// Block until shutdown completes
+	select {} // This will block until the process exits
+}
+
+// functionAdapter adapts a function to the Shutdowner interface
+type functionAdapter struct {
+	fn func(context.Context) error
+}
+
+// Shutdown calls the wrapped function
+func (a *functionAdapter) Shutdown(ctx context.Context) error {
+	if a.fn == nil {
+		return nil
+	}
+	return a.fn(ctx)
 }

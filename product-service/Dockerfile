@@ -46,17 +46,21 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/product-service .
 # If using vendor: go build -mod=vendor ...
 
 # ---- Final Stage ----
-# Use a minimal base image
-FROM alpine:latest
+# Use distroless nonroot image for minimal attack surface and security
+FROM gcr.io/distroless/static:nonroot
 
-# Security updates and timezone data (good practice)
-RUN apk update && apk add --no-cache ca-certificates tzdata && rm -rf /var/cache/apk/*
+# Distroless images contain only the application and minimal OS libraries.
+# They don't include package managers or shells.
+# ca-certificates and tzdata are typically included in base images or handled differently.
+# We assume the base distroless image has necessary certificates.
 
-# Set working directory in the final image
+# Set working directory (good practice, even if minimal)
 WORKDIR /app
 
 # Copy ONLY the compiled binary from the builder stage
-COPY --from=builder /app/product-service /app/product-service
+# Ensure the binary is copied to a location accessible by the nonroot user
+# distroless/static:nonroot runs as user 65532 ('nonroot')
+COPY --from=builder --chown=nonroot:nonroot /app/product-service /app/product-service
 
 # DO NOT copy data.json here. It will be mounted as a volume via docker-compose.
 
@@ -68,6 +72,7 @@ EXPOSE 8082
 # Use ENTRYPOINT exec form to handle signals properly
 ENTRYPOINT ["/app/product-service"]
 
-# Optional: Define a non-root user for better security
-# RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-# USER appuser 
+# Remove the commented-out USER section as distroless handles it.
+# # Optional: Define a non-root user for better security
+# # RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# # USER appuser 

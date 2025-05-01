@@ -1,16 +1,12 @@
 package config
 
 import (
-	"errors"
-	"fmt"
-	"net/url" // Added for URI validation
+	"fmt" // Added for URI validation
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,198 +48,268 @@ var (
 	allowedLogFormats = map[string]struct{}{"text": {}, "json": {}}
 )
 
-// Package-level variables to hold configuration
-var (
-	productServicePort   string
-	logLevel             string
-	logFormat            string
-	otelServiceName      string // Note: Renamed from serviceName for clarity with OTEL_SERVICE_NAME env var
-	serviceVersion       string
-	otelExporterEndpoint string
-	otelExporterInsecure bool
-	otelSampleRatio      float64
-	dataFilepath         string
+// Config holds all configuration settings
+type Config struct {
+	// Service information
+	ServiceName    string
+	ServiceVersion string
 
-	shutdownTotalTimeout   time.Duration
-	shutdownServerTimeout  time.Duration
-	shutdownOtelMinTimeout time.Duration
+	// OpenTelemetry configuration
+	OtelEndpoint     string
+	OtelInsecure     bool
+	OtelSampleRatio  float64
+	OtelBatchTimeout time.Duration
 
-	// Optional advanced OTel values (can be added if needed)
-	otelBatchTimeout       time.Duration
-	otelMaxExportBatchSize int
-	otelLogMaxQueueSize    int
-	otelLogExportTimeout   time.Duration
-	otelLogExportInterval  time.Duration
+	// Logging configuration
+	LogLevel  string
+	LogFormat string
 
-	loadOnce sync.Once
-	loadErr  error
-)
+	// Application-specific settings
+	ProductServicePort string
+	DataFilePath       string
 
-// LoadConfig loads configuration from environment variables and .env files.
-// It relies solely on godotenv and standard Go libraries.
-// It returns an aggregated error if loading or validation fails.
+	// Shutdown timeouts
+	ShutdownTotalTimeout   time.Duration
+	ShutdownServerTimeout  time.Duration
+	ShutdownOtelMinTimeout time.Duration
+}
+
+// NewConfig creates a new Config with the provided options
+func NewConfig(opts ...Option) *Config {
+	c := &Config{
+		// Set sensible defaults
+		ServiceName:            "service",
+		ServiceVersion:         "dev",
+		OtelEndpoint:           "http://localhost:4317",
+		OtelInsecure:           false,
+		OtelSampleRatio:        1.0,
+		OtelBatchTimeout:       5 * time.Second,
+		LogLevel:               "info",
+		LogFormat:              "text",
+		ProductServicePort:     "8080",
+		ShutdownTotalTimeout:   30 * time.Second,
+		ShutdownServerTimeout:  10 * time.Second,
+		ShutdownOtelMinTimeout: 5 * time.Second,
+	}
+
+	// Apply all options
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
+// WithEnv loads configuration from environment variables
+func (c *Config) WithEnv() *Config {
+	// Load .env files first (optional) - SKIPPING FOR LOCAL RUN
+	// _ = godotenv.Load(".env.default") // Ignore error if file doesn't exist
+	// _ = godotenv.Load(".env")         // Ignore error if file doesn't exist
+
+	// Map of environment variables to config fields
+	envMappings := map[string]*string{
+		"OTEL_SERVICE_NAME":           &c.ServiceName,
+		"SERVICE_VERSION":             &c.ServiceVersion,
+		"OTEL_EXPORTER_OTLP_ENDPOINT": &c.OtelEndpoint,
+		"LOG_LEVEL":                   &c.LogLevel,
+		"LOG_FORMAT":                  &c.LogFormat,
+		"PRODUCT_SERVICE_PORT":        &c.ProductServicePort,
+		"DATA_FILE_PATH":              &c.DataFilePath,
+	}
+
+	// Apply environment variables if they exist
+	for env, field := range envMappings {
+		if val := os.Getenv(env); val != "" {
+			*field = val
+		}
+	}
+
+	// Handle boolean values
+	if val := os.Getenv("OTEL_EXPORTER_INSECURE"); val != "" {
+		c.OtelInsecure = strings.ToLower(val) == "true"
+	}
+
+	// Handle float values
+	if val := os.Getenv("OTEL_SAMPLE_RATIO"); val != "" {
+		if ratio, err := strconv.ParseFloat(val, 64); err == nil {
+			c.OtelSampleRatio = ratio
+		}
+	}
+
+	// Handle time durations (in seconds)
+	if val := os.Getenv("SHUTDOWN_TOTAL_TIMEOUT_SEC"); val != "" {
+		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
+			c.ShutdownTotalTimeout = time.Duration(seconds) * time.Second
+		}
+	}
+
+	if val := os.Getenv("SHUTDOWN_SERVER_TIMEOUT_SEC"); val != "" {
+		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
+			c.ShutdownServerTimeout = time.Duration(seconds) * time.Second
+		}
+	}
+
+	if val := os.Getenv("SHUTDOWN_OTEL_MIN_TIMEOUT_SEC"); val != "" {
+		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
+			c.ShutdownOtelMinTimeout = time.Duration(seconds) * time.Second
+		}
+	}
+
+	// Handle time durations (in milliseconds)
+	if val := os.Getenv("OTEL_BATCH_TIMEOUT_MS"); val != "" {
+		if ms, err := strconv.Atoi(val); err == nil && ms >= 0 {
+			c.OtelBatchTimeout = time.Duration(ms) * time.Millisecond
+		}
+	}
+
+	return c
+}
+
+// Validate validates the configuration
+func (c *Config) Validate() []error {
+	validator := NewValidator()
+
+	// Validate required fields
+	validator.RequireNonEmpty("ServiceName", c.ServiceName)
+	validator.RequireNonEmpty("ServiceVersion", c.ServiceVersion)
+	validator.RequireNonEmpty("OtelEndpoint", c.OtelEndpoint)
+	validator.RequireNonEmpty("LogLevel", c.LogLevel)
+	validator.RequireNonEmpty("LogFormat", c.LogFormat)
+	validator.RequireNonEmpty("ProductServicePort", c.ProductServicePort)
+
+	// Validate values in allowed sets
+	validator.RequireOneOf("LogLevel", c.LogLevel, []string{"debug", "info", "warn", "error", "fatal", "panic"})
+	validator.RequireOneOf("LogFormat", c.LogFormat, []string{"text", "json"})
+
+	// Validate numeric ranges
+	if port, err := strconv.Atoi(c.ProductServicePort); err == nil {
+		validator.RequireInRange("ProductServicePort", port, 1, 65535)
+	} else {
+		validator.AddError("ProductServicePort", "must be a valid integer")
+	}
+
+	validator.RequireInRange("OtelSampleRatio", c.OtelSampleRatio, 0.0, 1.0)
+
+	// Validate file existence if specified
+	if c.DataFilePath != "" {
+		if _, err := os.Stat(c.DataFilePath); os.IsNotExist(err) {
+			validator.AddError("DataFilePath", "file does not exist: "+c.DataFilePath)
+		}
+	}
+
+	return validator.Errors()
+}
+
+// Log logs the current configuration
+func (c *Config) Log() {
+	logrus.WithFields(logrus.Fields{
+		"service_name":      c.ServiceName,
+		"service_version":   c.ServiceVersion,
+		"otel_endpoint":     c.OtelEndpoint,
+		"otel_insecure":     c.OtelInsecure,
+		"otel_sample_ratio": c.OtelSampleRatio,
+		"log_level":         c.LogLevel,
+		"log_format":        c.LogFormat,
+		"port":              c.ProductServicePort,
+		"data_file_path":    c.DataFilePath,
+		"shutdown_total":    c.ShutdownTotalTimeout,
+		"shutdown_server":   c.ShutdownServerTimeout,
+		"shutdown_otel":     c.ShutdownOtelMinTimeout,
+	}).Info("Configuration loaded")
+}
+
+// Global instance for compatibility with existing code
+var globalConfig *Config
+
+// LoadConfig loads configuration from environment variables, validates it, and returns errors
+// This function exists for compatibility with the previous global state approach
 func LoadConfig() error {
-	loadOnce.Do(func() {
-		configLogger.Info("Attempting to load configuration...")
+	cfg := NewDefaultConfig().WithEnv()
 
-		// Load .env files first (default then override)
-		_ = godotenv.Load(".env.default") // Ignore error if default doesn't exist
-		_ = godotenv.Load(".env")         // Ignore error if override doesn't exist
-
-		var validationErrors []string
-
-		// --- Read and Validate Required Variables ---
-
-		otelServiceName, loadErr = getEnvStrRequired(envServiceName)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
+	if errors := cfg.Validate(); len(errors) > 0 {
+		// Format all errors into a single error message
+		errorMessages := make([]string, len(errors))
+		for i, err := range errors {
+			errorMessages[i] = err.Error()
 		}
-		serviceVersion, loadErr = getEnvStrRequired(envServiceVersion)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		}
+		return fmt.Errorf("configuration validation failed: %s", strings.Join(errorMessages, "; "))
+	}
 
-		otelExporterEndpoint, loadErr = getEnvStrRequired(envOtelExporterEndpoint)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if _, err := url.ParseRequestURI(otelExporterEndpoint); err != nil {
-			validationErrors = append(validationErrors, fmt.Sprintf("invalid URI format for %s: %v", envOtelExporterEndpoint, err))
-		}
+	globalConfig = cfg
+	cfg.Log()
+	return nil
+}
 
-		logLevel, loadErr = getEnvStrRequired(envLogLevel)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if _, ok := allowedLogLevels[strings.ToLower(logLevel)]; !ok {
-			validationErrors = append(validationErrors, fmt.Sprintf("invalid value for %s: '%s', allowed: %v", envLogLevel, logLevel, getMapKeys(allowedLogLevels)))
-		}
+// GetConfig returns the global configuration instance
+// This function exists for compatibility with the previous global state approach
+func GetConfig() *Config {
+	if globalConfig == nil {
+		// If not initialized, load with defaults
+		globalConfig = NewDefaultConfig().WithEnv()
+	}
+	return globalConfig
+}
 
-		logFormat, loadErr = getEnvStrRequired(envLogFormat)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if _, ok := allowedLogFormats[strings.ToLower(logFormat)]; !ok {
-			validationErrors = append(validationErrors, fmt.Sprintf("invalid value for %s: '%s', allowed: %v", envLogFormat, logFormat, getMapKeys(allowedLogFormats)))
-		}
+// The following functions are kept for backward compatibility
 
-		productServicePort, loadErr = getEnvStrRequired(envProductServicePort)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else {
-			if portNum, err := strconv.Atoi(productServicePort); err != nil {
-				validationErrors = append(validationErrors, fmt.Sprintf("invalid integer format for %s: '%s'", envProductServicePort, productServicePort))
-			} else if portNum <= 0 || portNum > 65535 {
-				validationErrors = append(validationErrors, fmt.Sprintf("port %s must be between 1 and 65535, got %d", envProductServicePort, portNum))
-			}
-		}
+// ServiceName returns the service name from the global config
+func ServiceName() string {
+	return GetConfig().ServiceName
+}
 
-		dataFilepath, loadErr = getEnvStrRequired(envDataFilePath)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if _, err := os.Stat(dataFilepath); os.IsNotExist(err) {
-			validationErrors = append(validationErrors, fmt.Sprintf("file specified by %s does not exist: %s", envDataFilePath, dataFilepath))
-		}
+// ServiceVersion returns the service version from the global config
+func ServiceVersion() string {
+	return GetConfig().ServiceVersion
+}
 
-		shutdownTotalSec, loadErr := getEnvIntRequired(envShutdownTotalTimeout)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if shutdownTotalSec < 0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be >= 0, got %d", envShutdownTotalTimeout, shutdownTotalSec))
-		} else {
-			shutdownTotalTimeout = time.Duration(shutdownTotalSec) * time.Second
-		}
+// OtelExporterEndpoint returns the OpenTelemetry exporter endpoint from the global config
+func OtelExporterEndpoint() string {
+	return GetConfig().OtelEndpoint
+}
 
-		shutdownServerSec, loadErr := getEnvIntRequired(envShutdownServerTimeout)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if shutdownServerSec < 0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be >= 0, got %d", envShutdownServerTimeout, shutdownServerSec))
-		} else {
-			shutdownServerTimeout = time.Duration(shutdownServerSec) * time.Second
-		}
+// IsOtelExporterInsecure returns whether the OpenTelemetry exporter is insecure from the global config
+func IsOtelExporterInsecure() bool {
+	return GetConfig().OtelInsecure
+}
 
-		shutdownOtelMinSec, loadErr := getEnvIntRequired(envShutdownOtelMinTimeout)
-		if loadErr != nil {
-			validationErrors = append(validationErrors, loadErr.Error())
-		} else if shutdownOtelMinSec < 0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be >= 0, got %d", envShutdownOtelMinTimeout, shutdownOtelMinSec))
-		} else {
-			shutdownOtelMinTimeout = time.Duration(shutdownOtelMinSec) * time.Second
-		}
+// OtelSampleRatio returns the OpenTelemetry sampling ratio from the global config
+func OtelSampleRatio() float64 {
+	return GetConfig().OtelSampleRatio
+}
 
-		// --- Read Optional Variables (Provide defaults here or handle missing values) ---
-		// Example: Read OTEL_EXPORTER_INSECURE with a default of false
-		var insecureErr error
-		otelExporterInsecure, insecureErr = getEnvBool(envOtelExporterInsecure, false)
-		if insecureErr != nil { // Log parse errors for optional bools but don't fail validation
-			configLogger.Warnf("Could not parse %s: %v, using default 'false'", envOtelExporterInsecure, insecureErr)
-		}
+// LogLevel returns the log level from the global config
+func LogLevel() string {
+	return GetConfig().LogLevel
+}
 
-		// Example: Read OTEL_SAMPLE_RATIO with a default of 1.0 and validation
-		var sampleRatioErr error
-		otelSampleRatio, sampleRatioErr = getEnvFloat(envOtelSampleRatio, 1.0)
-		if sampleRatioErr != nil {
-			configLogger.Warnf("Could not parse %s: %v, using default '1.0'", envOtelSampleRatio, sampleRatioErr)
-			// If parsing fails, default is used, which is valid. Only validate if parsing succeeds.
-		} else if otelSampleRatio < 0 || otelSampleRatio > 1.0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be between 0.0 and 1.0, got %f", envOtelSampleRatio, otelSampleRatio))
-		}
+// LogFormat returns the log format from the global config
+func LogFormat() string {
+	return GetConfig().LogFormat
+}
 
-		// --- Read Optional Advanced OTel Vars (Example) ---
-		var err error
-		otelBatchTimeout, err = getEnvDurationMS(envOtelBatchTimeoutMS, 5000)
-		if err != nil {
-			configLogger.Warnf("Error parsing %s: %v, using default", envOtelBatchTimeoutMS, err)
-		}
-		otelMaxExportBatchSize, err = getEnvInt(envOtelMaxExportBatchSize, 512)
-		if err != nil {
-			configLogger.Warnf("Error parsing %s: %v, using default", envOtelMaxExportBatchSize, err)
-		}
-		otelLogMaxQueueSize, err = getEnvInt(envOtelLogMaxQueueSize, 2048)
-		if err != nil {
-			configLogger.Warnf("Error parsing %s: %v, using default", envOtelLogMaxQueueSize, err)
-		}
-		otelLogExportTimeout, err = getEnvDurationMS(envOtelLogExportTimeoutMS, 30000)
-		if err != nil {
-			configLogger.Warnf("Error parsing %s: %v, using default", envOtelLogExportTimeoutMS, err)
-		}
-		otelLogExportInterval, err = getEnvDurationMS(envOtelLogExportIntervalMS, 1000)
-		if err != nil {
-			configLogger.Warnf("Error parsing %s: %v, using default", envOtelLogExportIntervalMS, err)
-		}
+// ProductServicePort returns the product service port from the global config
+func ProductServicePort() string {
+	return GetConfig().ProductServicePort
+}
 
-		// --- Final Validation Check ---
-		if len(validationErrors) > 0 {
-			finalErrorMsg := fmt.Sprintf("configuration validation failed: %s", strings.Join(validationErrors, "; "))
-			loadErr = errors.New(finalErrorMsg) // Set the aggregated error to loadErr
-			configLogger.Error(loadErr)
-			return // Stop further processing
-		}
+// DataFilepath returns the data file path from the global config
+func DataFilepath() string {
+	return GetConfig().DataFilePath
+}
 
-		// --- Log Loaded Configuration ---
-		configLogger.Info("Configuration loaded and validated successfully.")
-		configLogger.WithFields(logrus.Fields{
-			"otel_service_name":    otelServiceName,
-			"service_version":      serviceVersion,
-			"otel_endpoint":        otelExporterEndpoint,
-			"otel_insecure":        otelExporterInsecure,
-			"otel_sample_ratio":    otelSampleRatio,
-			"log_level":            logLevel,
-			"log_format":           logFormat,
-			"product_service_port": productServicePort,
-			"data_file_path":       dataFilepath,
-			"shutdown_total":       shutdownTotalTimeout,
-			"shutdown_server":      shutdownServerTimeout,
-			"shutdown_otel_min":    shutdownOtelMinTimeout,
-			// Optional advanced values
-			"otel_batch_timeout":  otelBatchTimeout,
-			"otel_max_batch_size": otelMaxExportBatchSize,
-			"log_queue_size":      otelLogMaxQueueSize,
-			"log_export_timeout":  otelLogExportTimeout,
-			"log_export_interval": otelLogExportInterval,
-		}).Debug("Full loaded configuration values")
+// ShutdownTotalTimeout returns the total shutdown timeout from the global config
+func ShutdownTotalTimeout() time.Duration {
+	return GetConfig().ShutdownTotalTimeout
+}
 
-	})
+// ShutdownServerTimeout returns the server shutdown timeout from the global config
+func ShutdownServerTimeout() time.Duration {
+	return GetConfig().ShutdownServerTimeout
+}
 
-	return loadErr // Return the error captured within loadOnce.Do (nil on success)
+// ShutdownOtelMinTimeout returns the minimum OpenTelemetry shutdown timeout from the global config
+func ShutdownOtelMinTimeout() time.Duration {
+	return GetConfig().ShutdownOtelMinTimeout
 }
 
 // --- Helper function to get keys from a map[string]struct{} for error messages ---
@@ -353,80 +419,4 @@ func getEnvDurationSec(key string, fallbackSec int) (time.Duration, error) {
 		return fallbackDuration, fmt.Errorf("invalid integer format for duration (sec) %s ('%s'): %w", key, valueStr, err)
 	}
 	return time.Duration(valueSec) * time.Second, nil
-}
-
-// --- Getters for configuration values (Unchanged) ---
-
-func ProductServicePort() string {
-	return productServicePort
-}
-
-func LogLevel() string {
-	return logLevel
-}
-
-func LogFormat() string {
-	return logFormat
-}
-
-func OtelServiceName() string {
-	return otelServiceName
-}
-
-func ServiceName() string { // Keep original getter name if preferred
-	return otelServiceName
-}
-
-func ServiceVersion() string {
-	return serviceVersion
-}
-
-func OtelExporterEndpoint() string {
-	return otelExporterEndpoint
-}
-
-func IsOtelExporterInsecure() bool {
-	return otelExporterInsecure
-}
-
-func OtelSampleRatio() float64 {
-	return otelSampleRatio
-}
-
-func DataFilepath() string {
-	return dataFilepath
-}
-
-func OtelBatchTimeout() time.Duration {
-	return otelBatchTimeout
-}
-
-func OtelMaxExportBatchSize() int {
-	return otelMaxExportBatchSize
-}
-
-func ShutdownTotalTimeout() time.Duration {
-	return shutdownTotalTimeout
-}
-
-func ShutdownServerTimeout() time.Duration {
-	return shutdownServerTimeout
-}
-
-func ShutdownOtelMinTimeout() time.Duration {
-	return shutdownOtelMinTimeout
-}
-
-// --- Log Batch Processor Accessors (read from globals) ---
-
-func OtelLogMaxQueueSize() int {
-	return otelLogMaxQueueSize
-}
-
-func OtelLogExportTimeout() time.Duration {
-	return otelLogExportTimeout
-}
-
-func OtelLogExportInterval() time.Duration {
-	return otelLogExportInterval
 }

@@ -8,11 +8,14 @@ import (
 	"os"
 	"sync"
 
-	"github.com/narender/common/config"
+	// "github.com/narender/common/config" // No longer needed for global access
 	commonErrors "github.com/narender/common/errors"
-	"github.com/narender/common/telemetry"
+	// "github.com/narender/common/telemetry" // Replaced by otel
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute" // Import attribute package
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace" // Import trace package for Tracer type
 )
 
 // ProductRepository defines the interface for product data access
@@ -26,13 +29,19 @@ type productRepository struct {
 	products map[string]Product
 	mu       sync.RWMutex
 	filePath string
+	tracer   trace.Tracer // Use trace.Tracer type
 }
 
-// NewProductRepository creates a new product repository
-func NewProductRepository() (ProductRepository, error) {
+// NewProductRepository creates a new product repository, accepting the data file path
+func NewProductRepository(dataFilePath string) (ProductRepository, error) {
+	if dataFilePath == "" {
+		return nil, fmt.Errorf("data file path cannot be empty")
+	}
+
 	repo := &productRepository{
 		products: make(map[string]Product),
-		filePath: config.DataFilepath(), // Use config getter
+		filePath: dataFilePath,                      // Use passed argument
+		tracer:   otel.Tracer("product-repository"), // Get tracer instance
 	}
 
 	// Use background context and global logger for initialization messages
@@ -68,10 +77,12 @@ func (r *productRepository) readData(ctx context.Context) error {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
 
-	// Start span using the incoming context
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.readData")
-	telemetry.AddAttribute(span, "db.system", "file")
-	telemetry.AddAttribute(span, "db.file.path", r.filePath)
+	// Start span using the incoming context and the repo's tracer
+	ctx, span := r.tracer.Start(ctx, "ProductRepository.readData")
+	span.SetAttributes(
+		attribute.String("db.system", "file"),
+		attribute.String("db.file.path", r.filePath),
+	)
 	defer span.End()
 
 	r.mu.Lock()
@@ -115,7 +126,7 @@ func (r *productRepository) readData(ctx context.Context) error {
 		"path":  r.filePath,
 	}).Debug("Successfully loaded products")
 
-	telemetry.AddAttribute(span, "db.rows_loaded", productCount)
+	span.SetAttributes(attribute.Int("db.rows_loaded", productCount))
 	return nil
 }
 
@@ -123,7 +134,7 @@ func (r *productRepository) readData(ctx context.Context) error {
 func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.GetAll")
+	ctx, span := r.tracer.Start(ctx, "ProductRepository.GetAll")
 	defer span.End()
 
 	r.mu.RLock()
@@ -137,7 +148,7 @@ func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 	for _, p := range r.products {
 		result = append(result, p)
 	}
-	telemetry.AddAttribute(span, "db.rows_returned", len(result))
+	span.SetAttributes(attribute.Int("db.rows_returned", len(result)))
 	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
@@ -146,8 +157,8 @@ func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 func (r *productRepository) GetByID(ctx context.Context, id string) (Product, error) {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
-	ctx, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.GetByID")
-	telemetry.AddAttribute(span, "app.product.id", id)
+	ctx, span := r.tracer.Start(ctx, "ProductRepository.GetByID")
+	span.SetAttributes(attribute.String("app.product.id", id))
 	defer span.End()
 
 	r.mu.RLock()
@@ -155,7 +166,8 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (Product, er
 
 	product, ok := r.products[id]
 	if !ok {
-		errNotFound := commonErrors.ErrProductNotFound
+		// Use the NotFound constructor from commonErrors
+		errNotFound := commonErrors.NotFound(fmt.Sprintf("product with id '%s' not found", id))
 		// Use logger with context
 		log.WithField("product.id", id).Warn("Product not found")
 		span.RecordError(errNotFound)
