@@ -12,8 +12,6 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
-	// "github.com/go-playground/validator/v10" // Removed
-	// "github.com/spf13/viper" // Removed
 )
 
 // Initialize a minimal logger for config loading phase
@@ -79,12 +77,10 @@ var (
 
 	loadOnce sync.Once
 	loadErr  error
-
-	// Removed appConfig struct and validator instance
-	// cfg      *appConfig
-	// validate *validator.Validate
-	// once sync.Once // Reusing loadOnce
 )
+
+// Global logger instance, configured in Setup
+var Log *logrus.Logger
 
 // LoadConfig loads configuration from environment variables and .env files.
 // It relies solely on godotenv and standard Go libraries.

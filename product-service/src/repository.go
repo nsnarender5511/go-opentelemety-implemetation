@@ -10,12 +10,9 @@ import (
 
 	"github.com/narender/common/config"
 	commonErrors "github.com/narender/common/errors"
-
-	// "github.com/narender/common-module/logger" // Removed
 	"github.com/narender/common/telemetry"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
-	// otellog "go.opentelemetry.io/otel/log" // Use logrus fields instead
 )
 
 // ProductRepository defines the interface for product data access
@@ -29,16 +26,13 @@ type productRepository struct {
 	products map[string]Product
 	mu       sync.RWMutex
 	filePath string
-	// logger *logrus.Logger // Removed logger field
 }
 
 // NewProductRepository creates a new product repository
-// No longer accepts logger instance.
 func NewProductRepository() (ProductRepository, error) {
 	repo := &productRepository{
 		products: make(map[string]Product),
 		filePath: config.DataFilepath(), // Use config getter
-		// logger:   logger, // Removed
 	}
 
 	// Use background context and global logger for initialization messages

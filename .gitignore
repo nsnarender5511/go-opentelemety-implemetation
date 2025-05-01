@@ -5,7 +5,7 @@
 /notification-service
 
 # Go module sum file (generally recommended to commit)
-go.sum
+# go.sum
 
 # Signoz deployment directory
 .signoz
@@ -15,6 +15,10 @@ go.sum
 
 # Anomalous src file if generated
 product-service/src/src
+
+# Go Build Artifacts
+product-service/product-service
+bin/
 
 
 

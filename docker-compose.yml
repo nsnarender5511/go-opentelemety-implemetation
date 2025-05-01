@@ -2,7 +2,7 @@
 networks:
   signoz-net:
     external: true
-    name: signoz-net # Must match the name defined in docker-compose.signoz.yml
+    name: signoz-net # Must match the name defined in docker-compose.signoz.yml; used for communication with Signoz containers.
 
 services:
   # --- Product Service (Keep our service definition) ---
@@ -16,7 +16,7 @@ services:
     networks:
       - signoz-net # Connect to the externally defined network
     env_file:
-      - .env # Load environment variables from .env file
+      - .env # Load environment variables (like OTLP endpoint, service name) from .env file
 
   # --- Product Simulator Service (Based on tests/Dockerfile) ---
   product-simulator:

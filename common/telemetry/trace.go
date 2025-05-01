@@ -6,11 +6,9 @@ import (
 
 	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -84,9 +82,4 @@ func newTraceProvider(ctx context.Context, telemetryCfg TelemetryConfig, res *re
 	}
 
 	return tracerProvider, shutdownFunc, nil
-}
-
-// GetTracer returns a named tracer instance from the global provider
-func GetTracer(name string) trace.Tracer {
-	return otel.Tracer(name)
 }

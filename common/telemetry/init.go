@@ -169,7 +169,3 @@ func InitTelemetry(ctx context.Context, config TelemetryConfig) (otelShutdownFun
 	setupLogger.Info("Telemetry initialization completed successfully")
 	return masterShutdown, nil
 }
-
-// newResource function REMOVED from here.
-
-// configureLogrus function REMOVED from here.

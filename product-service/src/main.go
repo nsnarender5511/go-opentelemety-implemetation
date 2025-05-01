@@ -77,7 +77,6 @@ func main() {
 	}()
 
 	// --- Graceful Shutdown (using common helper) ---
-	// The old manual signal handling, quit channel, and timeout logic is removed.
 	lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.FiberShutdownAdapter{App: app}, otelShutdown)
 
 	// Code here will not be reached as WaitForGracefulShutdown blocks and exits.

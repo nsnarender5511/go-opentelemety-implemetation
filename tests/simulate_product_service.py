@@ -10,9 +10,6 @@ import json # Import json module
 BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 20 # Increased concurrent users
-# SIMULATION_DURATION_SECONDS = 30 # Removed fixed duration
-# Path to the data file relative to the script or workspace
-# Adjust this path if the script is run from a different directory
 DATA_FILE_PATH = "../product-service/data.json" # Relative path to data.json
 
 # --- Load Product Data ---
@@ -32,8 +29,7 @@ except json.JSONDecodeError:
     known_product_ids = ["prod_fallback_1", "prod_fallback_2"]
 
 
-# Product IDs from repository.go (Keep for reference or specific tests if needed)
-# EXISTING_PRODUCT_IDS = ["prod_123", "prod_456", "prod_789"]
+# Product IDs for testing
 NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}" # Generate a random non-existing ID
 INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
@@ -49,14 +45,6 @@ def make_request(method, url, expected_status=None):
         if expected_status and response.status_code != expected_status:
             log_message += f", Expected: {expected_status}"
             
-        # Optional: Attempt to log response body on unexpected status for debugging
-        # Be careful with large responses
-        # try:
-        #     if response.status_code != expected_status:
-        #          log_message += f" Body: {response.text[:100]}" # Log first 100 chars
-        # except Exception:
-        #     pass # Ignore if reading body fails
-
         print(log_message)
 
         # Optionally: response.raise_for_status() # Or handle errors more gracefully

@@ -7,14 +7,15 @@ import (
 
 // Standard application errors
 var (
-	ErrNotFound          = stdErrors.New("resource not found")                    // Use aliased import
-	ErrProductNotFound   = stdErrors.New("product not found")                     // Use aliased import
-	ErrUserNotFound      = stdErrors.New("user not found")                        // Example
-	ErrCartNotFound      = stdErrors.New("cart not found")                        // Example
-	ErrOrderNotFound     = stdErrors.New("order not found")                       // Example
-	ErrDatabaseOperation = stdErrors.New("database operation failed")             // Use aliased import
-	ErrServiceCallFailed = stdErrors.New("internal service communication failed") // Example
-	// Add other common errors here
+	// Define common error types using stdErrors.New
+	ErrNotFound          = stdErrors.New("resource not found")
+	ErrProductNotFound   = stdErrors.New("product not found")
+	ErrDatabaseOperation = stdErrors.New("database operation failed")
+	ErrBadRequest        = stdErrors.New("bad request")           // Adding a basic bad request error
+	ErrInternalServer    = stdErrors.New("internal server error") // Adding a basic internal error
+
+	// Unused errors from plan have been removed:
+	// ErrUserNotFound, ErrCartNotFound, ErrOrderNotFound, ErrServiceCallFailed
 )
 
 // --- Typed Errors for more context ---
@@ -56,48 +57,17 @@ func Is(err, target error) bool {
 	return stdErrors.Is(err, target) // Call standard errors.Is using the alias
 }
 
-/* // REMOVE unused function
-// HandleServiceError logs and maps service layer errors to appropriate HTTP responses for Fiber.
-// It centralizes error handling logic and uses logrus for logging.
-func HandleServiceError(c *fiber.Ctx, err error, action string) error {
-	// Log the error with context
-	logrus.WithContext(c.UserContext()).WithError(err).Errorf("Failed to %s", action)
-
-	var statusCode int
-	var response fiber.Map
-
-	// Use the local Is wrapper function (which calls stdErrors.Is)
-	switch {
-	case Is(err, ErrProductNotFound):
-		statusCode = http.StatusNotFound
-		response = fiber.Map{"error": ErrProductNotFound.Error()}
-	case Is(err, ErrUserNotFound): // Example mapping
-		statusCode = http.StatusNotFound
-		response = fiber.Map{"error": ErrUserNotFound.Error()}
-	case Is(err, ErrCartNotFound): // Example mapping
-		statusCode = http.StatusNotFound
-		response = fiber.Map{"error": ErrCartNotFound.Error()}
-	case Is(err, ErrOrderNotFound): // Example mapping
-		statusCode = http.StatusNotFound
-		response = fiber.Map{"error": ErrOrderNotFound.Error()}
-	case Is(err, ErrDatabaseOperation):
-		statusCode = http.StatusInternalServerError
-		response = fiber.Map{"error": fmt.Sprintf("Failed to %s due to internal database error", action)}
-	case Is(err, ErrServiceCallFailed):
-		statusCode = http.StatusInternalServerError
-		response = fiber.Map{"error": fmt.Sprintf("Failed to %s due to an internal service communication error", action)}
-	default:
-		// Check if the error wraps the generic ErrNotFound as a fallback
-		if Is(err, ErrNotFound) {
-			statusCode = http.StatusNotFound
-			response = fiber.Map{"error": ErrNotFound.Error()} // Use the generic message
-		} else {
-			// Default internal server error for unmapped errors
-			statusCode = http.StatusInternalServerError
-			response = fiber.Map{"error": fmt.Sprintf("Failed to %s due to an unexpected internal error", action)}
-		}
-	}
-
-	return c.Status(statusCode).JSON(response)
+// AppError represents a custom error type for the application.
+type AppError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	// Original error if available
+	Err error `json:"-"`
+	// Uncomment and use if you need HTTP status codes associated with errors
+	// HTTPStatusCode int    `json:"-"`
 }
-*/
+
+// Error returns the string representation of the AppError.
+func (e *AppError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
+}

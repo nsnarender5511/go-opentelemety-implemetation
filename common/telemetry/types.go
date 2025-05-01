@@ -1,5 +1,9 @@
 package telemetry
 
+import (
+	"go.opentelemetry.io/otel/sdk/trace"
+)
+
 // TelemetryConfig contains configuration for OpenTelemetry instrumentation.
 // This struct provides a centralized way to configure all aspects of telemetry
 // including tracing, metrics, and logging.
@@ -9,9 +13,6 @@ type TelemetryConfig struct {
 
 	// Endpoint is the OTLP endpoint URL (e.g., "localhost:4317")
 	Endpoint string
-
-	// Headers for OTLP exporter (e.g., for authentication)
-	Headers map[string]string
 
 	// Insecure disables TLS for the OTLP exporter
 	Insecure bool
@@ -33,4 +34,11 @@ type TelemetryConfig struct {
 
 	// LogFormat specifies the log output format (e.g., "text", "json")
 	LogFormat string
+
+	Sampler            trace.Sampler     // Trace sampler strategy (e.g., AlwaysSample, TraceIDRatioBased)
+	Propagators        []string          // List of propagators to use (e.g., "tracecontext", "baggage")
+	ResourceAttributes map[string]string // Additional resource attributes
 }
+
+// Option defines a function signature for configuring TelemetryConfig.
+type Option func(*TelemetryConfig)
