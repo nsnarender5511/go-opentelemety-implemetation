@@ -1,0 +1,17 @@
+# .dockerignore
+.git
+.vscode
+.cursor
+*.md
+.DS_Store
+
+# Ignore the signoz clone directory if it exists in the workspace
+.signoz/
+
+# Potentially ignore large src/src artifact if not needed
+# product-service/src/src
+
+# Ignore build outputs if any
+bin/
+*.exe
+*.test 

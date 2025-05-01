@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 
+	commonErrors "github.com/narender/common-module/errors"
 	"github.com/narender/common-module/telemetry"
 
 	"github.com/sirupsen/logrus"
@@ -52,7 +54,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Service: Failed to fetch all products from repo")
-		return nil, err
+		return nil, fmt.Errorf("failed to find all products: %w", err)
 	}
 
 	span.SetAttributes(telemetry.DBResultCountKey.Int(len(products)))
@@ -79,7 +81,11 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Service: Failed to find product by ID in repo")
-		return Product{}, err
+		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
+			return Product{}, commonErrors.ErrProductNotFound
+		} else {
+			return Product{}, fmt.Errorf("failed to find product by id '%s': %w", productID, err)
+		}
 	}
 
 	return product, nil
@@ -104,7 +110,11 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Service: Failed to get stock for product ID from repo")
-		return 0, err
+		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
+			return 0, commonErrors.ErrProductNotFound
+		} else {
+			return 0, fmt.Errorf("failed to get stock for product id '%s': %w", productID, err)
+		}
 	}
 
 	span.SetAttributes(telemetry.AppProductStockKey.Int(stock))

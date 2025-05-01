@@ -24,8 +24,13 @@ run: build
 	@echo "Running $(CONTAINER_NAME) on port $(SERVICE_PORT)..."
 	@docker run -d --name $(CONTAINER_NAME) \
 		-p $(SERVICE_PORT):$(SERVICE_PORT) \
+		-e PRODUCT_SERVICE_PORT=$(SERVICE_PORT) \
 		-e OTEL_EXPORTER_OTLP_ENDPOINT=host.docker.internal:4317 \
 		-e OTEL_EXPORTER_INSECURE=true \
+		-e OTEL_SERVICE_NAME=$(SERVICE_NAME) \
+		-e LOG_LEVEL=info \
+		-e LOG_FORMAT=text \
+		-e OTEL_SAMPLE_RATIO=1.0 \
 		$(IMAGE_NAME)
 	@echo "Waiting for service to start..."
 	@sleep 5 # Give the container a moment to start up

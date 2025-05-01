@@ -1,37 +1,50 @@
-# ---- Build Stage ----
+# ---- Builder Stage ----
 FROM golang:1.24-alpine AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Copy common module first
-COPY common/ ./common/
+# Copy go.work first to leverage dependency caching
+COPY go.work go.work.sum* ./
+# Copy module files for common and product-service
+COPY common/go.mod common/go.sum ./common/
+COPY product-service/go.mod product-service/go.sum ./product-service/
 
-# Copy the entire product service code
-COPY product-service/ ./product-service/
-
-# Change working directory INTO product-service
-WORKDIR /app/product-service
-
-# Download dependencies (replace directive '../common' now points to /app/common)
+# Download dependencies based on workspace
 RUN go mod download
 
-# Build the application from within /app/product-service
-# Output the binary one level up into /app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/main ./src
+# Copy the rest of the source code
+# Ensure .dockerignore excludes unnecessary files
+COPY common/ ./common/
+COPY product-service/ ./product-service/
 
-# ---- Run Stage ----
+# Build the application statically
+# Build from within product-service context
+WORKDIR /app/product-service
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o /app/product-service-binary ./src
+
+# ---- Final Stage ----
+# Use distroless static image for minimal footprint
+# FROM gcr.io/distroless/static-debian11
+# Using alpine as distroless might cause issues with OTLP endpoint resolution (host.docker.internal)
 FROM alpine:latest
+
 
 WORKDIR /app
 
-# Copy the built binary from the builder stage
-COPY --from=builder /app/main .
+# Copy the static binary from the builder stage
+COPY --from=builder /app/product-service-binary .
 
-# Expose the default port the service runs on
+# Copy necessary static assets like configuration or data files
+# Ensure this path matches where the application expects it
+COPY --from=builder /app/product-service/data.json ./data.json
+
+# Expose the port the application listens on
+# The actual port number should be configured via environment variables at runtime
 EXPOSE 8082
 
-# Set default environment variables
-ENV PRODUCT_SERVICE_PORT=8082
+# Set the entrypoint to the binary
+ENTRYPOINT ["/app/product-service-binary"]
 
-# Command to run the executable
-CMD ["/app/main"] 
+# CMD is often omitted when ENTRYPOINT is used like this,
+# but could be used for default arguments if needed. 

@@ -1,4 +1,5 @@
-go 1.24.1 // Use the version required by the modules
+// ./go.work
+go 1.24.1 // Match module Go version
 
 use (
 	./common

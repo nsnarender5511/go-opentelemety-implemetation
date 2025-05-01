@@ -84,43 +84,50 @@ func main() {
 			span := trace.SpanFromContext(ctx)
 
 			// Determine the correct HTTP status code based on error type
-			code := http.StatusInternalServerError  // Default
-			var httpErrMessage string = err.Error() // Default message
+			code := http.StatusInternalServerError // Default
+			// Default user message (can be overridden by specific error types)
+			httpErrMessage := "An internal server error occurred"
 
-			if errors.Is(err, commonErrors.ErrProductNotFound) {
+			// Use errors.As for typed errors, errors.Is for sentinels
+			var validationErr *commonErrors.ValidationError
+			var dbErr *commonErrors.DatabaseError
+			// Add other expected custom error types here
+
+			if errors.As(err, &validationErr) {
+				code = http.StatusBadRequest
+				// Use the specific message from the validation error
+				httpErrMessage = validationErr.Error()
+			} else if errors.Is(err, commonErrors.ErrProductNotFound) {
 				code = http.StatusNotFound
 				httpErrMessage = commonErrors.ErrProductNotFound.Error()
-			} else if errors.Is(err, commonErrors.ErrDatabaseOperation) {
-				// Keep 500 but maybe provide a less specific message to client
+			} else if errors.As(err, &dbErr) {
+				// Keep 500 for DB errors, but log the specific internal details
+				// User sees a generic message
 				httpErrMessage = "An internal database error occurred"
-			} else if errors.Is(err, ErrValidation) { // Check against ErrValidation (local package)
-				code = http.StatusBadRequest
-				// Extract the original validation message if wrapped
-				unwrappedErr := errors.Unwrap(err)
-				if unwrappedErr != nil {
-					httpErrMessage = unwrappedErr.Error()
-				}
+				logrus.WithContext(ctx).WithError(err).Errorf("Database error during operation: %s", dbErr.Operation)
 			}
-			// Add checks for other specific commonErrors if needed
+			// Add checks for other specific commonErrors (like ErrServiceCallFailed) if needed
+			// else if errors.Is(err, commonErrors.ErrServiceCallFailed) { ... }
 
-			// Log the original error with context (includes trace/span IDs via hook)
+			// Log the original full error chain with context (includes trace/span IDs via hook)
 			logEntry := logrus.WithContext(ctx).WithError(err)
 			if code >= 500 {
-				logEntry.Errorf("Unhandled error in handler: %v", err)
+				// Log with stack trace for server errors if possible (depends on logrus setup)
+				logEntry.Errorf("Server error in handler: %+v", err) // Use %+v to potentially get stack trace
 			} else {
-				// Log client errors (4xx) at Warn level
+				// Log client errors (4xx) at Warn level, stack trace likely not needed
 				logEntry.Warnf("Client error in handler: %v", err)
 			}
 
 			// Record the error on the span
-			span.RecordError(err)
-			// Set span status to Error (standard practice for any handler error)
-			span.SetStatus(codes.Error, err.Error())
+			span.RecordError(err, trace.WithStackTrace(true)) // Record with stack trace
+			// Set span status to Error
+			span.SetStatus(codes.Error, httpErrMessage) // Use the user-facing message for span status
 
-			// Return the error response to the client using the determined code and message
+			// Return the error response to the client
 			return c.Status(code).JSON(fiber.Map{
-				// Use the JSONFieldError constant (defined in handler.go, now part of package main)
-				JSONFieldError: httpErrMessage,
+				// Use a consistent field name like "error" or "message"
+				"error": httpErrMessage,
 			})
 		},
 	})

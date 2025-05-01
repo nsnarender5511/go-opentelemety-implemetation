@@ -80,7 +80,8 @@ func (r *productRepository) FindAll(ctx context.Context) ([]Product, error) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Repo: Failed during readData in FindAll")
-		return nil, err // Propagate error
+		// Wrap the error before returning
+		return nil, fmt.Errorf("failed to read data for finding all products: %w", err)
 	}
 
 	products = make([]Product, 0, len(data))
@@ -117,17 +118,18 @@ func (r *productRepository) FindByProductID(ctx context.Context, productID strin
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Repo: Failed during readData in FindByProductID")
-		return Product{}, err
+		// Wrap the error from readData before returning
+		return Product{}, fmt.Errorf("failed to read data for product lookup: %w", err)
 	}
 
 	foundProduct, ok := data[productID]
 	if !ok {
 		log.Warn("Repo: Product not found in file")
 		span.SetAttributes(telemetry.DBResultFoundKey.Bool(false))
-		err = errors.ErrProductNotFound
+		err = errors.ErrProductNotFound // Use the sentinel error directly here
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return Product{}, err
+		return Product{}, err // Return the specific sentinel
 	}
 
 	product = foundProduct
@@ -161,17 +163,18 @@ func (r *productRepository) FindStockByProductID(ctx context.Context, productID 
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.WithError(err).Error("Repo: Failed during readData in FindStockByProductID")
-		return 0, err
+		// Wrap the error from readData before returning
+		return 0, fmt.Errorf("failed to read data for stock check: %w", err)
 	}
 
 	product, ok := data[productID]
 	if !ok {
 		log.Warn("Repo: Product not found in file for stock check")
 		span.SetAttributes(telemetry.DBResultFoundKey.Bool(false))
-		err = errors.ErrProductNotFound
+		err = errors.ErrProductNotFound // Use the sentinel error directly here
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return 0, err
+		return 0, err // Return the specific sentinel
 	}
 
 	stock = product.Stock
@@ -207,7 +210,8 @@ func (r *productRepository) readData(ctx context.Context) (map[string]Product, e
 	r.mu.RUnlock()
 
 	if fileReadErr != nil {
-		err = fmt.Errorf("%w: %w", errors.ErrDatabaseOperation, fileReadErr)
+		// Wrap the underlying error in a DatabaseError
+		err = &errors.DatabaseError{Operation: "read file", Err: fileReadErr}
 		logrus.WithContext(ctxRead).WithError(err).Error("Repo: Failed to read data file") // Log with span context
 		spanRead.RecordError(err)
 		spanRead.SetStatus(codes.Error, err.Error())
@@ -227,7 +231,8 @@ func (r *productRepository) readData(ctx context.Context) (map[string]Product, e
 
 	unmarshalErr := json.Unmarshal(bytes, &data)
 	if unmarshalErr != nil {
-		err = fmt.Errorf("%w: %w", errors.ErrDatabaseOperation, unmarshalErr)
+		// Wrap the underlying error in a DatabaseError
+		err = &errors.DatabaseError{Operation: "unmarshal json", Err: unmarshalErr}
 		logrus.WithContext(ctxUnmarshal).WithError(err).Error("Repo: Failed to unmarshal JSON data") // Log with span context
 		spanUnmarshal.RecordError(err)
 		spanUnmarshal.SetStatus(codes.Error, err.Error())

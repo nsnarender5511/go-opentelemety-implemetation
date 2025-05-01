@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	// Use correct module path for common telemetry
+	commonErrors "github.com/narender/common-module/errors"
 	"github.com/narender/common-module/telemetry"
 
 	"github.com/gofiber/fiber/v2"
@@ -44,9 +45,6 @@ func init() {
 		logrus.WithError(err).Fatal("Failed to create productStockCheckCounter")
 	}
 }
-
-// --- Custom Error for Validation --- //
-var ErrValidation = fmt.Errorf("validation failed")
 
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
@@ -97,7 +95,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	productID, validationErr := h.validatePathParam(ctx, c, JSONFieldProductID)
 	if validationErr != nil {
 		// No span started yet, just return the validation error
-		return fmt.Errorf("%w: %w", ErrValidation, validationErr)
+		return validationErr
 	}
 	log = log.WithField(telemetry.LogFieldProductID, productID)
 	log.Infof("Handler: Received request to get product by ID %s", productID)
@@ -145,7 +143,7 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 	productID, validationErr := h.validatePathParam(ctx, c, JSONFieldProductID)
 	if validationErr != nil {
 		// No span started yet, just return the validation error
-		return fmt.Errorf("%w: %w", ErrValidation, validationErr)
+		return validationErr
 	}
 	log = log.WithField(telemetry.LogFieldProductID, productID)
 	log.Infof("Handler: Received request to get product stock for ID %s", productID)
@@ -197,14 +195,15 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 // --- Helper Functions ---
 
 // validatePathParam extracts and validates a required path parameter.
-// Returns the parameter value or a wrapped error if validation fails.
+// Returns the parameter value or a wrapped commonErrors.ValidationError if validation fails.
 func (h *ProductHandler) validatePathParam(ctx context.Context, c *fiber.Ctx, paramName string) (string, error) {
 	paramValue := c.Params(paramName)
 	if paramValue == "" {
 		msg := fmt.Sprintf("%s parameter is required", paramName)
 		logrus.WithContext(ctx).Warnf("Handler: Missing %s parameter", paramName)
 		// Return a distinct error that can be checked by the error handler
-		return "", fmt.Errorf(msg) // Return standard error
+		return "", &commonErrors.ValidationError{Field: paramName, Message: msg}
 	}
+	// Add more validation if needed (e.g., regex, length)
 	return paramValue, nil
 }
