@@ -8,12 +8,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 )
 
-// Resource wraps an OpenTelemetry resource
 type Resource struct {
 	resource *resource.Resource
 }
 
-// newResource creates a new Resource with service information
 func newResource(ctx context.Context, serviceName, serviceVersion string) (*Resource, error) {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -33,7 +31,6 @@ func newResource(ctx context.Context, serviceName, serviceVersion string) (*Reso
 	return &Resource{resource: res}, nil
 }
 
-// Unwrap returns the underlying OpenTelemetry resource
 func (r *Resource) Unwrap() *resource.Resource {
 	return r.resource
 }

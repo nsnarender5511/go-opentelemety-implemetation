@@ -1,5 +1,27 @@
 # OpenTelemetry with SigNoz Demo
 
+## SigNoz Integration Features
+
+This project has been enhanced with comprehensive OpenTelemetry integration for SigNoz, featuring:
+
+1. **Custom Metrics Collection**
+   - `product_requests_total` - Counter tracking API request frequency by endpoint
+   - `product_stock_level` - Gauge showing current stock levels by product
+   - `product_request_duration_ms` - Histogram measuring API response times
+   - `product_error_total` - Counter tracking error frequency by type and endpoint
+
+2. **Enhanced Trace Context**
+   - Product attributes (ID, category, stock)
+   - Request duration tracking
+   - Error details (type, status code)
+   - Endpoint information
+
+3. **Structured Logging with Trace Context**
+   - Log correlation with trace IDs
+   - JSON-formatted logs for better querying
+   - Proper log levels for different scenarios
+
+
 This project demonstrates the integration of OpenTelemetry with SigNoz for complete observability (traces, metrics, and logs) in a microservices architecture.
 
 ## Project Structure
@@ -187,6 +209,34 @@ After running the application with the simulator, you can observe:
 2. **Metrics** - Service performance metrics, custom business metrics
 3. **Logs** - Structured logs correlated with traces
 4. **Service Map** - Visual representation of service interactions
+
+## Recommended SigNoz Dashboards
+
+To get the most out of the telemetry data, create the following dashboards in SigNoz:
+
+### 1. API Performance Dashboard
+   - Panel: Request rate by endpoint (using `product_requests_total`)
+   - Panel: Response time distribution (using `product_request_duration_ms`)
+   - Panel: Error rate by endpoint (using `product_error_total`)
+   - Panel: Response time percentiles (p50, p90, p99)
+
+### 2. Product Insights Dashboard
+   - Panel: Stock levels by product (using `product_stock_level`)
+   - Panel: Most requested products (using `product_requests_total` with product ID attribution)
+   - Panel: Zero stock alerts (using `product_stock_level` with threshold alert)
+
+### 3. Error Analysis Dashboard
+   - Panel: Error count by type (using `product_error_total`)
+   - Panel: Error count by endpoint (using `product_error_total`)
+   - Panel: Error rate change over time
+   - Panel: Top errors with trace links
+
+### 4. Health Overview Dashboard
+   - Panel: Service health status
+   - Panel: Response time trends
+   - Panel: Error rate trends
+   - Panel: Service dependencies health
+
 
 ## Troubleshooting
 

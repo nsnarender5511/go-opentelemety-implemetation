@@ -16,13 +16,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ProductRepository defines the interface for product data access
 type ProductRepository interface {
 	GetAll(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, id string) (Product, error)
 }
 
-// productRepository implements ProductRepository
 type productRepository struct {
 	products map[string]Product
 	mu       sync.RWMutex
@@ -30,7 +28,6 @@ type productRepository struct {
 	tracer   trace.Tracer
 }
 
-// NewProductRepository creates a new product repository, accepting the data file path
 func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 	if dataFilePath == "" {
 		return nil, fmt.Errorf("data file path cannot be empty")
@@ -69,8 +66,6 @@ func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 	return repo, nil
 }
 
-// readData method loads product data from JSON file
-// Now accepts context for logging.
 func (r *productRepository) readData(ctx context.Context) error {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
@@ -128,7 +123,6 @@ func (r *productRepository) readData(ctx context.Context) error {
 	return nil
 }
 
-// GetAll method returns all products
 func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
@@ -151,7 +145,6 @@ func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 	return result, nil
 }
 
-// GetByID method retrieves a product by ID
 func (r *productRepository) GetByID(ctx context.Context, id string) (Product, error) {
 	// Use global logger with context
 	log := logrus.WithContext(ctx)
@@ -176,4 +169,3 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (Product, er
 	span.SetStatus(codes.Ok, "")
 	return product, nil
 }
-

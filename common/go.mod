@@ -59,7 +59,9 @@ require (
 // gopkg.in/yaml.v3 v3.0.1 // indirect // Will be removed by go mod tidy
 )
 
-require golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
+require github.com/gofiber/contrib/otelfiber/v2 v2.2.2
+
+require go.opentelemetry.io/contrib v1.20.0 // indirect
 
 // Add any *other* dependencies specific to the common module here if needed in the future
 

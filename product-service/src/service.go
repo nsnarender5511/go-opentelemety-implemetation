@@ -14,20 +14,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ProductService defines the interface for product business logic
 type ProductService interface {
 	GetAll(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, productID string) (Product, error)
 	GetStock(ctx context.Context, productID string) (int, error)
 }
 
-// productService implements the ProductService interface
 type productService struct {
 	repo   ProductRepository
 	tracer trace.Tracer // Add tracer field
 }
 
-// NewProductService creates a new product service
 func NewProductService(repo ProductRepository) ProductService {
 	return &productService{
 		repo:   repo,
@@ -35,7 +32,6 @@ func NewProductService(repo ProductRepository) ProductService {
 	}
 }
 
-// handleRepoError helper function now uses global logger
 func (s *productService) handleRepoError(ctx context.Context, span trace.Span, opDesc string, err error) error {
 	if err == nil {
 		return nil
@@ -57,7 +53,6 @@ func (s *productService) handleRepoError(ctx context.Context, span trace.Span, o
 	return fmt.Errorf("repository error during %s: %w", opDesc, err)
 }
 
-// GetAll handles fetching all products
 func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	logrus.WithContext(ctx).Info("Service: Fetching all products")
 
@@ -75,7 +70,6 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	return products, nil
 }
 
-// GetByID handles fetching a product by its ID
 func (s *productService) GetByID(ctx context.Context, productID string) (Product, error) {
 	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Fetching product by ID")
 
@@ -93,7 +87,6 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 	return product, nil
 }
 
-// GetStock handles fetching stock for a product
 func (s *productService) GetStock(ctx context.Context, productID string) (int, error) {
 	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Checking stock for product ID")
 

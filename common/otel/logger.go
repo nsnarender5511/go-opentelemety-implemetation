@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
@@ -13,22 +12,17 @@ import (
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
-// LoggerProvider is the OpenTelemetry logger provider interface
 type LoggerProvider = sdklog.LoggerProvider
 
-// newLoggerProvider creates a new logger provider with the provided configuration
-func newLoggerProvider(ctx context.Context, cfg *config.Config, res *Resource, logger *logrus.Logger) (*LoggerProvider, ShutdownFunc, error) {
+func newLoggerProvider(ctx context.Context, res *Resource, logger *logrus.Logger) (*LoggerProvider, ShutdownFunc, error) {
 	logger.Debug("Creating logger provider...")
 
 	if res == nil {
 		return nil, nil, fmt.Errorf("resource cannot be nil")
 	}
 
-	// Create common dial options
-	dialOpts := newOtlpGrpcDialOptions(cfg)
-
-	// Create OTLP log exporter options using the helper
-	exporterOpts := newOtlpLogGrpcExporterOptions(cfg, dialOpts)
+	// Create OTLP log exporter options using the helper (pass logger)
+	exporterOpts := newOtlpLogGrpcExporterOptions(logger)
 
 	// Create the exporter
 	exp, err := otlploggrpc.New(ctx, exporterOpts...)
@@ -60,7 +54,6 @@ func newLoggerProvider(ctx context.Context, cfg *config.Config, res *Resource, l
 	return lp, shutdown, nil
 }
 
-// configureLogrus configures logrus with OpenTelemetry
 func configureLogrus(logger *logrus.Logger, provider *LoggerProvider, logLevel string) {
 	// Set log level
 	level, err := logrus.ParseLevel(logLevel)

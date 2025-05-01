@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
@@ -12,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/narender/common/config"
-	"github.com/narender/common/lifecycle"
 	"github.com/narender/common/otel"
 	"github.com/sirupsen/logrus"
 )
@@ -20,34 +18,9 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// --- Load Configuration using new pattern ---
-	cfg := config.NewConfig().WithEnv()
-	if validationErrs := cfg.Validate(); len(validationErrs) > 0 {
-		errMsgs := make([]string, len(validationErrs))
-		for i, err := range validationErrs {
-			errMsgs[i] = err.Error()
-		}
-		logrus.Fatalf("Configuration validation failed: %s", strings.Join(errMsgs, "; "))
-	}
-	cfg.Log()
-
-	// --- Initialize Logging Early ---
-	// Configure logrus level from config
-	level, err := logrus.ParseLevel(cfg.LogLevel)
-	if err != nil {
-		logrus.WithError(err).Warnf("Invalid log level '%s', using default 'info'", cfg.LogLevel)
-		level = logrus.InfoLevel
-	}
-	logrus.SetLevel(level)
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	logrus.Info("Log level set")
-
-	// --- Graceful Shutdown Manager (needed early for OTel) ---
-	shutdownManager := lifecycle.NewShutdownManager(logrus.StandardLogger()).WithTimeout(cfg.ShutdownTotalTimeout)
-
-	// --- Initialize Telemetry using new otel builder ---
-	// Pass context and shutdown manager to NewSetup
-	otelSetup, err := otel.NewSetup(ctx, cfg, shutdownManager, otel.WithLogger(logrus.StandardLogger()))
+	// --- Initialize Telemetry using refactored otel builder ---
+	// Pass context and shutdown manager to NewSetup (remove cfg argument)
+	otelSetup, err := otel.NewSetup(ctx, nil, otel.WithLogger(logrus.StandardLogger()))
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed during initial OTel setup")
 	}
@@ -71,7 +44,8 @@ func main() {
 	logrus.Info("OpenTelemetry initialization sequence completed.")
 
 	// --- Dependencies ---
-	repo, err := NewProductRepository(cfg.DataFilePath)
+	// Use global config var for DataFilePath
+	repo, err := NewProductRepository(config.DATA_FILE_PATH)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize repository")
 	}
@@ -96,20 +70,19 @@ func main() {
 
 	// --- Start Server Goroutine ---
 	go func() {
-		addr := ":" + cfg.ProductServicePort
+		// Use global config var for port
+		addr := ":" + config.PRODUCT_SERVICE_PORT
 		logrus.WithField("address", addr).Info("Server starting to listen...")
 		logrus.WithFields(logrus.Fields{
-			"otel_endpoint": cfg.OtelEndpoint,
-			"otel_insecure": cfg.OtelInsecure,
+			// Use global config vars
+			"otel_endpoint": config.OTEL_EXPORTER_OTLP_ENDPOINT,
+			"otel_insecure": config.OTEL_EXPORTER_INSECURE,
 		}).Info("Configured OTLP Exporter Endpoint")
 		if err := app.Listen(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logrus.WithError(err).Fatal("Server failed to start listening")
 		}
 	}()
 
-	// Register Fiber app shutdown
-	shutdownManager.Register("fiber-server", &lifecycle.FiberAdapter{App: app}, cfg.ShutdownServerTimeout)
-
-	// Start listening for signals and wait for shutdown completion
-	shutdownManager.Start(ctx)
+	// Keep the application running indefinitely
+	select {}
 }

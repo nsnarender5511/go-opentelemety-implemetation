@@ -6,7 +6,6 @@ import (
 	"net/http"
 )
 
-// Standard errors
 var (
 	ErrNotFound            = errors.New("not found")
 	ErrInvalidInput        = errors.New("invalid input")
@@ -21,7 +20,20 @@ var (
 	ErrUnprocessableEntity = errors.New("unprocessable entity")
 )
 
-// AppError represents an application error with HTTP status code and context
+var standardErrorToStatusCode = map[error]int{
+	ErrNotFound:            http.StatusNotFound,
+	ErrInvalidInput:        http.StatusBadRequest,
+	ErrBadRequest:          http.StatusBadRequest,
+	ErrUnauthorized:        http.StatusUnauthorized,
+	ErrForbidden:           http.StatusForbidden,
+	ErrConflict:            http.StatusConflict,
+	ErrUnavailable:         http.StatusServiceUnavailable,
+	ErrTimeout:             http.StatusGatewayTimeout,
+	ErrTooManyRequests:     http.StatusTooManyRequests,
+	ErrUnprocessableEntity: http.StatusUnprocessableEntity,
+	// Note: ErrInternalServer is handled by the default case below
+}
+
 type AppError struct {
 	Err        error
 	StatusCode int
@@ -29,7 +41,6 @@ type AppError struct {
 	Context    map[string]interface{}
 }
 
-// Error implements the error interface
 func (e *AppError) Error() string {
 	if e.Message != "" {
 		return e.Message
@@ -40,12 +51,10 @@ func (e *AppError) Error() string {
 	return "unknown error"
 }
 
-// Unwrap returns the underlying error
 func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-// WithContext adds context to the error
 func (e *AppError) WithContext(key string, value interface{}) *AppError {
 	if e.Context == nil {
 		e.Context = make(map[string]interface{})
@@ -54,7 +63,6 @@ func (e *AppError) WithContext(key string, value interface{}) *AppError {
 	return e
 }
 
-// New creates a new AppError
 func New(err error, statusCode int, message string) *AppError {
 	return &AppError{
 		Err:        err,
@@ -63,7 +71,6 @@ func New(err error, statusCode int, message string) *AppError {
 	}
 }
 
-// Wrap wraps an error with a message
 func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
@@ -71,7 +78,6 @@ func Wrap(err error, message string) error {
 	return fmt.Errorf("%s: %w", message, err)
 }
 
-// NotFound creates a not found error
 func NotFound(message string) *AppError {
 	return &AppError{
 		Err:        ErrNotFound,
@@ -80,7 +86,6 @@ func NotFound(message string) *AppError {
 	}
 }
 
-// BadRequest creates a bad request error
 func BadRequest(message string) *AppError {
 	return &AppError{
 		Err:        ErrBadRequest,
@@ -89,7 +94,6 @@ func BadRequest(message string) *AppError {
 	}
 }
 
-// InternalServer creates an internal server error
 func InternalServer(err error) *AppError {
 	return &AppError{
 		Err:        err,
@@ -98,17 +102,6 @@ func InternalServer(err error) *AppError {
 	}
 }
 
-// Is reports whether any error in err's tree matches target
-func Is(err, target error) bool {
-	return errors.Is(err, target)
-}
-
-// As finds the first error in err's tree that matches target
-func As(err error, target interface{}) bool {
-	return errors.As(err, target)
-}
-
-// ToStatusCode converts an error to an HTTP status code
 func ToStatusCode(err error) int {
 	if err == nil {
 		return http.StatusOK
@@ -119,33 +112,18 @@ func ToStatusCode(err error) int {
 		return appErr.StatusCode
 	}
 
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return http.StatusNotFound
-	case errors.Is(err, ErrInvalidInput), errors.Is(err, ErrBadRequest):
-		return http.StatusBadRequest
-	case errors.Is(err, ErrUnauthorized):
-		return http.StatusUnauthorized
-	case errors.Is(err, ErrForbidden):
-		return http.StatusForbidden
-	case errors.Is(err, ErrConflict):
-		return http.StatusConflict
-	case errors.Is(err, ErrUnavailable):
-		return http.StatusServiceUnavailable
-	case errors.Is(err, ErrTimeout):
-		return http.StatusGatewayTimeout
-	case errors.Is(err, ErrTooManyRequests):
-		return http.StatusTooManyRequests
-	case errors.Is(err, ErrUnprocessableEntity):
-		return http.StatusUnprocessableEntity
-	default:
-		return http.StatusInternalServerError
+	// Check against the standard error map
+	for stdErr, statusCode := range standardErrorToStatusCode {
+		if errors.Is(err, stdErr) {
+			return statusCode
+		}
 	}
+
+	// Default to internal server error for unmapped errors
+	return http.StatusInternalServerError
 }
 
-// --- Typed Errors for more context ---
 
-// ValidationError indicates an issue with input data.
 type ValidationError struct {
 	Field   string // Optional field name
 	Message string // Specific validation message
@@ -158,7 +136,6 @@ func (e *ValidationError) Error() string {
 	return fmt.Sprintf("validation failed: %s", e.Message)
 }
 
-// DatabaseError indicates an issue during a database operation.
 type DatabaseError struct {
 	Operation string // Description of the operation (e.g., "read", "unmarshal")
 	Err       error  // Underlying driver/database/file error
@@ -168,9 +145,7 @@ func (e *DatabaseError) Error() string {
 	return fmt.Sprintf("database error during %s: %v", e.Operation, e.Err)
 }
 
-// Unwrap allows retrieving the underlying error.
 func (e *DatabaseError) Unwrap() error {
 	return e.Err
 }
 
-// --- End Typed Errors ---

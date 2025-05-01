@@ -5,10 +5,8 @@ networks:
   signoz-net:
     driver: bridge
     name: signoz-net
-
-volumes:
-  clickhouse_data: {}
-  signoz_otel_collector_data: {}
+    # Allow our services to connect to an external SigNoz instance
+    external: true
 
 services:
   # --- Product Service (Your Application) ---
@@ -20,10 +18,7 @@ services:
     networks:
       - signoz-net
     env_file:
-      - .env # Ensure OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317 (gRPC) is set in .env
-    depends_on:
-      otel-collector:
-        condition: service_started
+      - .env # OTEL_EXPORTER_OTLP_ENDPOINT should point to external SigNoz instance
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
@@ -48,8 +43,6 @@ services:
     depends_on:
       product-service:
         condition: service_healthy # Wait for product-service to be healthy
-      otel-collector:
-        condition: service_started
     networks:
       - signoz-net
     deploy:
