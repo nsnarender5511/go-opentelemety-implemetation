@@ -9,7 +9,7 @@ SIGNOZ_IMAGE := signoz/signoz:latest
 # Path where the user clones the signoz-install repo
 SIGNOZ_INSTALL_DIR ?= .signoz # Default to a sibling directory, user can override
 
-.PHONY: build run simulate run-signoz stop-signoz help
+.PHONY: build run simulate run-signoz stop-signoz help run-local
 
 # Build the Docker image for the product service
 build:
@@ -65,10 +65,24 @@ run-signoz:
 		echo "Access UI at http://localhost:3301 (might take a moment to start)"; \
 		echo "OTLP endpoint should be available at localhost:4317 (gRPC)"
 
+# Run the Go application directly (for local development)
+run-local:
+	@echo "Running $(SERVICE_NAME) locally with go run..."
+	@export SERVICE_NAME?=$(SERVICE_NAME); \
+	 export SERVICE_VERSION?=0.1.0; \
+	 export PRODUCT_SERVICE_PORT?=$(SERVICE_PORT); \
+	 export OTEL_EXPORTER_OTLP_ENDPOINT?=host.docker.internal:4317; \
+	 export OTEL_EXPORTER_INSECURE?=true; \
+	 export LOG_LEVEL?=info; \
+	 export LOG_FORMAT?=text; \
+	 export OTEL_SAMPLE_RATIO?=1.0; \
+	 cd ./$(SERVICE_NAME)/src && go run . # Run from service source directory
+
 help:
 	@echo "Available targets:"
 	@echo "  build        : Build the Docker image for the product service"
 	@echo "  run          : Build and run the product service container"
 	@echo "  simulate     : Run the traffic simulation script against the running service"
 	@echo "  run-signoz   : Clone (if needed) and run SigNoz using docker-compose"
+	@echo "  run-local    : Run the product service locally using go run"
 	@echo "  help         : Show this help message" 

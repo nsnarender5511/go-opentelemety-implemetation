@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,23 +22,29 @@ type shutdownFunc func(context.Context) error
 // configures the Logrus hook, and returns a master shutdown function.
 func InitTelemetry() (func(context.Context) error, error) {
 	// Directly use variables from the config package
-	log.Printf("Initializing Telemetry for service: %s, endpoint: %s, insecure: %t",
-		config.OTEL_SERVICE_NAME, config.OTEL_EXPORTER_OTLP_ENDPOINT, config.OTEL_EXPORTER_INSECURE)
 
 	// Use a timeout for the initial setup context.
 	initCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Increased timeout
 	defer cancel()
 
 	// --- 1. Create Resource ---
-	// Pass service name directly. Assumes newResource signature is updated.
-	res := newResource(initCtx, config.OTEL_SERVICE_NAME)
+	// Gets service name/version from config package now.
+	res := newResource(initCtx)
+
+	// Convert string config values to appropriate types
+	otelInsecure, _ := strconv.ParseBool(config.OTEL_EXPORTER_INSECURE) // Default false on error
+	otelSampleRatio, err := strconv.ParseFloat(config.OTEL_SAMPLE_RATIO, 64)
+	if err != nil {
+		log.Printf("Warning: Could not parse OTEL_SAMPLE_RATIO '%s' as float: %v. Defaulting to 1.0", config.OTEL_SAMPLE_RATIO, err)
+		otelSampleRatio = 1.0 // Default to 1.0 on error
+	}
 
 	shutdownFuncs := make([]shutdownFunc, 0, 3) // Store shutdown functions
 	var initErr error                           // To capture the first error during init
 
 	// --- 2. Initialize Trace Provider ---
 	// Pass config variables directly. Assumes initTracerProvider signature is updated.
-	tracerShutdown, err := initTracerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, config.OTEL_EXPORTER_INSECURE, config.OTEL_SAMPLE_RATIO, res)
+	tracerShutdown, err := initTracerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, otelSampleRatio, res)
 	if err != nil {
 		log.Printf("Error initializing TracerProvider: %v", err)
 		initErr = errors.Join(initErr, fmt.Errorf("tracer init failed: %w", err))
@@ -48,7 +55,7 @@ func InitTelemetry() (func(context.Context) error, error) {
 
 	// --- 3. Initialize Meter Provider ---
 	// Pass config variables directly. Assumes initMeterProvider signature is updated.
-	meterShutdown, err := initMeterProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, config.OTEL_EXPORTER_INSECURE, res)
+	meterShutdown, err := initMeterProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, res)
 	if err != nil {
 		log.Printf("Error initializing MeterProvider: %v", err)
 		initErr = errors.Join(initErr, fmt.Errorf("meter init failed: %w", err))
@@ -60,7 +67,7 @@ func InitTelemetry() (func(context.Context) error, error) {
 	// --- 4. Initialize Logger Provider ---
 	// This MUST happen before ConfigureLogrus.
 	// Pass config variables directly. Assumes initLoggerProvider signature is updated.
-	loggerShutdown, err := initLoggerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, config.OTEL_EXPORTER_INSECURE, res)
+	loggerShutdown, err := initLoggerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, res)
 	if err != nil {
 		log.Printf("Error initializing LoggerProvider: %v", err)
 		initErr = errors.Join(initErr, fmt.Errorf("logger init failed: %w", err))

@@ -29,6 +29,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o 
 # Using alpine as distroless might cause issues with OTLP endpoint resolution (host.docker.internal)
 FROM alpine:latest
 
+# Define build arguments for service identity
+ARG SERVICE_NAME=product-service
+ARG SERVICE_VERSION=0.1.0
 
 WORKDIR /app
 
@@ -42,6 +45,12 @@ COPY --from=builder /app/product-service/data.json ./data.json
 # Expose the port the application listens on
 # The actual port number should be configured via environment variables at runtime
 EXPOSE 8082
+
+# Set environment variables from build arguments for OTel resource
+ENV SERVICE_NAME=$SERVICE_NAME
+# Explicitly set OTel var too
+ENV OTEL_SERVICE_NAME=$SERVICE_NAME
+ENV SERVICE_VERSION=$SERVICE_VERSION
 
 # Set the entrypoint to the binary
 ENTRYPOINT ["/app/product-service-binary"]

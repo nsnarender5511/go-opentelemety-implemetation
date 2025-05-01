@@ -10,6 +10,9 @@ go.sum
 # Signoz deployment directory
 .signoz
 
+# Local environment configuration (DO NOT COMMIT)
+.env
+
 
 
 

@@ -6,18 +6,25 @@ import (
 
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0" // Use the latest stable semantic conventions
+
+	"github.com/narender/common-module/config" // Import config package
 )
 
 // newResource creates an OTel Resource describing this service.
-func newResource(ctx context.Context, serviceName string) *resource.Resource {
+// It now reads service name and version directly from the config package.
+func newResource(ctx context.Context) *resource.Resource { // Remove serviceName parameter
+	// Get service identity from config
+	serviceName := config.OTEL_SERVICE_NAME // Use the specific OTel variable from config
+	serviceVersion := config.SERVICE_VERSION
+
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			// --- Essential Attributes ---
-			semconv.ServiceName(serviceName), // Use serviceName parameter
+			semconv.ServiceName(serviceName),
+			semconv.ServiceVersion(serviceVersion), // Add service version attribute
 
 			// --- Optional Attributes (Add more as needed) ---
-			// semconv.ServiceVersion("1.0.0"), // Set your service version
-			// semconv.DeploymentEnvironment("production"), // e.g., production, staging
+			// semconv.DeploymentEnvironment(config.ENVIRONMENT), // Example: Use config for environment
 			// semconv.ServiceNamespace("your-namespace"),
 		),
 		// Automatically detect attributes from the environment (e.g., K8s pod name)
@@ -46,6 +53,6 @@ func newResource(ctx context.Context, serviceName string) *resource.Resource {
 		return res // Return the one we created if merge fails
 	}
 
-	log.Printf("OTel Resource created with service name: %s", serviceName)
+	log.Printf("OTel Resource created with service name: %s, version: %s", serviceName, serviceVersion)
 	return mergedRes
 }
