@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	commonErrors "github.com/narender/common/errors"
-	// "github.com/narender/common/telemetry" // Replaced by otel
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/otel"

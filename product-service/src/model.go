@@ -4,7 +4,12 @@ package main
 const (
 	JSONFieldProductID = "productId"
 	JSONFieldStock     = "stock"
-	JSONFieldError     = "error"
+)
+
+// Standard keys for JSON responses
+const (
+	JSONDataField       = "data"
+	JSONPaginationField = "pagination"
 )
 
 // Product defines the structure for product data, simplified for in-memory

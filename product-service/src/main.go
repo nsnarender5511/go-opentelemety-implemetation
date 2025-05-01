@@ -96,6 +96,7 @@ func main() {
 	// --- Graceful Shutdown (using common helper) ---
 	lifecycle.WaitForGracefulShutdown(
 		ctx,
+		cfg,
 		&lifecycle.FiberAdapter{App: app},
 		otelSetup.Shutdown,
 	)

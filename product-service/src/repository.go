@@ -8,8 +8,8 @@ import (
 	"os"
 	"sync"
 
-	// "github.com/narender/common/config" // No longer needed for global access
 	commonErrors "github.com/narender/common/errors"
+	// "github.com/narender/common/config" // No longer needed for global access
 	// "github.com/narender/common/telemetry" // Replaced by otel
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"

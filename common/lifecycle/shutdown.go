@@ -163,8 +163,8 @@ func (a *FiberAdapter) Shutdown(ctx context.Context) error {
 }
 
 // WaitForGracefulShutdown provides backward compatibility with the previous API
-func WaitForGracefulShutdown(ctx context.Context, server Shutdowner, telemetryShutdown func(context.Context) error) {
-	cfg := config.GetConfig()
+// It now requires a config struct to be passed in.
+func WaitForGracefulShutdown(ctx context.Context, cfg *config.Config, server Shutdowner, telemetryShutdown func(context.Context) error) {
 	logger := logrus.StandardLogger()
 
 	// Create a shutdown manager

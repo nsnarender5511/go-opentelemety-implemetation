@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt" // Added for URI validation
+	// Added for URI validation
 	"os"
 	"strconv"
 	"strings"
@@ -102,13 +102,9 @@ func NewConfig(opts ...Option) *Config {
 
 // WithEnv loads configuration from environment variables
 func (c *Config) WithEnv() *Config {
-	// Load .env files first (optional) - SKIPPING FOR LOCAL RUN
-	// _ = godotenv.Load(".env.default") // Ignore error if file doesn't exist
-	// _ = godotenv.Load(".env")         // Ignore error if file doesn't exist
-
 	// Map of environment variables to config fields
 	envMappings := map[string]*string{
-		"OTEL_SERVICE_NAME":           &c.ServiceName,
+		envServiceName:                &c.ServiceName,
 		"SERVICE_VERSION":             &c.ServiceVersion,
 		"OTEL_EXPORTER_OTLP_ENDPOINT": &c.OtelEndpoint,
 		"LOG_LEVEL":                   &c.LogLevel,
@@ -156,7 +152,7 @@ func (c *Config) WithEnv() *Config {
 	}
 
 	// Handle time durations (in milliseconds)
-	if val := os.Getenv("OTEL_BATCH_TIMEOUT_MS"); val != "" {
+	if val := os.Getenv(envOtelBatchTimeoutMS); val != "" {
 		if ms, err := strconv.Atoi(val); err == nil && ms >= 0 {
 			c.OtelBatchTimeout = time.Duration(ms) * time.Millisecond
 		}
@@ -216,207 +212,4 @@ func (c *Config) Log() {
 		"shutdown_server":   c.ShutdownServerTimeout,
 		"shutdown_otel":     c.ShutdownOtelMinTimeout,
 	}).Info("Configuration loaded")
-}
-
-// Global instance for compatibility with existing code
-var globalConfig *Config
-
-// LoadConfig loads configuration from environment variables, validates it, and returns errors
-// This function exists for compatibility with the previous global state approach
-func LoadConfig() error {
-	cfg := NewDefaultConfig().WithEnv()
-
-	if errors := cfg.Validate(); len(errors) > 0 {
-		// Format all errors into a single error message
-		errorMessages := make([]string, len(errors))
-		for i, err := range errors {
-			errorMessages[i] = err.Error()
-		}
-		return fmt.Errorf("configuration validation failed: %s", strings.Join(errorMessages, "; "))
-	}
-
-	globalConfig = cfg
-	cfg.Log()
-	return nil
-}
-
-// GetConfig returns the global configuration instance
-// This function exists for compatibility with the previous global state approach
-func GetConfig() *Config {
-	if globalConfig == nil {
-		// If not initialized, load with defaults
-		globalConfig = NewDefaultConfig().WithEnv()
-	}
-	return globalConfig
-}
-
-// The following functions are kept for backward compatibility
-
-// ServiceName returns the service name from the global config
-func ServiceName() string {
-	return GetConfig().ServiceName
-}
-
-// ServiceVersion returns the service version from the global config
-func ServiceVersion() string {
-	return GetConfig().ServiceVersion
-}
-
-// OtelExporterEndpoint returns the OpenTelemetry exporter endpoint from the global config
-func OtelExporterEndpoint() string {
-	return GetConfig().OtelEndpoint
-}
-
-// IsOtelExporterInsecure returns whether the OpenTelemetry exporter is insecure from the global config
-func IsOtelExporterInsecure() bool {
-	return GetConfig().OtelInsecure
-}
-
-// OtelSampleRatio returns the OpenTelemetry sampling ratio from the global config
-func OtelSampleRatio() float64 {
-	return GetConfig().OtelSampleRatio
-}
-
-// LogLevel returns the log level from the global config
-func LogLevel() string {
-	return GetConfig().LogLevel
-}
-
-// LogFormat returns the log format from the global config
-func LogFormat() string {
-	return GetConfig().LogFormat
-}
-
-// ProductServicePort returns the product service port from the global config
-func ProductServicePort() string {
-	return GetConfig().ProductServicePort
-}
-
-// DataFilepath returns the data file path from the global config
-func DataFilepath() string {
-	return GetConfig().DataFilePath
-}
-
-// ShutdownTotalTimeout returns the total shutdown timeout from the global config
-func ShutdownTotalTimeout() time.Duration {
-	return GetConfig().ShutdownTotalTimeout
-}
-
-// ShutdownServerTimeout returns the server shutdown timeout from the global config
-func ShutdownServerTimeout() time.Duration {
-	return GetConfig().ShutdownServerTimeout
-}
-
-// ShutdownOtelMinTimeout returns the minimum OpenTelemetry shutdown timeout from the global config
-func ShutdownOtelMinTimeout() time.Duration {
-	return GetConfig().ShutdownOtelMinTimeout
-}
-
-// --- Helper function to get keys from a map[string]struct{} for error messages ---
-func getMapKeys(m map[string]struct{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// --- Helper functions for reading/parsing env vars ---
-
-// Reads a required string environment variable.
-func getEnvStrRequired(key string) (string, error) {
-	value, exists := os.LookupEnv(key)
-	if !exists {
-		return "", fmt.Errorf("required environment variable %s is not set", key)
-	}
-	if value == "" {
-		return "", fmt.Errorf("required environment variable %s must not be empty", key)
-	}
-	return value, nil
-}
-
-// Reads a required integer environment variable.
-func getEnvIntRequired(key string) (int, error) {
-	valueStr, err := getEnvStrRequired(key)
-	if err != nil {
-		return 0, err
-	}
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid integer format for %s: %w", key, err)
-	}
-	return value, nil
-}
-
-// Reads an optional boolean environment variable.
-// Returns fallback if not set. Returns error ONLY on parse failure.
-func getEnvBool(key string, fallback bool) (bool, error) {
-	valueStr, exists := os.LookupEnv(key)
-	if !exists {
-		return fallback, nil
-	}
-	value, err := strconv.ParseBool(valueStr)
-	if err != nil {
-		// Don't wrap here, let caller decide how to handle parse error vs missing
-		return fallback, fmt.Errorf("invalid boolean format for %s ('%s'): %w", key, valueStr, err)
-	}
-	return value, nil
-}
-
-// Reads an optional integer environment variable.
-// Returns fallback if not set. Returns error ONLY on parse failure.
-func getEnvInt(key string, fallback int) (int, error) {
-	valueStr, exists := os.LookupEnv(key)
-	if !exists {
-		return fallback, nil
-	}
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return fallback, fmt.Errorf("invalid integer format for %s ('%s'): %w", key, valueStr, err)
-	}
-	return value, nil
-}
-
-// Reads an optional float environment variable.
-// Returns fallback if not set. Returns error ONLY on parse failure.
-func getEnvFloat(key string, fallback float64) (float64, error) {
-	valueStr, exists := os.LookupEnv(key)
-	if !exists {
-		return fallback, nil
-	}
-	value, err := strconv.ParseFloat(valueStr, 64)
-	if err != nil {
-		return fallback, fmt.Errorf("invalid float format for %s ('%s'): %w", key, valueStr, err)
-	}
-	return value, nil
-}
-
-// Reads an optional duration environment variable (expecting milliseconds).
-// Returns fallback if not set. Returns error ONLY on parse failure.
-func getEnvDurationMS(key string, fallbackMS int) (time.Duration, error) {
-	fallbackDuration := time.Duration(fallbackMS) * time.Millisecond
-	valueStr, exists := os.LookupEnv(key)
-	if !exists {
-		return fallbackDuration, nil
-	}
-	valueMS, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return fallbackDuration, fmt.Errorf("invalid integer format for duration (ms) %s ('%s'): %w", key, valueStr, err)
-	}
-	return time.Duration(valueMS) * time.Millisecond, nil
-}
-
-// Reads an optional duration environment variable (expecting seconds).
-// Returns fallback if not set. Returns error ONLY on parse failure.
-func getEnvDurationSec(key string, fallbackSec int) (time.Duration, error) {
-	fallbackDuration := time.Duration(fallbackSec) * time.Second
-	valueStr, exists := os.LookupEnv(key)
-	if !exists {
-		return fallbackDuration, nil
-	}
-	valueSec, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return fallbackDuration, fmt.Errorf("invalid integer format for duration (sec) %s ('%s'): %w", key, valueStr, err)
-	}
-	return time.Duration(valueSec) * time.Second, nil
 }
