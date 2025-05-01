@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o 
 # Use distroless static image for minimal footprint
 # FROM gcr.io/distroless/static-debian11
 # Using alpine as distroless might cause issues with OTLP endpoint resolution (host.docker.internal)
-FROM alpine:latest
+FROM alpine:3.18
 
 # Define build arguments for service identity
 ARG SERVICE_NAME=product-service
@@ -35,15 +35,15 @@ ARG SERVICE_VERSION=0.1.0
 
 WORKDIR /app
 
-# Copy the static binary from the builder stage
-COPY --from=builder /app/product-service-binary .
-
-# Copy necessary static assets like configuration or data files
-# Ensure this path matches where the application expects it
+# Copy necessary files from the builder stage
+COPY --from=builder /app/product-service-binary /app/product-service-binary
+# Ensure data.json is copied relative to WORKDIR /app
 COPY --from=builder /app/product-service/data.json ./data.json
 
-# Expose the port the application listens on
-# The actual port number should be configured via environment variables at runtime
+# Set environment variable for data path (default)
+ENV DATA_FILE_PATH=./data.json
+
+# Expose the service port (should match config)
 EXPOSE 8082
 
 # Set environment variables from build arguments for OTel resource
@@ -52,7 +52,7 @@ ENV SERVICE_NAME=$SERVICE_NAME
 ENV OTEL_SERVICE_NAME=$SERVICE_NAME
 ENV SERVICE_VERSION=$SERVICE_VERSION
 
-# Set the entrypoint to the binary
+# Set the entrypoint
 ENTRYPOINT ["/app/product-service-binary"]
 
 # CMD is often omitted when ENTRYPOINT is used like this,

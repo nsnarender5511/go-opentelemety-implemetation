@@ -8,8 +8,9 @@ PYTHON := python3 # Or just python if python3 isn't your command
 SIGNOZ_IMAGE := signoz/signoz:latest
 # Path where the user clones the signoz-install repo
 SIGNOZ_INSTALL_DIR ?= .signoz # Default to a sibling directory, user can override
+NETWORK_NAME=signoz-net
 
-.PHONY: build run simulate run-signoz stop-signoz help run-local
+.PHONY: build run simulate run-signoz stop-signoz help run-local network
 
 # Build the Docker image for the product service
 build:
@@ -18,19 +19,19 @@ build:
 	@docker build -t $(IMAGE_NAME) -f ./$(SERVICE_NAME)/Dockerfile .
 
 # Build and run the product service container
-run: build
-	@echo "Ensuring container $(CONTAINER_NAME) is stopped and removed..."
-	@docker rm -f $(CONTAINER_NAME) > /dev/null 2>&1 || true
-	@echo "Running $(CONTAINER_NAME) on port $(SERVICE_PORT)..."
-	@docker run -d --name $(CONTAINER_NAME) \
-		-p $(SERVICE_PORT):$(SERVICE_PORT) \
+run: build network
+	@echo "Running $(SERVICE_NAME)..."
+	@docker run --rm -p $(SERVICE_PORT):$(SERVICE_PORT) \
+		--network $(NETWORK_NAME) \
 		-e PRODUCT_SERVICE_PORT=$(SERVICE_PORT) \
-		-e OTEL_EXPORTER_OTLP_ENDPOINT=host.docker.internal:4317 \
-		-e OTEL_EXPORTER_INSECURE=true \
-		-e OTEL_SERVICE_NAME=$(SERVICE_NAME) \
 		-e LOG_LEVEL=info \
 		-e LOG_FORMAT=text \
+		-e OTEL_SERVICE_NAME=$(SERVICE_NAME) \
+		-e SERVICE_VERSION=0.1.0 \
+		-e OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317 \
+		-e OTEL_EXPORTER_INSECURE=true \
 		-e OTEL_SAMPLE_RATIO=1.0 \
+		--name $(CONTAINER_NAME) \
 		$(IMAGE_NAME)
 	@echo "Waiting for service to start..."
 	@sleep 5 # Give the container a moment to start up
@@ -85,4 +86,9 @@ help:
 	@echo "  simulate     : Run the traffic simulation script against the running service"
 	@echo "  run-signoz   : Clone (if needed) and run SigNoz using docker-compose"
 	@echo "  run-local    : Run the product service locally using go run"
-	@echo "  help         : Show this help message" 
+	@echo "  help         : Show this help message"
+
+.PHONY: network
+network:
+	@docker network inspect $(NETWORK_NAME) >/dev/null 2>&1 || \
+		docker network create $(NETWORK_NAME) 

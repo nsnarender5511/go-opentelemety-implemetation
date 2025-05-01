@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,8 +20,10 @@ import (
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/codes"
+	codes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -77,67 +80,68 @@ func main() {
 	productHandler := NewProductHandler(productService) // Removed tracer and meter
 
 	app := fiber.New(fiber.Config{
+		AppName: fmt.Sprintf("%s v%s", config.SERVICE_NAME, config.SERVICE_VERSION),
 		// --- Add Fiber Error Handler for OTel Integration ---
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			ctx := c.UserContext()
-			// Get the current span from the context
 			span := trace.SpanFromContext(ctx)
+			logEntry := logrus.WithContext(ctx).WithError(err)
 
-			// Determine the correct HTTP status code based on error type
-			code := http.StatusInternalServerError // Default
-			// Default user message (can be overridden by specific error types)
-			httpErrMessage := "An internal server error occurred"
+			code := http.StatusInternalServerError                           // Default
+			httpErrMessage := "An unexpected internal server error occurred" // Default
 
-			// Use errors.As for typed errors, errors.Is for sentinels
 			var validationErr *commonErrors.ValidationError
 			var dbErr *commonErrors.DatabaseError
-			// Add other expected custom error types here
 
 			if errors.As(err, &validationErr) {
 				code = http.StatusBadRequest
-				// Use the specific message from the validation error
 				httpErrMessage = validationErr.Error()
+				span.SetStatus(codes.Error, httpErrMessage)
+				logEntry.Warnf("Validation error: %v", err)
 			} else if errors.Is(err, commonErrors.ErrProductNotFound) {
 				code = http.StatusNotFound
 				httpErrMessage = commonErrors.ErrProductNotFound.Error()
+				span.SetStatus(codes.Error, httpErrMessage)
+				logEntry.Warnf("Resource not found: %v", err)
 			} else if errors.As(err, &dbErr) {
-				// Keep 500 for DB errors, but log the specific internal details
-				// User sees a generic message
-				httpErrMessage = "An internal database error occurred"
-				logrus.WithContext(ctx).WithError(err).Errorf("Database error during operation: %s", dbErr.Operation)
-			}
-			// Add checks for other specific commonErrors (like ErrServiceCallFailed) if needed
-			// else if errors.Is(err, commonErrors.ErrServiceCallFailed) { ... }
-
-			// Log the original full error chain with context (includes trace/span IDs via hook)
-			logEntry := logrus.WithContext(ctx).WithError(err)
-			if code >= 500 {
-				// Log with stack trace for server errors if possible (depends on logrus setup)
-				logEntry.Errorf("Server error in handler: %+v", err) // Use %+v to potentially get stack trace
+				code = http.StatusInternalServerError
+				httpErrMessage = "An internal database error occurred" // Generic user message
+				// Log the specific internal error details
+				logEntry.Errorf("Database error during operation %s: %+v", dbErr.Operation, dbErr.Err)
+				span.SetStatus(codes.Error, httpErrMessage)
 			} else {
-				// Log client errors (4xx) at Warn level, stack trace likely not needed
-				logEntry.Warnf("Client error in handler: %v", err)
+				// Default case for unhandled errors
+				code = http.StatusInternalServerError
+				httpErrMessage = "An unexpected internal server error occurred"
+				logEntry.Errorf("Unhandled internal server error: %+v", err) // Log full error with stack trace if possible
+				span.SetStatus(codes.Error, httpErrMessage)
 			}
 
-			// Record the error on the span
-			span.RecordError(err, trace.WithStackTrace(true)) // Record with stack trace
-			// Set span status to Error
-			span.SetStatus(codes.Error, httpErrMessage) // Use the user-facing message for span status
+			// Record the error on the span (already done in handlers for specific cases, but good fallback)
+			// Ensure RecordError is called appropriately within handlers or here if needed.
+			// span.RecordError(err, trace.WithStackTrace(true)) // Might be redundant if handlers already do it
+
+			// REMOVED: Generic span status set - span.SetStatus(codes.Error, httpErrMessage)
 
 			// Return the error response to the client
 			return c.Status(code).JSON(fiber.Map{
-				// Use a consistent field name like "error" or "message"
 				"error": httpErrMessage,
 			})
 		},
 	})
 
-	// --- Add OTel Middleware FIRST ---
+	// --- Base Middleware ---
+	app.Use(recover.New())
+	app.Use(logger.New())
+
+	// --- Health Check Route (BEFORE OTel Middleware) ---
+	app.Get("/healthz", productHandler.HealthCheck)
+
+	// --- OTel Middleware (applied AFTER health check) ---
+	// Using default otelfiber middleware configuration
 	app.Use(otelfiber.Middleware())
 
-	// Optional: Keep Fiber's built-in logger or rely solely on OTel/Logrus logs
-	// app.Use(fiberlogger.New()) // REMOVED
-
+	// --- Main API Routes ---
 	api := app.Group("/products")
 	api.Get("/", productHandler.GetAllProducts)
 	api.Get("/:productId", productHandler.GetProductByID)

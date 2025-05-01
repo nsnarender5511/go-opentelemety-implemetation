@@ -49,7 +49,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	ctx, span := tracer.Start(ctx, "service.GetAll")
 	defer span.End()
 
-	products, err = s.repo.FindAll(ctx)
+	products, err = s.repo.GetAll(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -76,7 +76,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 
 	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
 
-	product, err = s.repo.FindByProductID(ctx, productID)
+	product, err = s.repo.GetByID(ctx, productID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -96,27 +96,25 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 	log := logrus.WithContext(ctx).WithField(telemetry.LogFieldProductID, productID)
 	log.Info("Service: Checking stock for product ID")
 
-	var stock int
-	var err error
-
 	tracer := s.getTracer()
 	ctx, span := tracer.Start(ctx, "service.GetStock")
 	defer span.End()
 
 	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
 
-	stock, err = s.repo.FindStockByProductID(ctx, productID)
+	product, err := s.repo.GetByID(ctx, productID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		log.WithError(err).Error("Service: Failed to get stock for product ID from repo")
+		log.WithError(err).Error("Service: Failed to get product for stock check from repo")
 		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
 			return 0, commonErrors.ErrProductNotFound
 		} else {
-			return 0, fmt.Errorf("failed to get stock for product id '%s': %w", productID, err)
+			return 0, fmt.Errorf("failed to get product for stock check (id '%s'): %w", productID, err)
 		}
 	}
 
+	stock := product.Stock
 	span.SetAttributes(telemetry.AppProductStockKey.Int(stock))
 
 	return stock, nil
