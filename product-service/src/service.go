@@ -8,9 +8,6 @@ import (
 	"github.com/narender/common-module/telemetry"
 
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // ProductService defines the interface for product business logic
@@ -32,54 +29,39 @@ func NewProductService(repo ProductRepository) ProductService {
 	}
 }
 
-// getTracer is a helper to get the tracer instance consistently
-func (s *productService) getTracer() trace.Tracer {
-	return otel.Tracer("product-service/service")
-}
-
 // GetAll handles fetching all products
 func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 	log := logrus.WithContext(ctx)
 	log.Info("Service: Fetching all products")
 
-	var products []Product
-	var err error
-
-	tracer := s.getTracer()
-	ctx, span := tracer.Start(ctx, "service.GetAll")
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetAll")
 	defer span.End()
 
-	products, err = s.repo.GetAll(ctx)
+	products, err := s.repo.GetAll(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.RecordError(span, err, "failed to fetch all products from repo")
 		log.WithError(err).Error("Service: Failed to fetch all products from repo")
 		return nil, fmt.Errorf("failed to find all products: %w", err)
 	}
 
-	span.SetAttributes(telemetry.DBResultCountKey.Int(len(products)))
+	telemetry.AddAttribute(span, "db.result.count", len(products))
 
 	return products, nil
 }
 
 // GetByID handles fetching a product by its ID
 func (s *productService) GetByID(ctx context.Context, productID string) (Product, error) {
-	log := logrus.WithContext(ctx).WithField(telemetry.LogFieldProductID, productID)
+	log := logrus.WithContext(ctx).WithField("product_id", productID)
 	log.Info("Service: Fetching product by ID")
 
-	var product Product
-	var err error
-
-	tracer := s.getTracer()
-	ctx, span := tracer.Start(ctx, "service.GetByID")
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetByID")
 	defer span.End()
 
-	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+	telemetry.AddAttribute(span, "product.id", productID)
 
-	product, err = s.repo.GetByID(ctx, productID)
+	product, err := s.repo.GetByID(ctx, productID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.RecordError(span, err, "failed to find product by ID in repo")
 		log.WithError(err).Error("Service: Failed to find product by ID in repo")
 		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
 			return Product{}, commonErrors.ErrProductNotFound
@@ -93,19 +75,17 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 
 // GetStock handles fetching stock for a product
 func (s *productService) GetStock(ctx context.Context, productID string) (int, error) {
-	log := logrus.WithContext(ctx).WithField(telemetry.LogFieldProductID, productID)
+	log := logrus.WithContext(ctx).WithField("product_id", productID)
 	log.Info("Service: Checking stock for product ID")
 
-	tracer := s.getTracer()
-	ctx, span := tracer.Start(ctx, "service.GetStock")
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetStock")
 	defer span.End()
 
-	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+	telemetry.AddAttribute(span, "product.id", productID)
 
 	product, err := s.repo.GetByID(ctx, productID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.RecordError(span, err, "failed to get product for stock check from repo")
 		log.WithError(err).Error("Service: Failed to get product for stock check from repo")
 		if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
 			return 0, commonErrors.ErrProductNotFound
@@ -115,7 +95,7 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 	}
 
 	stock := product.Stock
-	span.SetAttributes(telemetry.AppProductStockKey.Int(stock))
+	telemetry.AddAttribute(span, "product.stock", stock)
 
 	return stock, nil
 }

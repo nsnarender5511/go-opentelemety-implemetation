@@ -4,135 +4,178 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"strconv"
 	"sync"
 	"time"
 
 	// Import the main config package using the new module path
-	"github.com/narender/common-module/config"
+
 	// No need to import sub-packages like trace, metric, log here
+
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 )
+
+// globalLogger is the shared logger instance used across the telemetry package
+// It is set via SetLogger and used by the wrapper functions to log telemetry events
+var globalLogger *logrus.Logger
+
+// SetLogger sets the global logger for the telemetry package
+// This should be called before any other telemetry functions
+func SetLogger(logger *logrus.Logger) {
+	globalLogger = logger
+}
+
+// getLogger gets the global logger or creates a default one if not set
+// This ensures a logger is always available for internal telemetry operations
+func getLogger() *logrus.Logger {
+	if globalLogger == nil {
+		globalLogger = logrus.New()
+		globalLogger.SetLevel(logrus.InfoLevel)
+	}
+	return globalLogger
+}
 
 // shutdownFunc defines the signature for shutdown functions returned by initializers.
 type shutdownFunc func(context.Context) error
 
 // InitTelemetry initializes OpenTelemetry Tracing, Metrics, and Logging.
-// It loads configuration, creates resources, sets up providers/exporters,
-// configures the Logrus hook, and returns a master shutdown function.
-func InitTelemetry() (func(context.Context) error, error) {
-	// Directly use variables from the config package
-
-	// Use a timeout for the initial setup context.
-	initCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Increased timeout
-	defer cancel()
-
-	// --- 1. Create Resource ---
-	// Gets service name/version from config package now.
-	res := newResource(initCtx)
-
-	// Convert string config values to appropriate types
-	otelInsecure, _ := strconv.ParseBool(config.OTEL_EXPORTER_INSECURE) // Default false on error
-	otelSampleRatio, err := strconv.ParseFloat(config.OTEL_SAMPLE_RATIO, 64)
-	if err != nil {
-		log.Printf("Warning: Could not parse OTEL_SAMPLE_RATIO '%s' as float: %v. Defaulting to 1.0", config.OTEL_SAMPLE_RATIO, err)
-		otelSampleRatio = 1.0 // Default to 1.0 on error
+// It returns a shutdown function to cleanly terminate telemetry and
+// any error encountered during initialization.
+func InitTelemetry(ctx context.Context, config TelemetryConfig) (shutdown func(context.Context) error, err error) {
+	logger := config.Logger
+	if logger == nil {
+		logger = getLogger()
 	}
 
-	shutdownFuncs := make([]shutdownFunc, 0, 3) // Store shutdown functions
-	var initErr error                           // To capture the first error during init
+	// Create the shutdown function that will be returned
+	var shutdownFuncs []func(context.Context) error
 
-	// --- 2. Initialize Trace Provider ---
-	// Pass config variables directly. Assumes initTracerProvider signature is updated.
-	tracerShutdown, err := initTracerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, otelSampleRatio, res)
-	if err != nil {
-		log.Printf("Error initializing TracerProvider: %v", err)
-		initErr = errors.Join(initErr, fmt.Errorf("tracer init failed: %w", err))
-	} else if tracerShutdown != nil {
-		shutdownFuncs = append(shutdownFuncs, tracerShutdown)
-		log.Println("TracerProvider initialization successful.")
+	shutdown = func(ctx context.Context) error {
+		var err error
+		logger.Info("Shutting down telemetry providers")
+
+		// Shutdown providers in reverse order
+		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
+			if shutdownErr := shutdownFuncs[i](ctx); shutdownErr != nil {
+				logger.WithError(shutdownErr).Error("Error during telemetry shutdown")
+				err = errors.Join(err, shutdownErr)
+			}
+		}
+
+		shutdownFuncs = nil
+		if err != nil {
+			logger.WithError(err).Error("Telemetry shutdown completed with errors")
+		} else {
+			logger.Info("Telemetry shutdown completed successfully")
+		}
+		return err
 	}
 
-	// --- 3. Initialize Meter Provider ---
-	// Pass config variables directly. Assumes initMeterProvider signature is updated.
-	meterShutdown, err := initMeterProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, res)
-	if err != nil {
-		log.Printf("Error initializing MeterProvider: %v", err)
-		initErr = errors.Join(initErr, fmt.Errorf("meter init failed: %w", err))
-	} else if meterShutdown != nil {
-		shutdownFuncs = append(shutdownFuncs, meterShutdown)
-		log.Println("MeterProvider initialization successful.")
+	// Handle errors during initialization
+	handleInitError := func(initErr error, component string) error {
+		logger.WithError(initErr).Errorf("Failed to initialize %s", component)
+		// Perform cleanup of already initialized components
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_ = shutdown(cleanupCtx) // Ignore any shutdown errors during initialization cleanup
+		return fmt.Errorf("%s initialization failed: %w", component, initErr)
 	}
 
-	// --- 4. Initialize Logger Provider ---
-	// This MUST happen before ConfigureLogrus.
-	// Pass config variables directly. Assumes initLoggerProvider signature is updated.
-	loggerShutdown, err := initLoggerProvider(initCtx, config.OTEL_EXPORTER_OTLP_ENDPOINT, otelInsecure, res)
+	logger.WithFields(logrus.Fields{
+		"service":  config.ServiceName,
+		"endpoint": config.Endpoint,
+	}).Info("Initializing telemetry")
+
+	// Create and configure the Resource for all telemetry
+	res, err := newResource(ctx, config.ServiceName)
 	if err != nil {
-		log.Printf("Error initializing LoggerProvider: %v", err)
-		initErr = errors.Join(initErr, fmt.Errorf("logger init failed: %w", err))
+		return nil, handleInitError(err, "resource")
+	}
+
+	// Set up propagator
+	prop := propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	)
+	otel.SetTextMapPropagator(prop)
+
+	// Initialize tracer provider
+	tp, err := newTraceProvider(ctx, config, res)
+	if err != nil {
+		return nil, handleInitError(err, "trace provider")
+	}
+	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
+	otel.SetTracerProvider(tp)
+
+	// Initialize meter provider
+	mp, err := newMeterProvider(ctx, config, res)
+	if err != nil {
+		return nil, handleInitError(err, "meter provider")
+	}
+	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
+	otel.SetMeterProvider(mp)
+
+	// Initialize logger provider
+	loggerShutdown, err := configureLoggerProvider(ctx, config, res)
+	if err != nil {
+		// Logger is less critical, so we log the error but continue
+		logger.WithError(err).Warn("Failed to initialize logger provider, continuing without telemetry logging")
 	} else if loggerShutdown != nil {
 		shutdownFuncs = append(shutdownFuncs, loggerShutdown)
-		log.Println("LoggerProvider initialization successful.")
 	}
 
-	// --- 5. Configure Logrus Hook ---
-	// Only configure the hook if the logger provider initialized successfully.
-	if loggerShutdown != nil {
-		ConfigureLogrus() // Sets up the hook to use the initialized otelLogger
-	} else {
-		log.Println("Skipping Logrus hook configuration due to LoggerProvider init failure.")
-	}
-
-	if initErr != nil {
-		log.Printf("OpenTelemetry initialization failed with errors: %v", initErr)
-		// Attempt to shut down any components that *did* initialize successfully
-		// We still return the master shutdown func, but also the init error.
-		masterShutdownPartial := createMasterShutdown(shutdownFuncs)
-		return masterShutdownPartial, initErr
-	}
-
-	log.Println("OpenTelemetry initialization complete.")
-
-	// --- 6. Create Master Shutdown Function ---
-	masterShutdown := createMasterShutdown(shutdownFuncs)
-
-	// Return the master shutdown function and nil error if all initializations were okay.
-	return masterShutdown, nil
+	logger.Info("Telemetry initialization completed successfully")
+	return shutdown, nil
 }
 
-// createMasterShutdown creates a function that calls all individual shutdown functions concurrently.
-func createMasterShutdown(shutdownFuncs []shutdownFunc) func(context.Context) error {
-	return func(shutdownCtx context.Context) error {
-		log.Println("Starting OpenTelemetry master shutdown...")
+// newResource creates a resource with service information
+// This resource is used by all telemetry signals (traces, metrics, logs)
+func newResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
+	res, err := resource.New(ctx,
+		resource.WithFromEnv(),
+		resource.WithAttributes(
+			semconv.ServiceName(serviceName),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+	return res, nil
+}
+
+// createMasterShutdown creates a function that will shut down all provided shutdown functions
+// in parallel, with a timeout. This is more efficient than shutting down sequentially.
+func createMasterShutdown(logger *logrus.Logger, shutdownFuncs []func(context.Context) error) func(context.Context) error {
+	return func(ctx context.Context) error {
+		logger.Info("Starting telemetry shutdown")
+
+		// Use WaitGroup for parallel shutdown
 		var wg sync.WaitGroup
-		var multiErr error // Use errors.Join for better multiple error handling
+		var mu sync.Mutex
+		var multiErr error
 
-		// Use a shorter timeout for individual shutdowns within the overall context.
-		individualShutdownTimeout := 5 * time.Second
-
-		wg.Add(len(shutdownFuncs))
 		for _, fn := range shutdownFuncs {
-			go func(shutdown shutdownFunc) {
-				defer wg.Done()
-				// Create a derived context with a timeout for this specific shutdown
-				ctx, cancel := context.WithTimeout(shutdownCtx, individualShutdownTimeout)
-				defer cancel()
+			if fn == nil {
+				continue
+			}
 
-				if err := shutdown(ctx); err != nil {
-					log.Printf("Error during OTel component shutdown: %v", err)
-					multiErr = errors.Join(multiErr, err) // Collect errors safely
+			wg.Add(1)
+			go func(shutdownFn func(context.Context) error) {
+				defer wg.Done()
+
+				if err := shutdownFn(ctx); err != nil {
+					mu.Lock()
+					multiErr = errors.Join(multiErr, err)
+					mu.Unlock()
 				}
 			}(fn)
 		}
 
-		wg.Wait() // Wait for all shutdowns to complete or time out
-
-		if multiErr != nil {
-			log.Printf("OpenTelemetry master shutdown finished with errors: %v", multiErr)
-		} else {
-			log.Println("OpenTelemetry master shutdown finished successfully.")
-		}
+		wg.Wait()
 		return multiErr
 	}
 }

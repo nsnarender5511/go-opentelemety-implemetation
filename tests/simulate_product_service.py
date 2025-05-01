@@ -3,9 +3,18 @@ import time
 import random
 import threading
 import uuid
+import os
 
-# Assuming the product service runs on localhost:8082
-BASE_URL = "http://localhost:8082/products"
+# Configuration
+BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
+PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
+CONCURRENT_USERS = 5
+SIMULATION_DURATION_SECONDS = 30
+# Use actual IDs from data.json
+known_product_ids = [
+    "prod_elec_001", "prod_elec_002", "prod_home_001", "prod_home_002",
+    "prod_book_001", "prod_cloth_001", "prod_gadget_001", "prod_toy_001"
+]
 
 # Product IDs from repository.go
 EXISTING_PRODUCT_IDS = ["prod_123", "prod_456", "prod_789"]
@@ -32,18 +41,18 @@ def make_request(method, url, expected_status=None):
         print(f"-> {method} {url}: Error {e}")
 
 def get_all_products():
-    make_request("GET", BASE_URL, expected_status=200)
+    make_request("GET", PRODUCTS_ENDPOINT, expected_status=200)
 
 def get_product_by_id(product_id, expected_status=200):
-    url = f"{BASE_URL}/{product_id}"
+    url = f"{PRODUCTS_ENDPOINT}/{product_id}"
     make_request("GET", url, expected_status=expected_status)
 
 def get_product_stock(product_id, expected_status=200):
-    url = f"{BASE_URL}/{product_id}/stock"
+    url = f"{PRODUCTS_ENDPOINT}/{product_id}/stock"
     make_request("GET", url, expected_status=expected_status)
 
 def hit_invalid_path():
-    url = f"{BASE_URL}/some/invalid/path/{uuid.uuid4()}"
+    url = f"{PRODUCTS_ENDPOINT}/some/invalid/path/{uuid.uuid4()}"
     make_request("GET", url, expected_status=404) # Fiber often returns 404 for bad routes
 
 # --- Simulation Worker ---
@@ -65,14 +74,14 @@ def worker(worker_id):
             if action_type == 'get_all':
                 get_all_products()
             elif action_type == 'get_one_ok':
-                get_product_by_id(random.choice(EXISTING_PRODUCT_IDS), expected_status=200)
+                get_product_by_id(random.choice(known_product_ids), expected_status=200)
             elif action_type == 'get_one_404':
                 get_product_by_id(NON_EXISTING_PRODUCT_ID, expected_status=404)
             elif action_type == 'get_one_invalid':
                 # Depending on router, might be 400 or 404 - check service logs
                 get_product_by_id(INVALID_FORMAT_PRODUCT_ID, expected_status=404) 
             elif action_type == 'get_stock_ok':
-                get_product_stock(random.choice(EXISTING_PRODUCT_IDS), expected_status=200)
+                get_product_stock(random.choice(known_product_ids), expected_status=200)
             elif action_type == 'get_stock_404':
                 get_product_stock(NON_EXISTING_PRODUCT_ID, expected_status=404)
             elif action_type == 'get_stock_invalid':
@@ -93,17 +102,14 @@ def worker(worker_id):
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    NUM_THREADS = 5 # Number of concurrent users
-    SIMULATION_DURATION_SECONDS = 30 # How long to run the simulation
-
     print(f"Starting Product Service Simulation...")
-    print(f" - Simulating {NUM_THREADS} concurrent users for {SIMULATION_DURATION_SECONDS} seconds.")
+    print(f" - Simulating {CONCURRENT_USERS} concurrent users for {SIMULATION_DURATION_SECONDS} seconds.")
     print(f" - Target: {BASE_URL}")
-    print(f" - Known IDs: {EXISTING_PRODUCT_IDS}")
+    print(f" - Known IDs: {known_product_ids}")
     print("---")
 
     threads = []
-    for i in range(NUM_THREADS):
+    for i in range(CONCURRENT_USERS):
         thread = threading.Thread(target=worker, args=(i + 1,))
         threads.append(thread)
         thread.start()

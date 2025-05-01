@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,105 +25,123 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/sirupsen/logrus"
-	codes "go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Custom validation error sentinel
 // var ErrValidation = fmt.Errorf("input validation failed")
 
-func main() {
-	// --- Initialize OpenTelemetry ---
-	otelShutdown, err := telemetry.InitTelemetry()
-	if err != nil {
-		// Use standard log before Logrus is configured if OTel fails early
-		logrus.WithError(err).Fatal("Failed to initialize OpenTelemetry")
-	}
-	// Defer the shutdown function to be called when main exits
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Allow 10 seconds for graceful shutdown
-		defer cancel()
-		if err := otelShutdown(ctx); err != nil {
-			logrus.WithError(err).Error("Failed to shutdown OpenTelemetry gracefully")
-		} else {
-			logrus.Info("OpenTelemetry shutdown complete")
-		}
-	}()
+// logrusLoggerHook forwards logrus entries to our custom logger instance
+type logrusLoggerHook struct {
+	logger *logrus.Logger
+}
 
-	// --- Configure Logrus AFTER OTel Init ---
+// Fire implements logrus.Hook.Fire
+func (h *logrusLoggerHook) Fire(entry *logrus.Entry) error {
+	// Forward to our logger instance
+	newEntry := h.logger.WithFields(entry.Data)
+	newEntry.Time = entry.Time
+	newEntry.Level = entry.Level
+	newEntry.Message = entry.Message
+	return nil
+}
+
+// Levels implements logrus.Hook.Levels
+func (h *logrusLoggerHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func main() {
+	// --- Initialize Logrus FIRST ---
 	// Set log level from config
+	log := logrus.New()
 	if level, err := logrus.ParseLevel(config.LOG_LEVEL); err == nil {
-		logrus.SetLevel(level)
+		log.SetLevel(level)
 	} else {
-		logrus.Warnf("Invalid log level '%s', using default 'info'", config.LOG_LEVEL)
-		logrus.SetLevel(logrus.InfoLevel)
+		log.Warnf("Invalid log level '%s', using default 'info'", config.LOG_LEVEL)
+		log.SetLevel(logrus.InfoLevel)
 	}
 	// Set formatter (e.g., JSON or Text)
 	if config.LOG_FORMAT == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
+		log.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true, TimestampFormat: time.RFC3339Nano})
+		log.SetFormatter(&logrus.TextFormatter{FullTimestamp: true, TimestampFormat: time.RFC3339Nano})
 	}
-	logrus.SetOutput(os.Stdout) // Ensure logs go to stdout
-	// Optional: logrus.SetReportCaller(true) // Adds overhead
+	log.SetOutput(os.Stdout) // Ensure logs go to stdout
 
-	logrus.Info("Starting Product Service", "port", config.PRODUCT_SERVICE_PORT) // Use Logrus
+	// --- Configure Telemetry ---
+	// Create telemetry configuration
+	sampleRatio, _ := strconv.ParseFloat(config.OTEL_SAMPLE_RATIO, 64)
+	insecure, _ := strconv.ParseBool(config.OTEL_EXPORTER_INSECURE)
 
-	// --- Initialize Tracer and Meter --- Removed explicit Get global instances
-	// tracer := otel.Tracer("product-service/main") // No longer needed here
-	// meter := otel.Meter("product-service/main")   // No longer needed here
+	telemetryConfig := telemetry.TelemetryConfig{
+		ServiceName:        config.SERVICE_NAME,
+		Endpoint:           config.OTEL_EXPORTER_OTLP_ENDPOINT,
+		Insecure:           insecure,
+		SampleRatio:        sampleRatio,
+		BatchTimeoutMS:     5000, // 5 seconds batch timeout
+		MaxExportBatchSize: 512,  // Reasonable batch size
+		Headers:            make(map[string]string),
+		Logger:             log,
+	}
 
-	// --- Inject Dependencies --- Removed passing tracer/meter
-	productRepo, err := NewProductRepository() // Removed tracer
+	// Set global logger for telemetry package
+	telemetry.SetLogger(log)
+
+	// Initialize telemetry with context
+	ctx := context.Background()
+	otelShutdown, err := telemetry.InitTelemetry(ctx, telemetryConfig)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize ProductRepository")
+		log.WithError(err).Fatal("Failed to initialize OpenTelemetry")
 	}
-	productService := NewProductService(productRepo)    // Removed tracer
-	productHandler := NewProductHandler(productService) // Removed tracer and meter
+
+	// Use the application logger for all further logging
+	logrus.SetOutput(io.Discard)                                    // Disable standard logrus output
+	logrus.StandardLogger().AddHook(&logrusLoggerHook{logger: log}) // Forward to our logger
+
+	log.Info("Starting Product Service", "port", config.PRODUCT_SERVICE_PORT)
+
+	// --- Inject Dependencies ---
+	productRepo, err := NewProductRepository()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to initialize ProductRepository")
+	}
+	productService := NewProductService(productRepo)
+	productHandler := NewProductHandler(productService)
 
 	app := fiber.New(fiber.Config{
 		AppName: fmt.Sprintf("%s v%s", config.SERVICE_NAME, config.SERVICE_VERSION),
 		// --- Add Fiber Error Handler for OTel Integration ---
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			ctx := c.UserContext()
-			span := trace.SpanFromContext(ctx)
-			logEntry := logrus.WithContext(ctx).WithError(err)
 
-			code := http.StatusInternalServerError                           // Default
-			httpErrMessage := "An unexpected internal server error occurred" // Default
+			// Default status code
+			code := http.StatusInternalServerError
+			httpErrMessage := "An unexpected internal server error occurred"
 
+			// Map error types to appropriate status codes
 			var validationErr *commonErrors.ValidationError
 			var dbErr *commonErrors.DatabaseError
 
 			if errors.As(err, &validationErr) {
 				code = http.StatusBadRequest
 				httpErrMessage = validationErr.Error()
-				span.SetStatus(codes.Error, httpErrMessage)
-				logEntry.Warnf("Validation error: %v", err)
+				log.WithContext(ctx).WithError(err).Warn("Validation error")
 			} else if errors.Is(err, commonErrors.ErrProductNotFound) {
 				code = http.StatusNotFound
 				httpErrMessage = commonErrors.ErrProductNotFound.Error()
-				span.SetStatus(codes.Error, httpErrMessage)
-				logEntry.Warnf("Resource not found: %v", err)
+				log.WithContext(ctx).WithError(err).Warn("Resource not found")
 			} else if errors.As(err, &dbErr) {
 				code = http.StatusInternalServerError
 				httpErrMessage = "An internal database error occurred" // Generic user message
 				// Log the specific internal error details
-				logEntry.Errorf("Database error during operation %s: %+v", dbErr.Operation, dbErr.Err)
-				span.SetStatus(codes.Error, httpErrMessage)
+				log.WithContext(ctx).WithFields(logrus.Fields{
+					"operation": dbErr.Operation,
+				}).WithError(dbErr.Err).Error("Database error")
 			} else {
 				// Default case for unhandled errors
-				code = http.StatusInternalServerError
-				httpErrMessage = "An unexpected internal server error occurred"
-				logEntry.Errorf("Unhandled internal server error: %+v", err) // Log full error with stack trace if possible
-				span.SetStatus(codes.Error, httpErrMessage)
+				log.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
 			}
-
-			// Record the error on the span (already done in handlers for specific cases, but good fallback)
-			// Ensure RecordError is called appropriately within handlers or here if needed.
-			// span.RecordError(err, trace.WithStackTrace(true)) // Might be redundant if handlers already do it
-
-			// REMOVED: Generic span status set - span.SetStatus(codes.Error, httpErrMessage)
 
 			// Return the error response to the client
 			return c.Status(code).JSON(fiber.Map{
@@ -138,8 +158,10 @@ func main() {
 	app.Get("/healthz", productHandler.HealthCheck)
 
 	// --- OTel Middleware (applied AFTER health check) ---
-	// Using default otelfiber middleware configuration
-	app.Use(otelfiber.Middleware())
+	// Using otelfiber middleware with default configuration
+	app.Use(otelfiber.Middleware(
+		otelfiber.WithPropagators(otel.GetTextMapPropagator()),
+	))
 
 	// --- Main API Routes ---
 	api := app.Group("/products")
@@ -149,11 +171,11 @@ func main() {
 
 	// --- Start Server in Goroutine ---
 	go func() {
-		logrus.Info("Server starting to listen...")
+		log.Info("Server starting to listen...")
 		if err := app.Listen(":" + config.PRODUCT_SERVICE_PORT); err != nil {
 			// Check if the error is due to server closing, which is expected during shutdown
 			if err != http.ErrServerClosed {
-				logrus.WithError(err).Fatal("Server failed to start")
+				log.WithError(err).Fatal("Server failed to start")
 			}
 		}
 	}()
@@ -163,18 +185,48 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit // Block until a signal is received
 
-	logrus.Info("Received shutdown signal, initiating graceful shutdown...")
+	log.Info("Received shutdown signal, initiating graceful shutdown...")
 
-	// Allow timeout for Fiber shutdown
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second) // Slightly longer than OTel shutdown
+	// Create overall shutdown context with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
-		logrus.WithError(err).Error("Error during Fiber server shutdown")
+	// First shut down the HTTP server
+	serverShutdownCtx, serverCancel := context.WithTimeout(shutdownCtx, 15*time.Second)
+	defer serverCancel()
+
+	if err := app.ShutdownWithContext(serverShutdownCtx); err != nil {
+		log.WithError(err).Error("Error during Fiber server shutdown")
 	} else {
-		logrus.Info("Fiber server shutdown complete")
+		log.Info("Server shutdown complete")
 	}
 
-	// OTel shutdown is handled by the deferred function call
-	logrus.Info("Product service shut down complete.")
+	// Then shut down telemetry with remaining time
+	telemetryShutdownCtx, telemetryCancel := context.WithTimeout(
+		shutdownCtx,
+		getRemainingTime(shutdownCtx, 10*time.Second),
+	)
+	defer telemetryCancel()
+
+	if err := otelShutdown(telemetryShutdownCtx); err != nil {
+		log.WithError(err).Error("Error during OpenTelemetry shutdown")
+	} else {
+		log.Info("OpenTelemetry shutdown complete")
+	}
+
+	log.Info("Application shutdown complete")
+}
+
+// Helper to calculate remaining time with a minimum fallback
+func getRemainingTime(ctx context.Context, minDuration time.Duration) time.Duration {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return minDuration
+	}
+
+	remaining := time.Until(deadline)
+	if remaining < minDuration {
+		return minDuration
+	}
+	return remaining
 }

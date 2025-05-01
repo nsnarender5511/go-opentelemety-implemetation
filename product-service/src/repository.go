@@ -16,23 +16,19 @@ import (
 	// Model is in the same package, no need to import it separately.
 
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	codes "go.opentelemetry.io/otel/codes" // Ensure this import is present
-	"go.opentelemetry.io/otel/trace"
 )
 
 var log = logrus.New()
 
 // ProductRepository defines the interface for product data access
 type ProductRepository interface {
-	GetAll(ctx context.Context) ([]Product, error)           // Use local Product type
-	GetByID(ctx context.Context, id string) (Product, error) // Use local Product type
+	GetAll(ctx context.Context) ([]Product, error)
+	GetByID(ctx context.Context, id string) (Product, error)
 }
 
 // productRepository implements ProductRepository
 type productRepository struct {
-	products map[string]Product // Use local Product type
+	products map[string]Product
 	mu       sync.RWMutex
 	filePath string
 }
@@ -40,8 +36,8 @@ type productRepository struct {
 // NewProductRepository creates a new product repository
 func NewProductRepository() (ProductRepository, error) {
 	repo := &productRepository{
-		products: make(map[string]Product), // Use local Product type
-		filePath: config.DATA_FILE_PATH,    // Use config from imported package
+		products: make(map[string]Product),
+		filePath: config.DATA_FILE_PATH,
 	}
 	// Ensure the data file exists, create if not
 	if _, statErr := os.Stat(repo.filePath); statErr != nil {
@@ -64,19 +60,12 @@ func NewProductRepository() (ProductRepository, error) {
 	return repo, nil
 }
 
-// getTracer is a helper to get the tracer instance consistently
-func (r *productRepository) getTracer() trace.Tracer {
-	return otel.Tracer("product-service/repository")
-}
-
-// Updated readData method - this is the primary definition
+// readData method loads product data from JSON file
 func (r *productRepository) readData() error {
-	tr := r.getTracer()
-	// Consider if a context is needed here, maybe from NewProductRepository?
-	// For now, using background context for the trace span.
+	// Create a background context for telemetry span
 	ctx := context.Background()
-	_, span := tr.Start(ctx, "ProductRepository.readData")
-	span.SetAttributes(telemetry.DBFilePathKey.String(r.filePath))
+	_, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.readData")
+	telemetry.AddAttribute(span, "db.file_path", r.filePath)
 	defer span.End()
 
 	r.mu.Lock()
@@ -88,36 +77,37 @@ func (r *productRepository) readData() error {
 			Operation: "ReadFile",
 			Err:       fmt.Errorf("failed to read data file '%s': %w", r.filePath, err),
 		}
-		span.RecordError(errWrapped)
-		span.SetStatus(codes.Error, "Failed to read data file")
+		telemetry.RecordError(span, errWrapped, "Failed to read data file")
 		return errWrapped
 	}
 
-	var products []Product // Use local Product type
-	if err := json.Unmarshal(data, &products); err != nil {
+	// Changed: Unmarshal into a map[string]Product first
+	var productsMap map[string]Product
+	if err := json.Unmarshal(data, &productsMap); err != nil {
 		errWrapped := &commonErrors.DatabaseError{
 			Operation: "UnmarshalJSON",
 			Err:       fmt.Errorf("failed to unmarshal data from file '%s': %w", r.filePath, err),
 		}
-		span.RecordError(errWrapped)
-		span.SetStatus(codes.Error, "Failed to unmarshal data")
+		telemetry.RecordError(span, errWrapped, "Failed to unmarshal data")
 		return errWrapped
 	}
 
-	r.products = make(map[string]Product)
-	for _, p := range products {
-		// Convert uint ID to string for map key
-		r.products[fmt.Sprintf("%d", p.ID)] = p
+	// Changed: Populate the repository's map directly from the unmarshaled map
+	r.products = make(map[string]Product, len(productsMap))
+	for key, p := range productsMap {
+		// Ensure the productID in the object matches the key, if desired, or trust the key
+		// For simplicity, we'll use the map key as the identifier in the repository map
+		r.products[key] = p
 	}
-	log.Debugf("Successfully loaded %d products from %s", len(products), r.filePath)
-	span.SetAttributes(attribute.Int("db.rows_loaded", len(products)))
+
+	log.Debugf("Successfully loaded %d products from %s", len(r.products), r.filePath)
+	telemetry.AddAttribute(span, "db.rows_loaded", len(r.products))
 	return nil
 }
 
-// GetAll method
+// GetAll method returns all products
 func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
-	tr := r.getTracer()
-	ctx, span := tr.Start(ctx, "ProductRepository.GetAll")
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.GetAll")
 	defer span.End()
 
 	r.mu.RLock()
@@ -125,24 +115,20 @@ func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 
 	if len(r.products) == 0 {
 		log.Warn("GetAll called but no products loaded.")
-		// Optional: Attempt to reload data if empty?
-		// err := r.readData()
-		// if err != nil { log.WithError(err).Error("Failed to reload data in GetAll") }
 	}
 
-	var result []Product // Use local Product type
+	var result []Product
 	for _, p := range r.products {
 		result = append(result, p)
 	}
-	span.SetAttributes(attribute.Int("db.rows_returned", len(result)))
+	telemetry.AddAttribute(span, "db.rows_returned", len(result))
 	return result, nil
 }
 
-// GetByID method
+// GetByID method retrieves a product by ID
 func (r *productRepository) GetByID(ctx context.Context, id string) (Product, error) {
-	tr := r.getTracer()
-	ctx, span := tr.Start(ctx, "ProductRepository.GetByID")
-	span.SetAttributes(attribute.String("product.id", id))
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "ProductRepository.GetByID")
+	telemetry.AddAttribute(span, "product.id", id)
 	defer span.End()
 
 	r.mu.RLock()
@@ -150,9 +136,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (Product, er
 
 	product, ok := r.products[id]
 	if !ok {
-		span.RecordError(commonErrors.ErrProductNotFound)
-		// Use codes.NotFound which should be available via import
-		// span.SetStatus(codes.NotFound, commonErrors.ErrProductNotFound.Error())
+		telemetry.RecordError(span, commonErrors.ErrProductNotFound, "Product not found")
 		return Product{}, commonErrors.ErrProductNotFound
 	}
 

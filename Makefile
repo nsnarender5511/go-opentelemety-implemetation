@@ -4,19 +4,28 @@ IMAGE_NAME := $(SERVICE_NAME):latest
 CONTAINER_NAME := $(SERVICE_NAME)_container
 SERVICE_PORT := 8082
 SIMULATOR_SCRIPT := tests/simulate_product_service.py
+# Simulator Docker settings
+SIMULATOR_IMAGE_NAME := simulator:latest
+SIMULATOR_DOCKERFILE := tests/Dockerfile
+SIMULATOR_CONTEXT := tests
 PYTHON := python3 # Or just python if python3 isn't your command
 SIGNOZ_IMAGE := signoz/signoz:latest
 # Path where the user clones the signoz-install repo
 SIGNOZ_INSTALL_DIR ?= .signoz # Default to a sibling directory, user can override
 NETWORK_NAME=signoz-net
 
-.PHONY: build run simulate run-signoz stop-signoz help run-local network
+.PHONY: build run simulate run-signoz stop-signoz help run-local network build-simulator
 
 # Build the Docker image for the product service
 build:
 	@echo "Building $(IMAGE_NAME) from context root..."
 	# Build from workspace root (.) to include 'common', specifying the Dockerfile path with -f
 	@docker build -t $(IMAGE_NAME) -f ./$(SERVICE_NAME)/Dockerfile .
+
+# Build the Docker image for the simulator
+build-simulator:
+	@echo "Building simulator image $(SIMULATOR_IMAGE_NAME)..."
+	@docker build -t $(SIMULATOR_IMAGE_NAME) -f $(SIMULATOR_DOCKERFILE) $(SIMULATOR_CONTEXT)
 
 # Build and run the product service container
 run: build network
@@ -38,12 +47,18 @@ run: build network
 	@echo "Tailing logs for $(CONTAINER_NAME)... (Press Ctrl+C to stop)"
 	@docker logs -f $(CONTAINER_NAME)
 
-# Run the Python simulation script
-simulate:
-	@echo "Setting up Python environment (if needed)..."
-	@$(PYTHON) -m pip install -q requests
-	@echo "Running traffic simulation script $(SIMULATOR_SCRIPT)..."
-	@$(PYTHON) $(SIMULATOR_SCRIPT)
+# Run the Python simulation script inside multiple Docker containers concurrently
+simulate: build-simulator network
+	@echo "Running traffic simulation script $(SIMULATOR_SCRIPT) inside 4 Docker containers concurrently..."
+	@for i in 1 2 3 4; do \
+		echo "Starting simulator container $$i..."; \
+		docker run --rm --name simulator_$$i --network $(NETWORK_NAME) \
+			-e PRODUCT_SERVICE_URL=http://$(CONTAINER_NAME):$(SERVICE_PORT) \
+			$(SIMULATOR_IMAGE_NAME) & \
+	done
+	@echo "Waiting for simulator containers to finish..."
+	@wait # Wait for all background jobs launched by this target to complete
+	@echo "All simulator containers finished."
 
 # Pull and run the latest Signoz image (Note: This might not start the full platform)
 run-signoz:
@@ -81,12 +96,13 @@ run-local:
 
 help:
 	@echo "Available targets:"
-	@echo "  build        : Build the Docker image for the product service"
-	@echo "  run          : Build and run the product service container"
-	@echo "  simulate     : Run the traffic simulation script against the running service"
-	@echo "  run-signoz   : Clone (if needed) and run SigNoz using docker-compose"
-	@echo "  run-local    : Run the product service locally using go run"
-	@echo "  help         : Show this help message"
+	@echo "  build          : Build the Docker image for the product service"
+	@echo "  build-simulator: Build the Docker image for the traffic simulator"
+	@echo "  run            : Build and run the product service container"
+	@echo "  simulate       : Build and run the traffic simulator container"
+	@echo "  run-signoz     : Clone (if needed) and run SigNoz using docker-compose"
+	@echo "  run-local      : Run the product service locally using go run"
+	@echo "  help           : Show this help message"
 
 .PHONY: network
 network:

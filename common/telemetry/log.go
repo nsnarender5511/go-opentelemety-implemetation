@@ -171,57 +171,94 @@ func (h *OtelHook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-// ConfigureLogrus sets up Logrus with the OTel hook.
-// This should be called AFTER the logger provider is initialized.
-func ConfigureLogrus() {
+// configureLoggerProvider sets up logging with OTel (if needed in the future)
+// For now, it just returns a stub function
+func configureLoggerProvider(ctx context.Context, config TelemetryConfig, res *resource.Resource) (func(context.Context) error, error) {
+	logger := config.Logger
+	if logger == nil {
+		logger = getLogger()
+	}
+
+	logger.Debug("Logger provider configuration is minimal in this implementation")
+
+	// Return a no-op shutdown function
+	shutdown := func(context.Context) error {
+		logger.Debug("Logger provider shutdown (no-op)")
+		return nil
+	}
+
+	return shutdown, nil
+}
+
+// ConfigureLogrus sets up logrus with the specified level and formatter
+// and adds an OpenTelemetry hook if available
+func ConfigureLogrus(logger *logrus.Logger, level, format string) {
+	// Parse log level with fallback to info
+	logLevel, err := logrus.ParseLevel(level)
+	if err != nil {
+		logLevel = logrus.InfoLevel
+		logger.WithFields(logrus.Fields{
+			"provided_level": level,
+			"fallback_level": "info",
+		}).Warn("Invalid log level specified, using info level")
+	}
+
+	logger.SetLevel(logLevel)
+
+	// Configure formatter based on format
+	switch format {
+	case "json":
+		logger.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
+		})
+	default:
+		logger.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:    true,
+			TimestampFormat:  "2006-01-02T15:04:05.000Z07:00",
+			DisableColors:    false,
+			DisableTimestamp: false,
+			PadLevelText:     true,
+		})
+	}
+
+	// Check if OTel Logger Provider is available and add hook
 	providerMu.Lock()
 	initialized := otelLoggerProvider != nil
 	providerMu.Unlock()
 
-	if !initialized {
-		log.Println("Warning: ConfigureLogrus called but OTel Logger Provider is not initialized. Hook not added.")
-		return
+	if initialized {
+		hook := NewOtelHook(logrus.AllLevels)
+		logger.AddHook(hook)
+		logger.Debug("OpenTelemetry logrus hook configured")
 	}
-
-	// Set Logrus level and formatter elsewhere (e.g., in main.go based on config)
-	// logrus.SetLevel(logrus.DebugLevel)
-	// logrus.SetFormatter(&logrus.JSONFormatter{})
-
-	// Add the OTel hook
-	hook := NewOtelHook(logrus.AllLevels)
-	logrus.AddHook(hook)
-	log.Println("OTel Logrus Hook added.")
-
-	// Optionally remove standard logger output if OTel is the sole destination
-	// logrus.SetOutput(io.Discard)
 }
 
 // --- Helper Functions ---
 
-// mapSeverity converts Logrus level to OTel severity.
+// mapSeverity maps logrus log levels to OpenTelemetry severity levels.
 func mapSeverity(level logrus.Level) otellog.Severity {
 	switch level {
-	case logrus.PanicLevel:
-		return otellog.SeverityFatal
-	case logrus.FatalLevel:
-		return otellog.SeverityFatal
-	case logrus.ErrorLevel:
-		return otellog.SeverityError
-	case logrus.WarnLevel:
-		return otellog.SeverityWarn
-	case logrus.InfoLevel:
-		return otellog.SeverityInfo
-	case logrus.DebugLevel:
-		return otellog.SeverityDebug
 	case logrus.TraceLevel:
 		return otellog.SeverityTrace
+	case logrus.DebugLevel:
+		return otellog.SeverityDebug
+	case logrus.InfoLevel:
+		return otellog.SeverityInfo
+	case logrus.WarnLevel:
+		return otellog.SeverityWarn
+	case logrus.ErrorLevel:
+		return otellog.SeverityError
+	case logrus.FatalLevel:
+		return otellog.SeverityFatal
+	case logrus.PanicLevel:
+		return otellog.SeverityFatal
 	default:
-		return otellog.SeverityUndefined
+		return otellog.SeverityInfo
 	}
 }
 
-// otelAttributeFromInterface converts an interface{} value to an OTel log KeyValue.
-func otelAttributeFromInterface(key string, value interface{}) otellog.KeyValue { // Change return type
+// otelAttributeFromInterface converts a key-value pair to an OTel KeyValue attribute.
+func otelAttributeFromInterface(key string, value interface{}) otellog.KeyValue {
 	switch v := value.(type) {
 	case string:
 		return otellog.String(key, v)
@@ -233,10 +270,8 @@ func otelAttributeFromInterface(key string, value interface{}) otellog.KeyValue 
 		return otellog.Float64(key, v)
 	case bool:
 		return otellog.Bool(key, v)
-	case error:
-		return otellog.String(key, v.Error())
 	default:
-		// Fallback to string representation
-		return otellog.String(key, fmt.Sprintf("%+v", v))
+		// Convert anything else to string
+		return otellog.String(key, fmt.Sprintf("%v", v))
 	}
 }

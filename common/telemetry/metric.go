@@ -3,104 +3,81 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/host"    // Host metrics (CPU, memory)
-	"go.opentelemetry.io/contrib/instrumentation/runtime" // Go runtime metrics (GC, goroutines)
+	"github.com/sirupsen/logrus" // Host metrics (CPU, memory)
+	// Go runtime metrics (GC, goroutines)
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric" // Alias for clarity
+	sdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
-// initMeterProvider initializes and registers the OTLP Meter Provider.
-func initMeterProvider(ctx context.Context, endpoint string, insecure bool, res *resource.Resource) (shutdownFunc func(context.Context) error, err error) {
-	// --- Create OTLP Exporter ---
-	exporterOpts := []otlpmetricgrpc.Option{
-		otlpmetricgrpc.WithEndpoint(endpoint),
-		// otlpmetricgrpc.WithCompressor(grpc.UseCompressor(gzip.Name)),
-		// otlpmetricgrpc.WithHeaders(map[string]string{"api-key": "your-key"}),
+// newMeterProvider creates and configures a new MeterProvider
+func newMeterProvider(ctx context.Context, config TelemetryConfig, res *resource.Resource) (*sdk.MeterProvider, error) {
+	var err error
+
+	logger := config.Logger
+	if logger == nil {
+		logger = getLogger()
+	}
+
+	logger.WithFields(logrus.Fields{
+		"endpoint": config.Endpoint,
+		"insecure": config.Insecure,
+	}).Debug("Creating metric exporter")
+
+	// Configure security options
+	var secureOption otlpmetricgrpc.Option
+	if config.Insecure {
+		secureOption = otlpmetricgrpc.WithInsecure()
+		logger.Debug("Using insecure connection for metric exporter")
+	} else {
+		// Use TLS credentials
+		creds := credentials.NewClientTLSFromCert(nil, "")
+		secureOption = otlpmetricgrpc.WithTLSCredentials(creds)
+		logger.Debug("Using secure connection for metric exporter")
+	}
+
+	// Configure headers
+	var headers map[string]string
+	if config.Headers != nil {
+		headers = config.Headers
+	} else {
+		headers = make(map[string]string)
+	}
+
+	// Create OTLP metric exporter
+	exp, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint(config.Endpoint),
+		secureOption,
+		otlpmetricgrpc.WithHeaders(headers),
 		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
-		// Use cumulative aggregation temporality by default unless specified otherwise.
-		// Delta is often preferred for counters with Prometheus/Grafana, but OTLP typically defaults to cumulative.
-		otlpmetricgrpc.WithTemporalitySelector(sdkmetric.DefaultTemporalitySelector),
-	}
-
-	if insecure {
-		exporterOpts = append(exporterOpts, otlpmetricgrpc.WithInsecure())
-	} else {
-		// Use secure transport (TLS) - Recommended for production
-		// Similar logic as trace exporter for TLS setup
-		log.Println("Attempting to use secure OTLP metric exporter.")
-		// No explicit credentials option means default secure gRPC
-	}
-
-	metricExporter, err := otlpmetricgrpc.New(ctx, exporterOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
-	}
-	log.Println("OTLP Metric Exporter created.")
-
-	// --- Create Periodic Reader ---
-	// Exports metrics periodically (e.g., every 15 seconds).
-	reader := sdkmetric.NewPeriodicReader(metricExporter,
-		sdkmetric.WithInterval(15*time.Second), // Adjust interval as needed
 	)
-	log.Println("Periodic Metric Reader created.")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
+	}
 
-	// --- Create Meter Provider ---
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res), // Attach the resource information
-		sdkmetric.WithReader(reader),
-		// Add Views here to customize metric aggregation, naming, etc. if needed
-		// sdkmetric.WithView(...)
+	// Configure reader options
+	readerOptions := []sdk.PeriodicReaderOption{
+		// Default to 30s collection interval if not specified
+		sdk.WithInterval(30 * time.Second),
+	}
+
+	// Create and configure meter provider
+	mp := sdk.NewMeterProvider(
+		sdk.WithResource(res),
+		sdk.WithReader(sdk.NewPeriodicReader(exp, readerOptions...)),
 	)
-	log.Println("Meter Provider created.")
 
-	// --- Set Global Meter Provider ---
-	otel.SetMeterProvider(meterProvider)
-	log.Println("Global Meter Provider set.")
-
-	// --- Start Host & Runtime Metrics Collection ---
-	// These instrumentations use the global MeterProvider we just set.
-	err = runtime.Start(runtime.WithMeterProvider(meterProvider))
-	if err != nil {
-		log.Printf("Warning: Failed to start runtime metrics: %v", err)
-		// Continue initialization even if this fails
-	} else {
-		log.Println("Runtime metrics collection started.")
-	}
-
-	err = host.Start(host.WithMeterProvider(meterProvider))
-	if err != nil {
-		log.Printf("Warning: Failed to start host metrics: %v", err)
-		// Continue initialization
-	} else {
-		log.Println("Host metrics collection started.")
-	}
-
-	// Return the shutdown function.
-	shutdown := func(shutdownCtx context.Context) error {
-		log.Println("Shutting down Meter Provider...")
-		// Use a timeout for the shutdown context.
-		ctx, cancel := context.WithTimeout(shutdownCtx, 10*time.Second)
-		defer cancel()
-		if err := meterProvider.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down Meter Provider: %v", err)
-			return fmt.Errorf("failed to shutdown MeterProvider: %w", err)
-		}
-		log.Println("Meter Provider shut down successfully.")
-		return nil
-	}
-
-	return shutdown, nil
+	logger.Info("Meter provider initialized successfully")
+	return mp, nil
 }
 
-// GetMeter returns a named meter instance.
-func GetMeter(instrumentationName string) metric.Meter {
-	// otel.Meter uses the globally registered MeterProvider.
-	return otel.Meter(instrumentationName)
+// GetMeter returns a named meter instance from the global provider
+func GetMeter(name string) metric.Meter {
+	return otel.Meter(name)
 }

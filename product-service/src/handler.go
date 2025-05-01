@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	// Use correct module path for common telemetry
@@ -11,40 +10,25 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
 )
 
-// Package-level variables for instruments
+// Constants for telemetry and JSON field names
+const (
+	LogFieldProductID = "product_id"
+	LogFieldStock     = "stock"
+	// JSONField constants are already declared elsewhere, removing duplicates
+)
+
+// Attribute keys for telemetry
 var (
-	productLookupsCounter    metric.Int64Counter
-	productStockCheckCounter metric.Int64Counter
+	// Using string constants instead of attribute.Key
+	AppProductIDKey     = "app.product.id"
+	AppProductStockKey  = "app.product.stock"
+	AppLookupSuccessKey = "app.lookup.success"
+	AppStockCheckKey    = "app.stock.check.success"
 )
 
-// Initialize instruments using global Meter provider
-func init() {
-	meter := otel.Meter("product-service/handler") // Use correct instrumentation scope name
-	var err error
-	productLookupsCounter, err = meter.Int64Counter(
-		"app.product.lookups", // Metric name
-		metric.WithDescription("Counts product lookup attempts by ID"),
-		metric.WithUnit("{lookup}"),
-	)
-	if err != nil {
-		logrus.WithError(err).Fatal("Failed to create productLookupsCounter")
-	}
-
-	productStockCheckCounter, err = meter.Int64Counter(
-		"app.product.stock_checks", // Metric name
-		metric.WithDescription("Counts product stock check attempts by ID"),
-		metric.WithUnit("{check}"),
-	)
-	if err != nil {
-		logrus.WithError(err).Fatal("Failed to create productStockCheckCounter")
-	}
-}
+// Package-level variables for instruments are managed via wrappers now
 
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
@@ -64,24 +48,23 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	log := logrus.WithContext(ctx)
 	log.Info("Handler: Received request to get all products")
 
-	var products []Product
-	var err error
-
-	tracer := otel.Tracer("product-service/handler") // Get tracer directly from global provider
-	// Start the span manually
-	ctx, span := tracer.Start(ctx, "handler.GetAllProducts")
-	defer span.End() // Ensure the span is ended
+	// Start the span using wrapper
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "handler.GetAllProducts")
+	defer span.End()
 
 	// Call the service method with the span context
-	products, err = h.service.GetAll(ctx)
+	products, err := h.service.GetAll(ctx)
 
 	if err != nil {
 		log.WithError(err).Error("Handler: Error calling service.GetAll")
-		// Manually record error and set status on the span
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err // Return the error directly
+		// Record error using wrapper
+		telemetry.RecordError(span, err, "failed to get all products")
+		return err
 	}
+
+	// Record metric for successful response
+	telemetry.IncrementCounter(ctx, "product-service", "app.product.list.success", 1)
+	telemetry.AddAttribute(span, "product.count", len(products))
 
 	log.Infof("Handler: Responding with %d products", len(products))
 	return c.Status(http.StatusOK).JSON(products)
@@ -97,37 +80,30 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 		// No span started yet, just return the validation error
 		return validationErr
 	}
-	log = log.WithField(telemetry.LogFieldProductID, productID)
+	log = log.WithField(LogFieldProductID, productID)
 	log.Infof("Handler: Received request to get product by ID %s", productID)
 
-	var product Product
-	var err error
+	// Start span with wrapper
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "handler.GetProductByID")
+	defer span.End()
 
-	tracer := otel.Tracer("product-service/handler") // Get tracer directly
-	// Start the span manually
-	ctx, span := tracer.Start(ctx, "handler.GetProductByID")
-	defer span.End() // Ensure the span is ended
-
-	// Set attributes now that the span exists
-	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+	// Set attributes with wrapper
+	telemetry.AddAttribute(span, "product.id", productID)
 
 	// Call the service method with the span context
-	product, err = h.service.GetByID(ctx, productID)
+	product, err := h.service.GetByID(ctx, productID)
 
-	// --- Metric Recording ---
-	lookupAttrs := []attribute.KeyValue{telemetry.AppProductIDKey.String(productID)}
+	// --- Metric Recording using wrapper ---
 	success := err == nil
-	lookupAttrs = append(lookupAttrs, telemetry.AppLookupSuccessKey.Bool(success))
-	productLookupsCounter.Add(ctx, 1, metric.WithAttributes(lookupAttrs...)) // Use package-level counter
-	// --- End Metric Recording ---
+	telemetry.IncrementCounter(ctx, "product-service", "app.product.lookups", 1)
+	telemetry.AddAttribute(span, AppProductIDKey, productID)
+	telemetry.AddAttribute(span, AppLookupSuccessKey, success)
 
-	// Handle error, log, set span status, and return if necessary
+	// Handle error, log, and return if necessary
 	if err != nil {
 		log.WithError(err).Errorf("Handler: Error calling service.GetByID for ID %s", productID)
-		// Manually record error and set status on the span
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err // Return the error directly
+		telemetry.RecordError(span, err, "failed to get product by ID")
+		return err
 	}
 
 	// If successful, log and return OK response
@@ -145,42 +121,35 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 		// No span started yet, just return the validation error
 		return validationErr
 	}
-	log = log.WithField(telemetry.LogFieldProductID, productID)
+	log = log.WithField(LogFieldProductID, productID)
 	log.Infof("Handler: Received request to get product stock for ID %s", productID)
 
-	var stock int
-	var err error
+	// Start span with wrapper
+	ctx, span := telemetry.StartSpan(ctx, "product-service", "handler.GetProductStock")
+	defer span.End()
 
-	tracer := otel.Tracer("product-service/handler") // Get tracer directly
-	// Start the span manually
-	ctx, span := tracer.Start(ctx, "handler.GetProductStock")
-	defer span.End() // Ensure the span is ended
-
-	// Set attributes now that the span exists
-	span.SetAttributes(telemetry.AppProductIDKey.String(productID))
+	// Set attributes with wrapper
+	telemetry.AddAttribute(span, "product.id", productID)
 
 	// Call the service method with the span context
-	stock, err = h.service.GetStock(ctx, productID)
+	stock, err := h.service.GetStock(ctx, productID)
 
-	// --- Metric Recording ---
-	stockCheckAttrs := []attribute.KeyValue{telemetry.AppProductIDKey.String(productID)}
+	// --- Metric Recording with wrapper ---
 	success := err == nil
-	stockCheckAttrs = append(stockCheckAttrs, telemetry.AppStockCheckSuccessKey.Bool(success))
-	if success {
-		// Set stock attribute on span ONLY on success
-		span.SetAttributes(telemetry.AppProductStockKey.Int(stock))
-		stockCheckAttrs = append(stockCheckAttrs, telemetry.AppProductStockKey.Int(stock))
-	}
-	productStockCheckCounter.Add(ctx, 1, metric.WithAttributes(stockCheckAttrs...)) // Use package-level counter
-	// --- End Metric Recording ---
+	telemetry.IncrementCounter(ctx, "product-service", "app.product.stock_checks", 1)
+	telemetry.AddAttribute(span, AppProductIDKey, productID)
+	telemetry.AddAttribute(span, AppStockCheckKey, success)
 
-	// Handle error, log, set span status, and return if necessary
+	if success {
+		// Add stock attribute only on success
+		telemetry.AddAttribute(span, AppProductStockKey, stock)
+	}
+
+	// Handle error, log, and return if necessary
 	if err != nil {
 		log.WithError(err).Errorf("Handler: Error calling service.GetStock for ID %s", productID)
-		// Manually record error and set status on the span
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err // Return the error directly
+		telemetry.RecordError(span, err, "failed to get product stock")
+		return err
 	}
 
 	// If successful, log and return OK response
@@ -197,22 +166,18 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	// Simply return 200 OK and a status message
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"status": "UP",
+		"status": "ok",
 	})
 }
 
-// --- Helper Functions ---
-
-// validatePathParam extracts and validates a required path parameter.
-// Returns the parameter value or a wrapped commonErrors.ValidationError if validation fails.
+// Helper to validate path parameters
 func (h *ProductHandler) validatePathParam(ctx context.Context, c *fiber.Ctx, paramName string) (string, error) {
-	paramValue := c.Params(paramName)
-	if paramValue == "" {
-		msg := fmt.Sprintf("%s parameter is required", paramName)
-		logrus.WithContext(ctx).Warnf("Handler: Missing %s parameter", paramName)
-		// Return a distinct error that can be checked by the error handler
-		return "", &commonErrors.ValidationError{Field: paramName, Message: msg}
+	id := c.Params(paramName)
+	if id == "" {
+		return "", &commonErrors.ValidationError{
+			Field:   paramName,
+			Message: "must not be empty",
+		}
 	}
-	// Add more validation if needed (e.g., regex, length)
-	return paramValue, nil
+	return id, nil
 }
