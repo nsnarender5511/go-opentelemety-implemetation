@@ -79,9 +79,6 @@ var (
 	loadErr  error
 )
 
-// Global logger instance, configured in Setup
-var Log *logrus.Logger
-
 // LoadConfig loads configuration from environment variables and .env files.
 // It relies solely on godotenv and standard Go libraries.
 // It returns an aggregated error if loading or validation fails.

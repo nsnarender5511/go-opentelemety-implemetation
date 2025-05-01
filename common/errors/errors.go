@@ -13,9 +13,6 @@ var (
 	ErrDatabaseOperation = stdErrors.New("database operation failed")
 	ErrBadRequest        = stdErrors.New("bad request")           // Adding a basic bad request error
 	ErrInternalServer    = stdErrors.New("internal server error") // Adding a basic internal error
-
-	// Unused errors from plan have been removed:
-	// ErrUserNotFound, ErrCartNotFound, ErrOrderNotFound, ErrServiceCallFailed
 )
 
 // --- Typed Errors for more context ---
@@ -49,25 +46,3 @@ func (e *DatabaseError) Unwrap() error {
 }
 
 // --- End Typed Errors ---
-
-// Is wraps the standard library errors.Is function.
-// This allows packages using common/errors to check error types
-// without needing to directly import the standard "errors" package.
-func Is(err, target error) bool {
-	return stdErrors.Is(err, target) // Call standard errors.Is using the alias
-}
-
-// AppError represents a custom error type for the application.
-type AppError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	// Original error if available
-	Err error `json:"-"`
-	// Uncomment and use if you need HTTP status codes associated with errors
-	// HTTPStatusCode int    `json:"-"`
-}
-
-// Error returns the string representation of the AppError.
-func (e *AppError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Code, e.Message)
-}

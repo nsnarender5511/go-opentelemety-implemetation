@@ -18,8 +18,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// TelemetryConfig struct definition removed - assumed to exist elsewhere or passed correctly.
-
 // InitTelemetry initializes OpenTelemetry Tracing, Metrics, and Logging.
 // It configures global providers and returns a master shutdown function.
 // Application logging should use the configured global Logrus instance.
@@ -92,8 +90,6 @@ func InitTelemetry(ctx context.Context, config TelemetryConfig) (otelShutdownFun
 		}
 		return combinedErr
 	}
-
-	// --- otelShutdownFunc type definition is now in log.go ---
 
 	handleInitError := func(initErr error, component string) error {
 		setupLogger.WithError(initErr).Errorf("Failed to initialize %s", component)

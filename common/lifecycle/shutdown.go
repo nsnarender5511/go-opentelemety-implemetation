@@ -13,11 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Shutdowner interface defined in shutdowner.go
-// type Shutdowner interface {
-// 	Shutdown(ctx context.Context) error
-// }
-
 // WaitForGracefulShutdown blocks until a SIGINT or SIGTERM signal is received,
 // then coordinates the graceful shutdown of the provided server and telemetry.
 // It uses timeout configurations from the common/config package.

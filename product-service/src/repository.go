@@ -37,13 +37,12 @@ func NewProductRepository() (ProductRepository, error) {
 
 	// Use background context and global logger for initialization messages
 	ctx := context.Background()
-	logger := logrus.StandardLogger()
 
 	// Ensure the data file exists, create if not
 	if _, statErr := os.Stat(repo.filePath); statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
 			// Use global logger
-			logger.WithField("path", repo.filePath).Info("Data file not found, creating empty file")
+			logrus.WithField("path", repo.filePath).Info("Data file not found, creating empty file")
 			if writeErr := os.WriteFile(repo.filePath, []byte("{\n}"), 0644); writeErr != nil {
 				return nil, fmt.Errorf("failed to create initial data file '%s': %w", repo.filePath, writeErr)
 			}
@@ -55,11 +54,11 @@ func NewProductRepository() (ProductRepository, error) {
 	// Load data immediately using the configured path
 	if err := repo.readData(ctx); err != nil { // Pass context to readData
 		// Use global logger
-		logger.WithError(err).WithField("path", repo.filePath).Error("Failed to read initial data")
+		logrus.WithError(err).WithField("path", repo.filePath).Error("Failed to read initial data")
 		return nil, fmt.Errorf("failed to initialize product repository from %s: %w", repo.filePath, err)
 	}
 	// Use global logger
-	logger.WithField("path", repo.filePath).Info("Initialized product repository")
+	logrus.WithField("path", repo.filePath).Info("Initialized product repository")
 	return repo, nil
 }
 
@@ -116,7 +115,7 @@ func (r *productRepository) readData(ctx context.Context) error {
 		"path":  r.filePath,
 	}).Debug("Successfully loaded products")
 
-	telemetry.AddAttribute(span, "db.rows_loaded", productCount) // Pass int directly
+	telemetry.AddAttribute(span, "db.rows_loaded", productCount)
 	return nil
 }
 
@@ -138,7 +137,7 @@ func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
 	for _, p := range r.products {
 		result = append(result, p)
 	}
-	telemetry.AddAttribute(span, "db.rows_returned", len(result)) // Pass int directly
+	telemetry.AddAttribute(span, "db.rows_returned", len(result))
 	span.SetStatus(codes.Ok, "")
 	return result, nil
 }

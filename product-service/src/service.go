@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	commonErrors "github.com/narender/common/errors"
@@ -21,19 +22,17 @@ type ProductService interface {
 
 // productService implements the ProductService interface
 type productService struct {
-	repo   ProductRepository
-	logger *logrus.Logger
+	repo ProductRepository
 }
 
 // NewProductService creates a new product service
 func NewProductService(repo ProductRepository) ProductService {
 	return &productService{
-		repo:   repo,
-		logger: logrus.StandardLogger(),
+		repo: repo,
 	}
 }
 
-// handleRepoError helper function now uses struct logger
+// handleRepoError helper function now uses global logger
 func (s *productService) handleRepoError(ctx context.Context, span trace.Span, opDesc string, err error) error {
 	if err == nil {
 		return nil
@@ -42,9 +41,9 @@ func (s *productService) handleRepoError(ctx context.Context, span trace.Span, o
 	span.RecordError(err)
 	span.SetStatus(codes.Error, fmt.Sprintf("Repository error during %s", opDesc))
 
-	s.logger.WithContext(ctx).WithError(err).Errorf("Service: Repository error during %s", opDesc)
+	logrus.WithContext(ctx).WithError(err).Errorf("Service: Repository error during %s", opDesc)
 
-	if commonErrors.Is(err, commonErrors.ErrProductNotFound) {
+	if errors.Is(err, commonErrors.ErrProductNotFound) {
 		return commonErrors.ErrProductNotFound
 	}
 	return fmt.Errorf("repository error during %s: %w", opDesc, err)
@@ -52,7 +51,7 @@ func (s *productService) handleRepoError(ctx context.Context, span trace.Span, o
 
 // GetAll handles fetching all products
 func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
-	s.logger.WithContext(ctx).Info("Service: Fetching all products")
+	logrus.WithContext(ctx).Info("Service: Fetching all products")
 
 	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetAll")
 	defer span.End()
@@ -62,7 +61,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 
-	telemetry.AddAttribute(span, "db.result.count", fmt.Sprintf("%d", len(products)))
+	telemetry.AddAttribute(span, "db.result.count", len(products))
 	span.SetStatus(codes.Ok, "")
 
 	return products, nil
@@ -70,7 +69,7 @@ func (s *productService) GetAll(ctx context.Context) ([]Product, error) {
 
 // GetByID handles fetching a product by its ID
 func (s *productService) GetByID(ctx context.Context, productID string) (Product, error) {
-	s.logger.WithContext(ctx).WithField("product.id", productID).Info("Service: Fetching product by ID")
+	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Fetching product by ID")
 
 	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetByID")
 	defer span.End()
@@ -88,7 +87,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (Product
 
 // GetStock handles fetching stock for a product
 func (s *productService) GetStock(ctx context.Context, productID string) (int, error) {
-	s.logger.WithContext(ctx).WithField("product.id", productID).Info("Service: Checking stock for product ID")
+	logrus.WithContext(ctx).WithField("product.id", productID).Info("Service: Checking stock for product ID")
 
 	ctx, span := telemetry.StartSpan(ctx, "product-service", "service.GetStock")
 	defer span.End()
@@ -101,7 +100,7 @@ func (s *productService) GetStock(ctx context.Context, productID string) (int, e
 	}
 
 	stock := product.Stock
-	telemetry.AddAttribute(span, "app.product.stock", fmt.Sprintf("%d", stock))
+	telemetry.AddAttribute(span, "app.product.stock", stock)
 	span.SetStatus(codes.Ok, "")
 
 	return stock, nil

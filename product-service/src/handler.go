@@ -17,14 +17,12 @@ import (
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
 	service ProductService
-	logger  *logrus.Logger
 }
 
 // NewProductHandler creates a new product handler
 func NewProductHandler(service ProductService) *ProductHandler {
 	return &ProductHandler{
 		service: service,
-		logger:  logrus.StandardLogger(),
 	}
 }
 
@@ -33,7 +31,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	span := trace.SpanFromContext(ctx)
 
-	h.logger.WithContext(ctx).Debug("Handler: Received request for GetAllProducts")
+	logrus.WithContext(ctx).Debug("Handler: Received request for GetAllProducts")
 
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
@@ -43,7 +41,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	span.SetAttributes(telemetry.AttrProductCount.Int(len(products)))
 	span.SetStatus(codes.Ok, "")
 
-	h.logger.WithContext(ctx).WithField("count", len(products)).Debug("Handler: Responding successfully for GetAllProducts")
+	logrus.WithContext(ctx).WithField("count", len(products)).Debug("Handler: Responding successfully for GetAllProducts")
 	return c.Status(http.StatusOK).JSON(products)
 }
 
@@ -59,7 +57,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
 
-	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
+	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
 
 	product, err := h.service.GetByID(ctx, productID)
 
@@ -69,7 +67,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	span.SetStatus(codes.Ok, "")
 
-	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
+	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
 	return c.Status(http.StatusOK).JSON(product)
 }
 
@@ -85,7 +83,7 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 
 	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
 
-	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
+	logrus.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
 
 	stock, err := h.service.GetStock(ctx, productID)
 
@@ -96,7 +94,7 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 	span.SetAttributes(telemetry.AttrAppProductStock.Int(stock))
 	span.SetStatus(codes.Ok, "")
 
-	h.logger.WithContext(ctx).WithFields(logrus.Fields{
+	logrus.WithContext(ctx).WithFields(logrus.Fields{
 		string(telemetry.AttrAppProductID):    productID,
 		string(telemetry.AttrAppProductStock): stock,
 	}).Debug("Handler: Responding successfully for GetProductStock")
@@ -125,7 +123,7 @@ func (h *ProductHandler) validatePathParam(ctx context.Context, c *fiber.Ctx, pa
 			Field:   paramName,
 			Message: "must not be empty",
 		}
-		h.logger.WithContext(ctx).WithError(err).Warn("Path parameter validation failed")
+		logrus.WithContext(ctx).WithError(err).Warn("Path parameter validation failed")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return "", err
@@ -164,10 +162,10 @@ func (h *ProductHandler) MapErrorToResponse(c *fiber.Ctx, err error) error {
 		httpErrMessage = "An internal database error occurred"
 		spanMessage = httpErrMessage
 		// Log underlying DB error detail at Error level
-		h.logger.WithContext(ctx).WithFields(logrus.Fields{"operation": dbErr.Operation}).WithError(dbErr.Err).Error("Database error occurred")
+		logrus.WithContext(ctx).WithFields(logrus.Fields{"operation": dbErr.Operation}).WithError(dbErr.Err).Error("Database error occurred")
 	} else {
 		// Log any other unexpected error
-		h.logger.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
+		logrus.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
 	}
 
 	// Record error on span regardless of type
@@ -175,7 +173,7 @@ func (h *ProductHandler) MapErrorToResponse(c *fiber.Ctx, err error) error {
 	span.SetStatus(spanStatus, spanMessage)
 
 	// Log the mapped error with the determined level
-	h.logger.WithContext(ctx).WithError(err).Logf(logLevel, "Request error mapped to HTTP %d", code)
+	logrus.WithContext(ctx).WithError(err).Logf(logLevel, "Request error mapped to HTTP %d", code)
 
 	// Return the JSON error response
 	return c.Status(code).JSON(fiber.Map{"error": httpErrMessage})

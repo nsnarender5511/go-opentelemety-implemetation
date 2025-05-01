@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	// Host metrics (CPU, memory)
-	// Go runtime metrics (GC, goroutines)
-	// Import config package
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
