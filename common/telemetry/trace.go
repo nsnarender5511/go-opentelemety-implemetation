@@ -3,104 +3,87 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-// newTraceProvider creates and configures a new TraceProvider
-func newTraceProvider(ctx context.Context, config TelemetryConfig, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-	var err error
+// newTraceProvider creates and configures the OTLP trace provider.
+func newTraceProvider(ctx context.Context, telemetryCfg TelemetryConfig, res *resource.Resource, setupLogger *logrus.Logger) (*sdktrace.TracerProvider, func(context.Context) error, error) {
+	setupLogger.Debug("Creating OTLP trace exporter...")
 
-	logger := config.Logger
-	if logger == nil {
-		logger = getLogger()
-	}
+	var clientOpts []otlptracegrpc.Option
+	clientOpts = append(clientOpts, otlptracegrpc.WithEndpoint(telemetryCfg.Endpoint))
 
-	logger.WithFields(logrus.Fields{
-		"endpoint": config.Endpoint,
-		"insecure": config.Insecure,
-	}).Debug("Creating trace exporter")
-
-	// Configure security options
-	var secureOption otlptracegrpc.Option
-	if config.Insecure {
-		secureOption = otlptracegrpc.WithInsecure()
-		logger.Debug("Using insecure connection for trace exporter")
+	if telemetryCfg.Insecure {
+		clientOpts = append(clientOpts, otlptracegrpc.WithInsecure())
+		setupLogger.Debug("Trace exporter configured with insecure connection.")
 	} else {
-		// Use TLS credentials
-		creds := credentials.NewClientTLSFromCert(nil, "")
-		secureOption = otlptracegrpc.WithTLSCredentials(creds)
-		logger.Debug("Using secure connection for trace exporter")
+		clientOpts = append(clientOpts, otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")))
+		setupLogger.Debug("Trace exporter configured with secure connection.")
 	}
 
-	// Configure headers
-	var headers map[string]string
-	if config.Headers != nil {
-		headers = config.Headers
-	} else {
-		headers = make(map[string]string)
-	}
-
-	// Create OTLP trace exporter
-	exp, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(config.Endpoint),
-		secureOption,
-		otlptracegrpc.WithHeaders(headers),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
-	)
+	traceExporter, err := otlptracegrpc.New(ctx, clientOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		return nil, nil, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
 	}
+	setupLogger.Debug("OTLP trace exporter created successfully.")
 
-	// Configure batch timeout
-	batchTimeout := time.Duration(config.BatchTimeoutMS) * time.Millisecond
-	if batchTimeout == 0 {
-		batchTimeout = 5000 * time.Millisecond // Default 5 seconds
-	}
+	// Use config accessors from common/config
+	batchTimeout := config.OtelBatchTimeout()
+	maxExportBatchSize := config.OtelMaxExportBatchSize()
 
-	// Configure batch size
-	batchSize := config.MaxExportBatchSize
-	if batchSize == 0 {
-		batchSize = 512 // Default batch size
-	}
+	setupLogger.WithFields(logrus.Fields{
+		"batchTimeout": batchTimeout,
+		"maxBatchSize": maxExportBatchSize,
+	}).Debug("Configuring Batch Span Processor with values from config package")
 
-	// Create batch span processor
-	bsp := sdktrace.NewBatchSpanProcessor(
-		exp,
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter,
 		sdktrace.WithBatchTimeout(batchTimeout),
-		sdktrace.WithMaxExportBatchSize(batchSize),
+		sdktrace.WithMaxExportBatchSize(maxExportBatchSize),
 	)
 
-	// Configure sampler based on sample ratio
+	// Determine sampler based on config struct value
 	var sampler sdktrace.Sampler
-	if config.SampleRatio >= 1.0 {
-		logger.Debug("Using AlwaysSample sampler")
-		sampler = sdktrace.AlwaysSample()
-	} else if config.SampleRatio <= 0.0 {
-		logger.Debug("Using NeverSample sampler")
-		sampler = sdktrace.NeverSample()
+	if telemetryCfg.SampleRatio > 0 && telemetryCfg.SampleRatio <= 1 {
+		sampler = sdktrace.TraceIDRatioBased(telemetryCfg.SampleRatio)
+		setupLogger.Infof("Trace sampling enabled with ratio: %.2f", telemetryCfg.SampleRatio)
 	} else {
-		logger.WithField("ratio", config.SampleRatio).Debug("Using TraceIDRatioBased sampler")
-		sampler = sdktrace.TraceIDRatioBased(config.SampleRatio)
+		sampler = sdktrace.AlwaysSample() // Default to always sample if ratio is invalid or 0/absent
+		setupLogger.Info("Trace sampling configured to always sample.")
 	}
 
-	// Create and return tracer provider
-	tp := sdktrace.NewTracerProvider(
+	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sampler),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
 
-	logger.Info("Trace provider initialized successfully")
-	return tp, nil
+	setupLogger.Debug("Trace provider configured.")
+	// OTel SDK v1.x TracerProvider *does* have Shutdown which handles processors.
+
+	// Define and return the shutdown function as a closure
+	shutdownFunc := func(shutdownCtx context.Context) error {
+		// Capture setupLogger for use within the closure
+		localSetupLogger := setupLogger
+		localSetupLogger.Debug("Shutting down OTel Trace Provider...")
+		// Rely on the timeout applied to shutdownCtx by the caller (masterShutdown)
+		err := tracerProvider.Shutdown(shutdownCtx)
+		if err != nil {
+			localSetupLogger.WithError(err).Error("Error shutting down OTel Trace Provider")
+		} else {
+			localSetupLogger.Debug("OTel Trace Provider shutdown complete.")
+		}
+		return err
+	}
+
+	return tracerProvider, shutdownFunc, nil
 }
 
 // GetTracer returns a named tracer instance from the global provider

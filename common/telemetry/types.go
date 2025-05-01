@@ -1,9 +1,5 @@
 package telemetry
 
-import (
-	"github.com/sirupsen/logrus"
-)
-
 // TelemetryConfig contains configuration for OpenTelemetry instrumentation.
 // This struct provides a centralized way to configure all aspects of telemetry
 // including tracing, metrics, and logging.
@@ -32,7 +28,9 @@ type TelemetryConfig struct {
 	// Recommended values: 512-1024
 	MaxExportBatchSize int
 
-	// Logger is the configured logrus logger instance
-	// This logger will be used for all telemetry-related logging
-	Logger *logrus.Logger
+	// LogLevel specifies the minimum log level (e.g., "info", "debug")
+	LogLevel string
+
+	// LogFormat specifies the log output format (e.g., "text", "json")
+	LogFormat string
 }

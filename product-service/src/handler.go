@@ -2,155 +2,108 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 
-	// Use correct module path for common telemetry
-	commonErrors "github.com/narender/common-module/errors"
-	"github.com/narender/common-module/telemetry"
+	commonErrors "github.com/narender/common/errors"
+	"github.com/narender/common/telemetry"
+	"github.com/sirupsen/logrus"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
-
-// Constants for telemetry and JSON field names
-const (
-	LogFieldProductID = "product_id"
-	LogFieldStock     = "stock"
-	// JSONField constants are already declared elsewhere, removing duplicates
-)
-
-// Package-level variables for instruments are managed via wrappers now
 
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
 	service ProductService
+	logger  *logrus.Logger
 }
 
 // NewProductHandler creates a new product handler
 func NewProductHandler(service ProductService) *ProductHandler {
 	return &ProductHandler{
 		service: service,
+		logger:  logrus.StandardLogger(),
 	}
-}
-
-// OTel-Aligned hypothetical wrapper function
-func (h *ProductHandler) handleRequest(c *fiber.Ctx, operationName string, attributes map[string]interface{}, serviceCall func(ctx context.Context) (interface{}, error)) error {
-	ctx := c.UserContext() // Get context from Fiber
-	log := logrus.WithContext(ctx).WithFields(logrus.Fields(attributes))
-	log.Infof("Handler: Received request for %s", operationName)
-
-	// OTel Standard: Get the span created by otelfiber from context
-	span := trace.SpanFromContext(ctx)
-
-	// OTel Standard: Add attributes to the *existing* span
-	// Convert interface{} attributes safely
-	otelAttributes := make([]attribute.KeyValue, 0, len(attributes))
-	for k, v := range attributes {
-		// Reverted: Handle only string keys from the map
-		switch val := v.(type) {
-		case string:
-			otelAttributes = append(otelAttributes, attribute.String(k, val))
-		case int:
-			otelAttributes = append(otelAttributes, attribute.Int(k, val))
-		case bool:
-			otelAttributes = append(otelAttributes, attribute.Bool(k, val))
-			// Add more types as needed
-		}
-	}
-	span.SetAttributes(otelAttributes...)
-
-	// Execute the core service logic
-	result, err := serviceCall(ctx)
-
-	// Generic metric recording (using existing wrapper - acceptable)
-	success := err == nil
-	metricBaseName := operationName // Or parse operationName
-	telemetry.IncrementCounter(ctx, "product-service", fmt.Sprintf("app.%s.attempts", metricBaseName), 1)
-	// Maybe add success as a span attribute too - USE CONSTANT
-	// Determine success key based on operationName (example)
-	var successKey attribute.Key
-	if operationName == "handler.GetProductByID" {
-		successKey = telemetry.AttrAppLookupSuccess
-	} else if operationName == "handler.GetProductStock" {
-		successKey = telemetry.AttrAppStockCheck
-	} // Add more cases if needed or use a map
-	if successKey.Defined() {
-		span.SetAttributes(successKey.Bool(success))
-	}
-
-	if err != nil {
-		log.WithError(err).Errorf("Handler: Error during %s", operationName)
-		// OTel Standard: Record the error on the existing span
-		span.RecordError(err)
-		// Let the central error handler (and otelfiber) set final span status based on HTTP code
-		return err // Propagate error
-	}
-
-	log.Infof("Handler: Responding successfully for %s", operationName)
-	return c.Status(http.StatusOK).JSON(result)
 }
 
 // GetAllProducts handles GET /products
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
-	attributes := map[string]interface{}{}
-	return h.handleRequest(c, "handler.GetAllProducts", attributes, func(ctx context.Context) (interface{}, error) {
-		products, err := h.service.GetAll(ctx)
-		if err == nil {
-			// Add count attribute only on success, retrieve span again
-			span := trace.SpanFromContext(ctx)
-			// USE CONSTANT
-			span.SetAttributes(telemetry.AttrProductCount.Int(len(products)))
-		}
-		return products, err
-	})
+	ctx := c.UserContext()
+	span := trace.SpanFromContext(ctx)
+
+	h.logger.WithContext(ctx).Debug("Handler: Received request for GetAllProducts")
+
+	products, err := h.service.GetAll(ctx)
+	if err != nil {
+		return err
+	}
+
+	span.SetAttributes(telemetry.AttrProductCount.Int(len(products)))
+	span.SetStatus(codes.Ok, "")
+
+	h.logger.WithContext(ctx).WithField("count", len(products)).Debug("Handler: Responding successfully for GetAllProducts")
+	return c.Status(http.StatusOK).JSON(products)
 }
 
 // GetProductByID handles GET /products/:productId
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
-	productID, validationErr := h.validatePathParam(c.UserContext(), c, JSONFieldProductID)
+	ctx := c.UserContext()
+	span := trace.SpanFromContext(ctx)
+
+	productID, validationErr := h.validatePathParam(ctx, c, JSONFieldProductID)
 	if validationErr != nil {
 		return validationErr
 	}
 
-	// USE CONSTANT Key's string value for map key
-	attributes := map[string]interface{}{
-		string(telemetry.AttrAppProductID): productID,
-		LogFieldProductID:                  productID, // Keep string key for logger
+	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
+
+	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
+
+	product, err := h.service.GetByID(ctx, productID)
+
+	if err != nil {
+		return err
 	}
 
-	return h.handleRequest(c, "handler.GetProductByID", attributes, func(ctx context.Context) (interface{}, error) {
-		return h.service.GetByID(ctx, productID)
-	})
+	span.SetStatus(codes.Ok, "")
+
+	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
+	return c.Status(http.StatusOK).JSON(product)
 }
 
 // GetProductStock handles GET /products/:productId/stock
 func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
-	productID, validationErr := h.validatePathParam(c.UserContext(), c, JSONFieldProductID)
+	ctx := c.UserContext()
+	span := trace.SpanFromContext(ctx)
+
+	productID, validationErr := h.validatePathParam(ctx, c, JSONFieldProductID)
 	if validationErr != nil {
 		return validationErr
 	}
 
-	// USE CONSTANT Key's string value for map key
-	attributes := map[string]interface{}{
-		string(telemetry.AttrAppProductID): productID,
-		LogFieldProductID:                  productID, // Keep string key for logger
+	span.SetAttributes(telemetry.AttrAppProductID.String(productID))
+
+	h.logger.WithContext(ctx).WithField(string(telemetry.AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
+
+	stock, err := h.service.GetStock(ctx, productID)
+
+	if err != nil {
+		return err
 	}
 
-	// Call handleRequest, passing the GetStock service call
-	return h.handleRequest(c, "handler.GetProductStock", attributes, func(ctx context.Context) (interface{}, error) {
-		// The service call itself
-		stock, err := h.service.GetStock(ctx, productID)
-		if err != nil {
-			return nil, err // Return nil result on error
-		}
-		// On success, return the result formatted as expected by the original handler
-		return fiber.Map{
-			JSONFieldProductID: productID,
-			JSONFieldStock:     stock,
-		}, nil
+	span.SetAttributes(telemetry.AttrAppProductStock.Int(stock))
+	span.SetStatus(codes.Ok, "")
+
+	h.logger.WithContext(ctx).WithFields(logrus.Fields{
+		string(telemetry.AttrAppProductID):    productID,
+		string(telemetry.AttrAppProductStock): stock,
+	}).Debug("Handler: Responding successfully for GetProductStock")
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		JSONFieldProductID: productID,
+		JSONFieldStock:     stock,
 	})
 }
 
@@ -163,14 +116,67 @@ func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	})
 }
 
-// Helper to validate path parameters
+// validatePathParam handles path parameter validation
 func (h *ProductHandler) validatePathParam(ctx context.Context, c *fiber.Ctx, paramName string) (string, error) {
 	id := c.Params(paramName)
 	if id == "" {
-		return "", &commonErrors.ValidationError{
+		span := trace.SpanFromContext(ctx)
+		err := &commonErrors.ValidationError{
 			Field:   paramName,
 			Message: "must not be empty",
 		}
+		h.logger.WithContext(ctx).WithError(err).Warn("Path parameter validation failed")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", err
 	}
 	return id, nil
+}
+
+// MapErrorToResponse maps application errors to HTTP responses and sets span status
+// Renamed to be exported.
+func (h *ProductHandler) MapErrorToResponse(c *fiber.Ctx, err error) error {
+	ctx := c.UserContext()
+	span := trace.SpanFromContext(ctx)
+
+	// Default error response
+	code := http.StatusInternalServerError
+	httpErrMessage := "An unexpected internal server error occurred"
+	spanStatus := codes.Error
+	spanMessage := httpErrMessage
+	logLevel := logrus.ErrorLevel // Default log level for errors
+
+	var validationErr *commonErrors.ValidationError
+	var dbErr *commonErrors.DatabaseError
+
+	if errors.As(err, &validationErr) {
+		code = http.StatusBadRequest
+		httpErrMessage = validationErr.Error()
+		spanMessage = httpErrMessage
+		logLevel = logrus.WarnLevel
+	} else if errors.Is(err, commonErrors.ErrProductNotFound) {
+		code = http.StatusNotFound
+		httpErrMessage = commonErrors.ErrProductNotFound.Error()
+		spanMessage = httpErrMessage
+		logLevel = logrus.WarnLevel
+	} else if errors.As(err, &dbErr) {
+		// Keep 500 for database errors, but log details
+		httpErrMessage = "An internal database error occurred"
+		spanMessage = httpErrMessage
+		// Log underlying DB error detail at Error level
+		h.logger.WithContext(ctx).WithFields(logrus.Fields{"operation": dbErr.Operation}).WithError(dbErr.Err).Error("Database error occurred")
+	} else {
+		// Log any other unexpected error
+		h.logger.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
+	}
+
+	// Record error on span regardless of type
+	span.RecordError(err)
+	span.SetStatus(spanStatus, spanMessage)
+
+	// Log the mapped error with the determined level
+	h.logger.WithContext(ctx).WithError(err).Logf(logLevel, "Request error mapped to HTTP %d", code)
+
+	// Return the JSON error response
+	return c.Status(code).JSON(fiber.Map{"error": httpErrMessage})
 }

@@ -4,179 +4,172 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
-	// Import the main config package using the new module path
-
-	// No need to import sub-packages like trace, metric, log here
-
+	// Use alias to avoid collision
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// globalLogger is the shared logger instance used across the telemetry package
-// It is set via SetLogger and used by the wrapper functions to log telemetry events
-var globalLogger *logrus.Logger
-
-// SetLogger sets the global logger for the telemetry package
-// This should be called before any other telemetry functions
-func SetLogger(logger *logrus.Logger) {
-	globalLogger = logger
-}
-
-// getLogger gets the global logger or creates a default one if not set
-// This ensures a logger is always available for internal telemetry operations
-func getLogger() *logrus.Logger {
-	if globalLogger == nil {
-		globalLogger = logrus.New()
-		globalLogger.SetLevel(logrus.InfoLevel)
-	}
-	return globalLogger
-}
-
-// shutdownFunc defines the signature for shutdown functions returned by initializers.
-type shutdownFunc func(context.Context) error
+// TelemetryConfig struct definition removed - assumed to exist elsewhere or passed correctly.
 
 // InitTelemetry initializes OpenTelemetry Tracing, Metrics, and Logging.
-// It returns a shutdown function to cleanly terminate telemetry and
-// any error encountered during initialization.
-func InitTelemetry(ctx context.Context, config TelemetryConfig) (shutdown func(context.Context) error, err error) {
-	logger := config.Logger
-	if logger == nil {
-		logger = getLogger()
+// It configures global providers and returns a master shutdown function.
+// Application logging should use the configured global Logrus instance.
+func InitTelemetry(ctx context.Context, config TelemetryConfig) (otelShutdownFunc, error) {
+	// --- Initialize Temporary Logrus Logger for Setup ---
+	setupLogger := logrus.New()
+	setupLogger.SetOutput(os.Stdout)
+	setupLogger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	// Set level based on config for setup visibility
+	// --- Refactored Log Level Parsing (Annoying Issue 1) ---
+	logLevelSetting := config.LogLevel
+	parsedLevel, parseErr := logrus.ParseLevel(logLevelSetting)
+	if parseErr != nil {
+		parsedLevel = logrus.InfoLevel
+		// Adjust warning message to only refer to the setup logger
+		setupLogger.Warnf("Invalid log level '%s' in config, defaulting setup logger to 'info'. Standard logger level will be set during configuration.", logLevelSetting)
+	} else {
+		setupLogger.Infof("Using log level '%s' for setup logger", parsedLevel.String())
+	}
+	setupLogger.SetLevel(parsedLevel) // Use parsed level here
+
+	// Log initial config details using the setup logger
+	setupLogger.WithFields(logrus.Fields{
+		"service":  config.ServiceName,
+		"endpoint": config.Endpoint,
+		"logLevel": parsedLevel.String(), // Log the *actual* parsed level being used
+	}).Info("Initializing telemetry")
+
+	// --- Central Shutdown Logic ---
+	var shutdownFuncs []otelShutdownFunc
+	var mu sync.Mutex
+	addShutdownFunc := func(f otelShutdownFunc) {
+		if f != nil {
+			mu.Lock()
+			shutdownFuncs = append(shutdownFuncs, f)
+			mu.Unlock()
+		}
 	}
 
-	// Create the shutdown function that will be returned
-	var shutdownFuncs []func(context.Context) error
+	masterShutdown := func(shutdownCtx context.Context) error {
+		setupLogger.Info("Starting telemetry shutdown")
+		mu.Lock()
+		funcs := make([]otelShutdownFunc, len(shutdownFuncs))
+		copy(funcs, shutdownFuncs)
+		mu.Unlock()
 
-	shutdown = func(ctx context.Context) error {
-		var err error
-		logger.Info("Shutting down telemetry providers")
-
-		// Shutdown providers in reverse order
-		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
-			if shutdownErr := shutdownFuncs[i](ctx); shutdownErr != nil {
-				logger.WithError(shutdownErr).Error("Error during telemetry shutdown")
-				err = errors.Join(err, shutdownErr)
+		var combinedErr error
+		// Shutdown in reverse order of initialization (LIFO)
+		for i := len(funcs) - 1; i >= 0; i-- {
+			if funcs[i] == nil {
+				continue
 			}
+			// The context passed into masterShutdown (shutdownCtx) should already have the correct timeout
+			// managed by the caller (e.g., WaitForGracefulShutdown). We execute the specific provider
+			// shutdown function using this received context directly.
+			if shutdownErr := funcs[i](shutdownCtx); shutdownErr != nil {
+				// Use the setup logger for consistency during shutdown logging
+				setupLogger.WithError(shutdownErr).Errorf("Error during telemetry provider shutdown step %d", i)
+				combinedErr = errors.Join(combinedErr, shutdownErr)
+			}
+			// No need to cancel a sub-context here as we used shutdownCtx directly.
 		}
 
-		shutdownFuncs = nil
-		if err != nil {
-			logger.WithError(err).Error("Telemetry shutdown completed with errors")
+		if combinedErr != nil {
+			setupLogger.WithError(combinedErr).Error("Telemetry shutdown completed with errors")
 		} else {
-			logger.Info("Telemetry shutdown completed successfully")
+			setupLogger.Info("Telemetry shutdown completed successfully")
 		}
-		return err
+		return combinedErr
 	}
 
-	// Handle errors during initialization
+	// --- otelShutdownFunc type definition is now in log.go ---
+
 	handleInitError := func(initErr error, component string) error {
-		logger.WithError(initErr).Errorf("Failed to initialize %s", component)
-		// Perform cleanup of already initialized components
+		setupLogger.WithError(initErr).Errorf("Failed to initialize %s", component)
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
-		_ = shutdown(cleanupCtx) // Ignore any shutdown errors during initialization cleanup
+		shutdownErr := masterShutdown(cleanupCtx)
+		if shutdownErr != nil {
+			setupLogger.WithError(shutdownErr).Error("Error during cleanup shutdown after initialization failure")
+		}
 		return fmt.Errorf("%s initialization failed: %w", component, initErr)
 	}
 
-	logger.WithFields(logrus.Fields{
-		"service":  config.ServiceName,
-		"endpoint": config.Endpoint,
-	}).Info("Initializing telemetry")
-
-	// Create and configure the Resource for all telemetry
+	// --- Create Resource ---
 	res, err := newResource(ctx, config.ServiceName)
 	if err != nil {
 		return nil, handleInitError(err, "resource")
 	}
+	setupLogger.Debug("Telemetry resource created")
 
-	// Set up propagator
+	// --- Set up Propagator ---
 	prop := propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	)
 	otel.SetTextMapPropagator(prop)
+	setupLogger.Debug("Set global text map propagator (TraceContext, Baggage)")
 
-	// Initialize tracer provider
-	tp, err := newTraceProvider(ctx, config, res)
+	// --- Initialize Providers (Trace, Meter, Log) ---
+	var tp *sdktrace.TracerProvider
+	var traceShutdown otelShutdownFunc // Declare shutdown func var
+	tp, traceShutdown, err = newTraceProvider(ctx, config, res, setupLogger)
 	if err != nil {
 		return nil, handleInitError(err, "trace provider")
 	}
-	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
+	addShutdownFunc(traceShutdown) // Register the shutdown func
 	otel.SetTracerProvider(tp)
+	setupLogger.Info("Trace provider registered globally")
 
-	// Initialize meter provider
-	mp, err := newMeterProvider(ctx, config, res)
+	var mp *sdkmetric.MeterProvider
+	var meterShutdown otelShutdownFunc // Declare shutdown func var
+	mp, meterShutdown, err = newMeterProvider(ctx, config, res, setupLogger)
 	if err != nil {
 		return nil, handleInitError(err, "meter provider")
 	}
-	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
+	addShutdownFunc(meterShutdown) // Register the shutdown func
 	otel.SetMeterProvider(mp)
+	setupLogger.Info("Meter provider registered globally")
 
-	// Initialize logger provider - Replace stub call with actual initialization
-	// loggerShutdown, err := configureLoggerProvider(ctx, config, res)
-	loggerShutdown, err := initLoggerProvider(ctx, config.Endpoint, config.Insecure, res) // Call the real init function
+	var otelLogProvider *sdklog.LoggerProvider
+	var logShutdown otelShutdownFunc
+	// Pass endpoint for potential logging inside createOtlpLogProvider if needed
+	otelLogProvider, logShutdown, err = createOtlpLogProvider(ctx, config.Endpoint, config.Insecure, res, setupLogger)
 	if err != nil {
-		// Logger is less critical, so we log the error but continue
-		logger.WithError(err).Warn("Failed to initialize logger provider, continuing without telemetry logging")
-	} else if loggerShutdown != nil {
-		shutdownFuncs = append(shutdownFuncs, loggerShutdown)
+		// Log the error but don't make it fatal for InitTelemetry itself unless absolutely required.
+		// The error from createOtlpLogProvider already logs details.
+		// Allow init to continue so other telemetry might work, but OTel logging won't.
+		setupLogger.WithError(err).Error("Failed to initialize OTLP logger provider. OTel log export will not function.")
+		// Reset provider and shutdown func to nil as they are invalid
+		otelLogProvider = nil
+		logShutdown = nil
+		// Do NOT return/handleInitError here - proceed to configure Logrus without the OTel hook.
+	} else {
+		// Only set global provider and add shutdown func if creation succeeded.
+		setupLogger.Info("OTLP Logger Provider initialized successfully")
+		global.SetLoggerProvider(otelLogProvider)
+		addShutdownFunc(logShutdown) // Add shutdown func ONLY if successful
+		setupLogger.Debug("Global OTel Logger Provider set")
 	}
 
-	logger.Info("Telemetry initialization completed successfully")
-	return shutdown, nil
+	// --- Configure Global Logrus Instance ---
+	configureLogrus(parsedLevel, otelLogProvider, setupLogger) // Pass potentially nil provider
+
+	setupLogger.Info("Telemetry initialization completed successfully")
+	return masterShutdown, nil
 }
 
-// newResource creates a resource with service information
-// This resource is used by all telemetry signals (traces, metrics, logs)
-func newResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
-	res, err := resource.New(ctx,
-		resource.WithFromEnv(),
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
-	}
-	return res, nil
-}
+// newResource function REMOVED from here.
 
-// createMasterShutdown creates a function that will shut down all provided shutdown functions
-// in parallel, with a timeout. This is more efficient than shutting down sequentially.
-func createMasterShutdown(logger *logrus.Logger, shutdownFuncs []func(context.Context) error) func(context.Context) error {
-	return func(ctx context.Context) error {
-		logger.Info("Starting telemetry shutdown")
-
-		// Use WaitGroup for parallel shutdown
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		var multiErr error
-
-		for _, fn := range shutdownFuncs {
-			if fn == nil {
-				continue
-			}
-
-			wg.Add(1)
-			go func(shutdownFn func(context.Context) error) {
-				defer wg.Done()
-
-				if err := shutdownFn(ctx); err != nil {
-					mu.Lock()
-					multiErr = errors.Join(multiErr, err)
-					mu.Unlock()
-				}
-			}(fn)
-		}
-
-		wg.Wait()
-		return multiErr
-	}
-}
+// configureLogrus function REMOVED from here.

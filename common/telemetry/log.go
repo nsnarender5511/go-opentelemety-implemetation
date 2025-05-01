@@ -3,275 +3,131 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"log"
-	"sync"
+	"os"
 	"time"
 
-	"github.com/sirupsen/logrus" // Your logging library
-
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc" // Corrected path
-	"go.opentelemetry.io/otel/log/global"                         // Global logger provider
-
-	// Import the OTel Log API package
-	otellog "go.opentelemetry.io/otel/log"
+	"github.com/narender/common/config"
+	"github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
-	"go.opentelemetry.io/otel/sdk/resource" // Added for attributes
-
-	// To extract trace context
-	"google.golang.org/grpc"
-	// "google.golang.org/grpc/credentials/insecure" // Ensure this line is commented out or removed
+	"go.opentelemetry.io/otel/sdk/resource"
+	"google.golang.org/grpc/credentials"
 )
 
-var (
-	// Global instance to hold the configured OTel LoggerProvider
-	otelLoggerProvider *sdklog.LoggerProvider
-	// Mutex to protect access to the global provider during configuration
-	providerMu sync.Mutex
-)
+// otelShutdownFunc defines the signature for shutdown functions returned by providers.
+type otelShutdownFunc func(context.Context) error
 
-// initLoggerProvider initializes the OTLP Logger Provider.
-// It sets up the exporter and the provider but doesn't set it globally yet.
-func initLoggerProvider(ctx context.Context, endpoint string, insecure bool, res *resource.Resource) (shutdownFunc func(context.Context) error, err error) {
-	// --- Create OTLP Exporter ---
-	exporterOpts := []otlploggrpc.Option{
-		otlploggrpc.WithEndpoint(endpoint),
-		// otlploggrpc.WithCompressor(grpc.UseCompressor(gzip.Name)),
-		// otlploggrpc.WithHeaders(map[string]string{"api-key": "your-key"}),
-		otlploggrpc.WithDialOption(grpc.WithBlock()),
+// createOtlpLogProvider creates and configures the OTLP log provider.
+// Returns the provider, a shutdown function, and an error.
+func createOtlpLogProvider(ctx context.Context, endpoint string, insecure bool, res *resource.Resource, setupLogger *logrus.Logger) (*sdklog.LoggerProvider, otelShutdownFunc, error) {
+	setupLogger.Debug("Creating OTLP log exporter...")
+
+	var clientOpts []otlploggrpc.Option
+	if endpoint == "" {
+		// This case should ideally be caught by config validation, but double-check here.
+		setupLogger.Error("OTLP endpoint is empty in createOtlpLogProvider. Cannot create exporter.")
+		return nil, nil, fmt.Errorf("cannot create OTLP log exporter: endpoint is empty")
 	}
+	clientOpts = append(clientOpts, otlploggrpc.WithEndpoint(endpoint))
 
 	if insecure {
-		exporterOpts = append(exporterOpts, otlploggrpc.WithInsecure())
+		clientOpts = append(clientOpts, otlploggrpc.WithInsecure())
+		setupLogger.Debug("Log exporter configured with insecure connection.")
 	} else {
-		// Use secure transport (TLS)
-		log.Println("Attempting to use secure OTLP log exporter.")
-		// No explicit credentials option means default secure gRPC
+		clientOpts = append(clientOpts, otlploggrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")))
+		setupLogger.Debug("Log exporter configured with secure connection.")
 	}
 
-	logExporter, err := otlploggrpc.New(ctx, exporterOpts...)
+	logExporter, err := otlploggrpc.New(ctx, clientOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP log exporter: %w", err)
+		// Don't return fatal error here, allow telemetry init to continue without OTel logging if needed
+		setupLogger.WithError(err).WithFields(logrus.Fields{
+			"endpoint": endpoint,
+			"insecure": insecure,
+		}).Warn("Failed to create OTLP log exporter. OTel logging via Logrus hook will NOT function.")
+		return nil, nil, fmt.Errorf("failed to create OTLP log exporter (endpoint: %s): %w", endpoint, err)
 	}
-	log.Println("OTLP Log Exporter created.")
+	setupLogger.WithFields(logrus.Fields{
+		"endpoint": endpoint,
+		"insecure": insecure,
+	}).Info("OTLP log exporter created successfully.")
 
-	// --- Create Batch Log Record Processor ---
-	blrp := sdklog.NewBatchProcessor(logExporter)
-	log.Println("Batch Log Record Processor created.")
+	// Configure LogRecordProcessor using values from common/config
+	maxQueueSize := config.OtelLogMaxQueueSize()
+	exportTimeout := config.OtelLogExportTimeout()
+	exportInterval := config.OtelLogExportInterval() // Assuming we add this config
 
-	// --- Create Logger Provider ---
+	setupLogger.WithFields(logrus.Fields{
+		"maxQueueSize":   maxQueueSize,
+		"exportTimeout":  exportTimeout,
+		"exportInterval": exportInterval, // Log the interval if configured
+	}).Debug("Configuring Batch Log Record Processor with values from config package")
+
+	// Add relevant options available in the SDK version being used.
+	// Example options (verify against your SDK version):
+	batchProcessorOpts := []sdklog.BatchProcessorOption{
+		sdklog.WithMaxQueueSize(maxQueueSize),
+		sdklog.WithExportTimeout(exportTimeout),
+		sdklog.WithExportInterval(exportInterval), // Correct option for export interval
+		// sdklog.WithMaxExportBatchSize(...) // Optional: Configure batch size too if needed
+	}
+	blrp := sdklog.NewBatchProcessor(logExporter, batchProcessorOpts...)
+
 	loggerProvider := sdklog.NewLoggerProvider(
 		sdklog.WithResource(res),
 		sdklog.WithProcessor(blrp),
 	)
-	log.Println("Logger Provider created.")
 
-	// --- Store the provider globally (protected by mutex) ---
-	providerMu.Lock()
-	otelLoggerProvider = loggerProvider
-	providerMu.Unlock()
-	// Set the global delegate provider (needed for logrus hook to work)
-	global.SetLoggerProvider(loggerProvider)
-	log.Println("Global Logger Provider delegate set.")
+	setupLogger.Debug("OTel Logger provider configured.")
 
-	// Return the shutdown function.
-	shutdown := func(shutdownCtx context.Context) error {
-		log.Println("Shutting down Logger Provider...")
-		providerMu.Lock()
-		lp := otelLoggerProvider // Get the provider under lock
-		otelLoggerProvider = nil // Reset global reference
-		providerMu.Unlock()
-
-		if lp == nil {
-			log.Println("Logger Provider already shut down or not initialized.")
-			return nil
+	// Return the provider and its shutdown function
+	shutdownFunc := func(shutdownCtx context.Context) error {
+		setupLogger.Debug("Shutting down OTel Logger Provider...")
+		// Rely on the timeout applied to shutdownCtx by the caller (masterShutdown)
+		err := loggerProvider.Shutdown(shutdownCtx)
+		if err != nil {
+			setupLogger.WithError(err).Error("Error shutting down OTel Logger Provider")
+		} else {
+			setupLogger.Debug("OTel Logger Provider shutdown complete.")
 		}
-
-		// Use a timeout for the shutdown context.
-		ctx, cancel := context.WithTimeout(shutdownCtx, 10*time.Second)
-		defer cancel()
-		if err := lp.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down Logger Provider: %v", err)
-			return fmt.Errorf("failed to shutdown LoggerProvider: %w", err)
-		}
-		log.Println("Logger Provider shut down successfully.")
-		return nil
+		return err
 	}
 
-	return shutdown, nil
+	return loggerProvider, shutdownFunc, nil
 }
 
-// --- Custom Logrus Hook for OpenTelemetry ---
+// configureLogrus sets up the global Logrus instance.
+// Moved here from init.go as part of file reorganization.
+// It now requires the otelLogProvider to be non-nil.
+func configureLogrus(level logrus.Level, otelLogProvider *sdklog.LoggerProvider, setupLogger *logrus.Logger) {
+	// Level is now pre-parsed and passed in
+	logrus.SetLevel(level)
+	logrus.SetFormatter(&logrus.JSONFormatter{
+		TimestampFormat: time.RFC3339Nano,
+	})
+	logrus.SetOutput(os.Stdout)
 
-// OtelHook implements logrus.Hook to send logs to OpenTelemetry.
-type OtelHook struct {
-	// Levels defines on which log levels this hook should fire.
-	LogLevels []logrus.Level
-}
+	setupLogger.Infof("Standard Logrus configured with level '%s' and JSON formatter.", level.String())
 
-// NewOtelHook creates a new hook for the specified levels.
-func NewOtelHook(levels []logrus.Level) *OtelHook {
-	return &OtelHook{LogLevels: levels}
-}
-
-// Levels returns the log levels this hook is registered for.
-func (h *OtelHook) Levels() []logrus.Level {
-	if h.LogLevels == nil {
-		return logrus.AllLevels // Default to all levels if not specified
-	}
-	return h.LogLevels
-}
-
-// Fire is called by Logrus when a log entry is made.
-func (h *OtelHook) Fire(entry *logrus.Entry) error {
-	providerMu.Lock()
-	lp := otelLoggerProvider // Get current provider safely
-	providerMu.Unlock()
-
-	if lp == nil {
-		// Provider not yet initialized or already shut down, do nothing.
-		return nil
+	// Check if provider is nil before adding hook
+	if otelLogProvider == nil {
+		setupLogger.Warn("OTel Logger Provider is nil. Cannot add Logrus OTel hook. Logs will NOT be sent to OTel.")
+		return // Do not attempt to add the hook
 	}
 
-	// Get a logger instance from the global provider.
-	otelLogger := lp.Logger(
-		"logrus", // Instrumentation scope name
-	)
+	// Configure the otellogrus hook.
+	// It implicitly uses the globally registered OTel Logger Provider.
+	hook := otellogrus.NewHook(otellogrus.WithLevels(
+		logrus.PanicLevel,
+		logrus.FatalLevel,
+		logrus.ErrorLevel,
+		logrus.WarnLevel,
+		logrus.InfoLevel,
+		logrus.DebugLevel,
+		logrus.TraceLevel,
+	))
 
-	// Prepare attributes using otellog.KeyValue
-	attrs := make([]otellog.KeyValue, 0, len(entry.Data)+5) // Change type here
-	for k, v := range entry.Data {
-		attrs = append(attrs, otelAttributeFromInterface(k, v)) // This now returns otellog.KeyValue
-	}
-	if entry.HasCaller() {
-		// Use otellog constructors for caller info as well
-		attrs = append(attrs, otellog.String("logrus.code.function", entry.Caller.Function))
-		attrs = append(attrs, otellog.String("logrus.code.filepath", entry.Caller.File))
-		attrs = append(attrs, otellog.Int("logrus.code.lineno", entry.Caller.Line))
-	}
-
-	// Get context (potentially containing trace/span info)
-	ctx := entry.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	// Construct the otellog.Record (API record)
-	apiRecord := otellog.Record{}
-	apiRecord.SetTimestamp(entry.Time)
-	apiRecord.SetObservedTimestamp(time.Now())
-	apiRecord.SetSeverity(mapSeverity(entry.Level))
-	apiRecord.SetBody(otellog.StringValue(entry.Message))
-	// Add collected attributes to the record
-	apiRecord.AddAttributes(attrs...)
-
-	// Emit the API record using the logger instance, passing context
-	// Trace/Span context is implicitly carried by ctx
-	otelLogger.Emit(ctx, apiRecord)
-
-	return nil
-}
-
-// configureLoggerProvider sets up logging with OTel (if needed in the future)
-// For now, it just returns a stub function
-func configureLoggerProvider(ctx context.Context, config TelemetryConfig, res *resource.Resource) (func(context.Context) error, error) {
-	logger := config.Logger
-	if logger == nil {
-		logger = getLogger()
-	}
-
-	logger.Debug("Logger provider configuration is minimal in this implementation")
-
-	// Return a no-op shutdown function
-	shutdown := func(context.Context) error {
-		logger.Debug("Logger provider shutdown (no-op)")
-		return nil
-	}
-
-	return shutdown, nil
-}
-
-// ConfigureLogrus sets up logrus with the specified level and formatter
-// and adds an OpenTelemetry hook if available
-func ConfigureLogrus(logger *logrus.Logger, level, format string) {
-	// Parse log level with fallback to info
-	logLevel, err := logrus.ParseLevel(level)
-	if err != nil {
-		logLevel = logrus.InfoLevel
-		logger.WithFields(logrus.Fields{
-			"provided_level": level,
-			"fallback_level": "info",
-		}).Warn("Invalid log level specified, using info level")
-	}
-
-	logger.SetLevel(logLevel)
-
-	// Configure formatter based on format
-	switch format {
-	case "json":
-		logger.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
-		})
-	default:
-		logger.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp:    true,
-			TimestampFormat:  "2006-01-02T15:04:05.000Z07:00",
-			DisableColors:    false,
-			DisableTimestamp: false,
-			PadLevelText:     true,
-		})
-	}
-
-	// Check if OTel Logger Provider is available and add hook
-	providerMu.Lock()
-	initialized := otelLoggerProvider != nil
-	providerMu.Unlock()
-
-	if initialized {
-		hook := NewOtelHook(logrus.AllLevels)
-		logger.AddHook(hook)
-		logger.Debug("OpenTelemetry logrus hook configured")
-	}
-}
-
-// --- Helper Functions ---
-
-// mapSeverity maps logrus log levels to OpenTelemetry severity levels.
-func mapSeverity(level logrus.Level) otellog.Severity {
-	switch level {
-	case logrus.TraceLevel:
-		return otellog.SeverityTrace
-	case logrus.DebugLevel:
-		return otellog.SeverityDebug
-	case logrus.InfoLevel:
-		return otellog.SeverityInfo
-	case logrus.WarnLevel:
-		return otellog.SeverityWarn
-	case logrus.ErrorLevel:
-		return otellog.SeverityError
-	case logrus.FatalLevel:
-		return otellog.SeverityFatal
-	case logrus.PanicLevel:
-		return otellog.SeverityFatal
-	default:
-		return otellog.SeverityInfo
-	}
-}
-
-// otelAttributeFromInterface converts a key-value pair to an OTel KeyValue attribute.
-func otelAttributeFromInterface(key string, value interface{}) otellog.KeyValue {
-	switch v := value.(type) {
-	case string:
-		return otellog.String(key, v)
-	case int:
-		return otellog.Int(key, v)
-	case int64:
-		return otellog.Int64(key, v)
-	case float64:
-		return otellog.Float64(key, v)
-	case bool:
-		return otellog.Bool(key, v)
-	default:
-		// Convert anything else to string
-		return otellog.String(key, fmt.Sprintf("%v", v))
-	}
+	logrus.AddHook(hook)
+	setupLogger.Info("Logrus OTel hook added successfully. Logs at specified levels will be sent to OTel.")
 }

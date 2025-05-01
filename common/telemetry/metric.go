@@ -5,76 +5,64 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus" // Host metrics (CPU, memory)
+	// Host metrics (CPU, memory)
 	// Go runtime metrics (GC, goroutines)
+	// Import config package
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
-	sdk "go.opentelemetry.io/otel/sdk/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-// newMeterProvider creates and configures a new MeterProvider
-func newMeterProvider(ctx context.Context, config TelemetryConfig, res *resource.Resource) (*sdk.MeterProvider, error) {
-	var err error
+// newMeterProvider creates and configures the OTLP meter provider.
+func newMeterProvider(ctx context.Context, telemetryCfg TelemetryConfig, res *resource.Resource, setupLogger *logrus.Logger) (*sdkmetric.MeterProvider, func(context.Context) error, error) {
+	setupLogger.Debug("Creating OTLP metric exporter...")
 
-	logger := config.Logger
-	if logger == nil {
-		logger = getLogger()
-	}
+	var clientOpts []otlpmetricgrpc.Option
+	clientOpts = append(clientOpts, otlpmetricgrpc.WithEndpoint(telemetryCfg.Endpoint))
 
-	logger.WithFields(logrus.Fields{
-		"endpoint": config.Endpoint,
-		"insecure": config.Insecure,
-	}).Debug("Creating metric exporter")
-
-	// Configure security options
-	var secureOption otlpmetricgrpc.Option
-	if config.Insecure {
-		secureOption = otlpmetricgrpc.WithInsecure()
-		logger.Debug("Using insecure connection for metric exporter")
+	if telemetryCfg.Insecure {
+		clientOpts = append(clientOpts, otlpmetricgrpc.WithInsecure())
+		setupLogger.Debug("Metric exporter configured with insecure connection.")
 	} else {
-		// Use TLS credentials
-		creds := credentials.NewClientTLSFromCert(nil, "")
-		secureOption = otlpmetricgrpc.WithTLSCredentials(creds)
-		logger.Debug("Using secure connection for metric exporter")
+		clientOpts = append(clientOpts, otlpmetricgrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")))
+		setupLogger.Debug("Metric exporter configured with secure connection.")
 	}
 
-	// Configure headers
-	var headers map[string]string
-	if config.Headers != nil {
-		headers = config.Headers
-	} else {
-		headers = make(map[string]string)
-	}
-
-	// Create OTLP metric exporter
-	exp, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint(config.Endpoint),
-		secureOption,
-		otlpmetricgrpc.WithHeaders(headers),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
-	)
+	metricExporter, err := otlpmetricgrpc.New(ctx, clientOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
+		return nil, nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
 	}
+	setupLogger.Debug("OTLP metric exporter created successfully.")
 
-	// Configure reader options
-	readerOptions := []sdk.PeriodicReaderOption{
-		// Default to 30s collection interval if not specified
-		sdk.WithInterval(30 * time.Second),
-	}
-
-	// Create and configure meter provider
-	mp := sdk.NewMeterProvider(
-		sdk.WithResource(res),
-		sdk.WithReader(sdk.NewPeriodicReader(exp, readerOptions...)),
+	// Configure MeterProvider
+	// Using default interval for PeriodicReader, can be configured if needed.
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(15*time.Second))), // Example interval
 	)
 
-	logger.Info("Meter provider initialized successfully")
-	return mp, nil
+	setupLogger.Debug("Meter provider configured.")
+
+	// Define and return the shutdown function as a closure
+	shutdownFunc := func(shutdownCtx context.Context) error {
+		// Capture setupLogger for use within the closure
+		localSetupLogger := setupLogger
+		localSetupLogger.Debug("Shutting down OTel Meter Provider...")
+		// Rely on the timeout applied to shutdownCtx by the caller (masterShutdown)
+		err := mp.Shutdown(shutdownCtx)
+		if err != nil {
+			localSetupLogger.WithError(err).Error("Error shutting down OTel Meter Provider")
+		} else {
+			localSetupLogger.Debug("OTel Meter Provider shutdown complete.")
+		}
+		return err
+	}
+
+	return mp, shutdownFunc, nil
 }
 
 // GetMeter returns a named meter instance from the global provider

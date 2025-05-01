@@ -1,0 +1,47 @@
+# Main application Compose file
+networks:
+  signoz-net:
+    external: true
+    name: signoz-net # Must match the name defined in docker-compose.signoz.yml
+
+services:
+  # --- Product Service (Keep our service definition) ---
+  product-service:
+    build:
+      context: . # Build context is the root directory
+      dockerfile: ./product-service/Dockerfile
+    container_name: product-service # Keeping explicit name for clarity if desired
+    ports:
+      - "8082:8082" # Map host port to container port
+    networks:
+      - signoz-net # Connect to the externally defined network
+    environment:
+      # Configuration read by common/config
+      - PRODUCT_SERVICE_PORT=8082
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json # Use JSON in container
+      - OTEL_SERVICE_NAME=product-service
+      - SERVICE_VERSION=0.1.0
+      # Point to the OTel Collector service name within the Docker network (official name)
+      - OTEL_EXPORTER_OTLP_ENDPOINT=signoz-otel-collector:4317 # Updated to official name
+      - OTEL_EXPORTER_INSECURE=true # Assuming collector doesn't use TLS internally
+      - OTEL_SAMPLE_RATIO=1.0
+      - DATA_FILE_PATH=/app/data.json # Path inside the container
+
+  # --- Product Simulator Service (Based on tests/Dockerfile) ---
+  product-simulator:
+    build:
+      context: ./tests # Build context is the tests directory
+      dockerfile: Dockerfile
+    depends_on:
+      - product-service # Ensure product-service starts first
+    networks:
+      - signoz-net
+    environment:
+      # Point the simulator to the product-service container name
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+    deploy:
+      replicas: 5 # Specify 5 instances
+
+
+

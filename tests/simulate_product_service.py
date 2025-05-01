@@ -9,8 +9,8 @@ import json # Import json module
 # Configuration
 BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
-CONCURRENT_USERS = 5
-SIMULATION_DURATION_SECONDS = 30
+CONCURRENT_USERS = 20 # Increased concurrent users
+# SIMULATION_DURATION_SECONDS = 30 # Removed fixed duration
 # Path to the data file relative to the script or workspace
 # Adjust this path if the script is run from a different directory
 DATA_FILE_PATH = "../product-service/data.json" # Relative path to data.json
@@ -42,12 +42,23 @@ INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 def make_request(method, url, expected_status=None):
     """Helper function to make requests and print status."""
     try:
-        response = requests.request(method, url, timeout=5) # Added timeout
+        response = requests.request(method, url, timeout=10) # Increased timeout slightly
         status_match = "OK" if expected_status and response.status_code == expected_status else "UNEXPECTED"
+        
+        log_message = f"-> {method} {url}: Status {response.status_code} ({status_match})"
         if expected_status and response.status_code != expected_status:
-            print(f"-> {method} {url}: Status {response.status_code} ({status_match}), Expected: {expected_status}")
-        else:
-            print(f"-> {method} {url}: Status {response.status_code} ({status_match})")
+            log_message += f", Expected: {expected_status}"
+            
+        # Optional: Attempt to log response body on unexpected status for debugging
+        # Be careful with large responses
+        # try:
+        #     if response.status_code != expected_status:
+        #          log_message += f" Body: {response.text[:100]}" # Log first 100 chars
+        # except Exception:
+        #     pass # Ignore if reading body fails
+
+        print(log_message)
+
         # Optionally: response.raise_for_status() # Or handle errors more gracefully
     except requests.exceptions.Timeout:
         print(f"-> {method} {url}: TIMEOUT")
@@ -55,6 +66,8 @@ def make_request(method, url, expected_status=None):
         print(f"-> {method} {url}: CONNECTION ERROR (Is the service running?)")
     except requests.exceptions.RequestException as e:
         print(f"-> {method} {url}: Error {e}")
+    except Exception as e: # Catch broader exceptions during request handling
+        print(f"-> {method} {url}: UNEXPECTED ERROR during request: {e}")
 
 def get_all_products():
     make_request("GET", PRODUCTS_ENDPOINT, expected_status=200)
@@ -121,10 +134,10 @@ def worker(worker_id):
 
 if __name__ == "__main__":
     print(f"Starting Product Service Simulation...")
-    print(f" - Simulating {CONCURRENT_USERS} concurrent users for {SIMULATION_DURATION_SECONDS} seconds.")
+    print(f" - Simulating {CONCURRENT_USERS} concurrent users indefinitely.")
     print(f" - Target: {BASE_URL}")
-    print(f" - Known IDs: {known_product_ids}")
-    print("---")
+    print(f" - Known IDs from {DATA_FILE_PATH}: {known_product_ids if known_product_ids else 'None found, using fallback'}")
+    print("--- Press Ctrl+C to stop ---")
 
     threads = []
     for i in range(CONCURRENT_USERS):
@@ -132,9 +145,16 @@ if __name__ == "__main__":
         threads.append(thread)
         thread.start()
 
-    # Let the simulation run for the specified duration
+    # Let the simulation run indefinitely until interrupted
     try:
-        time.sleep(SIMULATION_DURATION_SECONDS)
+        # Keep the main thread alive while workers run
+        while True:
+            # Check if any worker thread has unexpectedly died
+            for t in threads:
+                if not t.is_alive():
+                    print(f"Warning: Worker thread {t.name} is no longer alive.")
+                    # Optionally: Respawn the worker thread if needed
+            time.sleep(5) # Check thread status periodically
     except KeyboardInterrupt:
         print("\nCtrl+C detected. Stopping simulation...")
     finally:
