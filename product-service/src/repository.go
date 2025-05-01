@@ -176,3 +176,4 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (Product, er
 	span.SetStatus(codes.Ok, "")
 	return product, nil
 }
+

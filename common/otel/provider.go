@@ -2,8 +2,10 @@ package otel
 
 import (
 	"context"
+	"time"
 
 	"github.com/narender/common/config"
+	"github.com/narender/common/lifecycle"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -33,8 +35,8 @@ func WithLogger(logger *logrus.Logger) Option {
 	}
 }
 
-// NewSetup creates a new OpenTelemetry setup with the provided configuration
-func NewSetup(cfg *config.Config, opts ...Option) *Setup {
+// NewSetup creates a new OpenTelemetry setup with the provided configuration and registers it with the shutdown manager
+func NewSetup(ctx context.Context, cfg *config.Config, shutdownManager *lifecycle.ShutdownManager, opts ...Option) (*Setup, error) {
 	// Create a setup with defaults
 	s := &Setup{
 		cfg:           cfg,
@@ -47,7 +49,24 @@ func NewSetup(cfg *config.Config, opts ...Option) *Setup {
 		opt(s)
 	}
 
-	return s
+	// Ensure resource exists before potentially setting up components that need it
+	if err := s.ensureResource(ctx); err != nil {
+		s.logger.WithError(err).Error("Failed to ensure OpenTelemetry resource during initial setup")
+		return nil, err
+	}
+
+	// Register the main shutdown logic with the lifecycle manager
+	// Use a reasonable timeout for OTel shutdown
+	// TODO: Make this timeout configurable if needed
+	const otelShutdownTimeout = 15 * time.Second
+	if shutdownManager != nil {
+		shutdownManager.Register("OpenTelemetry", s, otelShutdownTimeout)
+		s.logger.Infof("Registered OpenTelemetry shutdown with lifecycle manager (timeout: %s)", otelShutdownTimeout)
+	} else {
+		s.logger.Warn("No lifecycle shutdown manager provided; OpenTelemetry shutdown will not be managed automatically.")
+	}
+
+	return s, nil
 }
 
 // WithResource creates and configures the OpenTelemetry resource

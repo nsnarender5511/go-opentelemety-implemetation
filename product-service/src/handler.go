@@ -127,7 +127,6 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 }
 
 // HealthCheck handles GET /healthz
-// It provides a minimal liveness check.
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	// Simply return 200 OK and a status message
 	return c.Status(http.StatusOK).JSON(fiber.Map{

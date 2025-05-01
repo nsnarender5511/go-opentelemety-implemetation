@@ -31,15 +31,28 @@ func main() {
 	}
 	cfg.Log()
 
-	// --- Initialize Telemetry using new otel builder ---
-	otelSetup := otel.NewSetup(cfg)
-
-	// Initialize components (Resource, Propagator, Tracing, Metrics, Logging)
-	// The order might matter for dependencies (e.g., tracing needs resource)
-	otelSetup, err := otelSetup.WithResource(ctx)
+	// --- Initialize Logging Early ---
+	// Configure logrus level from config
+	level, err := logrus.ParseLevel(cfg.LogLevel)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialize telemetry resource")
+		logrus.WithError(err).Warnf("Invalid log level '%s', using default 'info'", cfg.LogLevel)
+		level = logrus.InfoLevel
 	}
+	logrus.SetLevel(level)
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.Info("Log level set")
+
+	// --- Graceful Shutdown Manager (needed early for OTel) ---
+	shutdownManager := lifecycle.NewShutdownManager(logrus.StandardLogger()).WithTimeout(cfg.ShutdownTotalTimeout)
+
+	// --- Initialize Telemetry using new otel builder ---
+	// Pass context and shutdown manager to NewSetup
+	otelSetup, err := otel.NewSetup(ctx, cfg, shutdownManager, otel.WithLogger(logrus.StandardLogger()))
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed during initial OTel setup")
+	}
+
+	// Initialize components (Resource is handled internally by NewSetup now)
 	otelSetup = otelSetup.WithPropagator()
 	otelSetup, err = otelSetup.WithTracing(ctx)
 	if err != nil {
@@ -49,9 +62,10 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize telemetry metrics")
 	}
-	otelSetup, err = otelSetup.WithLogging(ctx)
+	_, err = otelSetup.WithLogging(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Proceeding without OpenTelemetry Logging configured")
+		// Log provider setup already logs a warning if it fails, so just log info here.
+		logrus.Info("Proceeding without OpenTelemetry Logging fully configured")
 	}
 
 	logrus.Info("OpenTelemetry initialization sequence completed.")
@@ -93,18 +107,9 @@ func main() {
 		}
 	}()
 
-	// --- Graceful Shutdown ---
-	// Create shutdown manager
-	shutdownManager := lifecycle.NewShutdownManager(logrus.StandardLogger()).WithTimeout(cfg.ShutdownTotalTimeout)
-
-	// Register OTel shutdown using the new adapter constructor
-	shutdownManager.Register("opentelemetry", lifecycle.NewFuncAdapter(otelSetup.Shutdown), cfg.ShutdownOtelMinTimeout)
-
 	// Register Fiber app shutdown
 	shutdownManager.Register("fiber-server", &lifecycle.FiberAdapter{App: app}, cfg.ShutdownServerTimeout)
 
 	// Start listening for signals and wait for shutdown completion
 	shutdownManager.Start(ctx)
-
-	// The shutdown manager now handles blocking and exiting.
 }

@@ -1,28 +1,35 @@
 # Main application Compose file
+version: "3.8"
+
 networks:
   signoz-net:
-    external: true
-    name: signoz-net # Must match the name defined in docker-compose.signoz.yml; used for communication with Signoz containers.
+    driver: bridge
+    name: signoz-net
+
+volumes:
+  clickhouse_data: {}
+  signoz_otel_collector_data: {}
 
 services:
-  # --- Product Service (Keep our service definition) ---
+  # --- Product Service (Your Application) ---
   product-service:
-    build:
-      context: . # Build context is the root directory
-      dockerfile: ./product-service/Dockerfile
-    container_name: product-service # Keeping explicit name for clarity if desired
+    image: local/product-service:latest # Assuming image is built externally (e.g., via ko, Make)
+    container_name: product-service
     ports:
-      - "8082:8082" # Map host port to container port
+      - "8082:8082"
     networks:
-      - signoz-net # Connect to the externally defined network
+      - signoz-net
     env_file:
-      - .env # Load environment variables (like OTLP endpoint, service name) from .env file
+      - .env # Ensure OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317 (gRPC) is set in .env
+    depends_on:
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 15s # Give some time for the service to start initially
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -32,17 +39,20 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  # --- Product Simulator Service (Based on tests/Dockerfile) ---
+  # --- Product Simulator Service (Load Generator) ---
   product-simulator:
     build:
-      context: ./tests # Build context is the tests directory
+      context: ./tests
       dockerfile: Dockerfile
+    container_name: product-simulator
     depends_on:
-      - product-service # Ensure product-service starts first
+      product-service:
+        condition: service_healthy # Wait for product-service to be healthy
+      otel-collector:
+        condition: service_started
     networks:
       - signoz-net
     deploy:
-      replicas: 5 # Specify 5 instances
+      replicas: 5
 
-
-
+  
