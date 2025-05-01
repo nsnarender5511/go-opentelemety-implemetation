@@ -1,6 +1,6 @@
 module github.com/narender/common
 
-go 1.23
+go 1.23.0
 
 toolchain go1.24.1
 
@@ -58,6 +58,8 @@ require (
 	google.golang.org/protobuf v1.36.5 // indirect
 // gopkg.in/yaml.v3 v3.0.1 // indirect // Will be removed by go mod tidy
 )
+
+require golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 
 // Add any *other* dependencies specific to the common module here if needed in the future
 

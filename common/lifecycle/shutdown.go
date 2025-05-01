@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -162,30 +161,6 @@ func (a *FiberAdapter) Shutdown(ctx context.Context) error {
 	return a.App.ShutdownWithContext(ctx)
 }
 
-// WaitForGracefulShutdown provides backward compatibility with the previous API
-// It now requires a config struct to be passed in.
-func WaitForGracefulShutdown(ctx context.Context, cfg *config.Config, server Shutdowner, telemetryShutdown func(context.Context) error) {
-	logger := logrus.StandardLogger()
-
-	// Create a shutdown manager
-	manager := NewShutdownManager(logger).WithTimeout(cfg.ShutdownTotalTimeout)
-
-	// Register components
-	manager.Register("server", server, cfg.ShutdownServerTimeout)
-
-	// Adapt the telemetry shutdown function to a Shutdowner
-	if telemetryShutdown != nil {
-		telemetryComp := &functionAdapter{fn: telemetryShutdown}
-		manager.Register("telemetry", telemetryComp, cfg.ShutdownOtelMinTimeout)
-	}
-
-	// Start the manager and wait for signals
-	manager.Start(ctx)
-
-	// Block until shutdown completes
-	select {} // This will block until the process exits
-}
-
 // functionAdapter adapts a function to the Shutdowner interface
 type functionAdapter struct {
 	fn func(context.Context) error
@@ -197,4 +172,9 @@ func (a *functionAdapter) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	return a.fn(ctx)
+}
+
+// NewFuncAdapter wraps a function to implement the Shutdowner interface.
+func NewFuncAdapter(fn func(context.Context) error) Shutdowner {
+	return &functionAdapter{fn: fn}
 }

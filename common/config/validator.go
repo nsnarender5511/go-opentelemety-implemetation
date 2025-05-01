@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"golang.org/x/exp/constraints" // Added for generic constraints
 )
 
 // Validator provides helper methods for configuration validation
@@ -38,23 +40,12 @@ func (v *Validator) RequireOneOf(field, value string, allowed []string) {
 	v.AddError(field, fmt.Sprintf("must be one of: %v", allowed))
 }
 
-// RequireInRange validates that a numeric value is within a range
-func (v *Validator) RequireInRange(field string, value, min, max interface{}) {
-	switch value := value.(type) {
-	case int:
-		minVal, minOk := min.(int)
-		maxVal, maxOk := max.(int)
-		if minOk && maxOk && (value < minVal || value > maxVal) {
-			v.AddError(field, fmt.Sprintf("must be between %d and %d", minVal, maxVal))
-		}
-	case float64:
-		minVal, minOk := min.(float64)
-		maxVal, maxOk := max.(float64)
-		if minOk && maxOk && (value < minVal || value > maxVal) {
-			v.AddError(field, fmt.Sprintf("must be between %f and %f", minVal, maxVal))
-		}
-	default:
-		v.AddError(field, "invalid type for range check")
+// RequireInRange validates that a numeric value is within a specified inclusive range.
+// It uses generics (Go 1.18+) for type safety.
+func RequireInRange[T constraints.Ordered](v *Validator, field string, value, min, max T) {
+	if value < min || value > max {
+		// Use %v for generic representation, which works for most numeric types.
+		v.AddError(field, fmt.Sprintf("must be between %v and %v", min, max))
 	}
 }
 

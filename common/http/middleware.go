@@ -45,9 +45,6 @@ func RegisterMiddleware(app *fiber.App, config ...MiddlewareConfig) {
 		cfg.Logger = logrus.StandardLogger()
 	}
 
-	// Let the user know about the error handler requirement
-	cfg.Logger.Warn("Remember to set the error handler during app creation: fiber.New(fiber.Config{ErrorHandler: middleware.ErrorHandler()})")
-
 	// Register OpenTelemetry middleware
 	if cfg.EnableOTel {
 		app.Use(otelfiber.Middleware())

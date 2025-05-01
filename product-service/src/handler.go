@@ -32,12 +32,26 @@ func NewProductHandler(service ProductService) *ProductHandler {
 	}
 }
 
+// logRequestStart logs the start of a request handler
+func (h *ProductHandler) logRequestStart(ctx context.Context, operation string, fields ...logrus.Fields) {
+	logger := logrus.WithContext(ctx)
+	if len(fields) > 0 && len(fields[0]) > 0 {
+		logger = logger.WithFields(fields[0])
+	}
+	logger.Debugf("Handler: Received request for %s", operation)
+}
+
+// logRequestEnd logs the successful completion of a request handler
+func (h *ProductHandler) logRequestEnd(ctx context.Context, operation string, fields logrus.Fields) {
+	logrus.WithContext(ctx).WithFields(fields).Debugf("Handler: Responding successfully for %s", operation)
+}
+
 // GetAllProducts handles GET /products
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	span := trace.SpanFromContext(ctx)
 
-	logrus.WithContext(ctx).Debug("Handler: Received request for GetAllProducts")
+	h.logRequestStart(ctx, "GetAllProducts")
 
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
@@ -47,7 +61,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	span.SetAttributes(attribute.Int("app.product.count", len(products)))
 	span.SetStatus(codes.Ok, "")
 
-	logrus.WithContext(ctx).WithField("count", len(products)).Debug("Handler: Responding successfully for GetAllProducts")
+	h.logRequestEnd(ctx, "GetAllProducts", logrus.Fields{"count": len(products)})
 	return c.Status(http.StatusOK).JSON(products)
 }
 
@@ -63,7 +77,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	span.SetAttributes(AttrAppProductID.String(productID))
 
-	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Received request for GetProductByID")
+	h.logRequestStart(ctx, "GetProductByID", logrus.Fields{string(AttrAppProductID): productID})
 
 	product, err := h.service.GetByID(ctx, productID)
 
@@ -73,7 +87,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	span.SetStatus(codes.Ok, "")
 
-	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Responding successfully for GetProductByID")
+	h.logRequestEnd(ctx, "GetProductByID", logrus.Fields{string(AttrAppProductID): productID})
 	return c.Status(http.StatusOK).JSON(product)
 }
 
@@ -89,7 +103,7 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 
 	span.SetAttributes(AttrAppProductID.String(productID))
 
-	logrus.WithContext(ctx).WithField(string(AttrAppProductID), productID).Debug("Handler: Received request for GetProductStock")
+	h.logRequestStart(ctx, "GetProductStock", logrus.Fields{string(AttrAppProductID): productID})
 
 	stock, err := h.service.GetStock(ctx, productID)
 
@@ -100,10 +114,11 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 	span.SetAttributes(AttrAppProductStock.Int(stock))
 	span.SetStatus(codes.Ok, "")
 
-	logrus.WithContext(ctx).WithFields(logrus.Fields{
+	logFields := logrus.Fields{
 		string(AttrAppProductID):    productID,
 		string(AttrAppProductStock): stock,
-	}).Debug("Handler: Responding successfully for GetProductStock")
+	}
+	h.logRequestEnd(ctx, "GetProductStock", logFields)
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		JSONFieldProductID: productID,
@@ -137,47 +152,77 @@ func (h *ProductHandler) validatePathParam(ctx context.Context, c *fiber.Ctx, pa
 	return id, nil
 }
 
-// MapErrorToResponse maps application errors to HTTP responses and sets span status
-// Renamed to be exported.
+// MapErrorToResponse maps application errors to HTTP responses and sets span status.
 func (h *ProductHandler) MapErrorToResponse(c *fiber.Ctx, err error) error {
 	ctx := c.UserContext()
 	span := trace.SpanFromContext(ctx)
+	logger := logrus.WithContext(ctx)
 
-	// Default error response
-	code := http.StatusInternalServerError
-	httpErrMessage := "An unexpected internal server error occurred"
-	spanStatus := codes.Error
-	spanMessage := httpErrMessage
-	logLevel := logrus.ErrorLevel // Default log level for errors
+	// Define error handling configuration
+	type errorConfig struct {
+		statusCode  int
+		message     string
+		logLevel    logrus.Level
+		customLogFn func(logger *logrus.Entry)
+	}
 
+	// Default config for unknown errors
+	config := errorConfig{
+		statusCode: http.StatusInternalServerError,
+		message:    "An unexpected internal server error occurred",
+		logLevel:   logrus.ErrorLevel,
+		customLogFn: func(logger *logrus.Entry) {
+			logger.WithError(err).Error("Unhandled internal server error")
+		},
+	}
+
+	var validationErr *commonErrors.ValidationError
 	var appErr *commonErrors.AppError
 	var dbErr *commonErrors.DatabaseError
 
-	if errors.As(err, &appErr) {
-		code = appErr.StatusCode
-		httpErrMessage = appErr.Error()
-		spanMessage = httpErrMessage
-		if code < 500 { // Generally, client errors are warnings
-			logLevel = logrus.WarnLevel
+	// Determine the appropriate error config based on error type
+	switch {
+	case errors.As(err, &validationErr):
+		config = errorConfig{
+			statusCode: http.StatusBadRequest,
+			message:    validationErr.Error(),
+			logLevel:   logrus.WarnLevel,
 		}
-	} else if errors.As(err, &dbErr) {
-		// Keep 500 for database errors, but log details
-		httpErrMessage = "An internal database error occurred"
-		spanMessage = httpErrMessage
-		// Log underlying DB error detail at Error level
-		logrus.WithContext(ctx).WithFields(logrus.Fields{"operation": dbErr.Operation}).WithError(dbErr.Err).Error("Database error occurred")
-	} else {
-		// Log any other unexpected error
-		logrus.WithContext(ctx).WithError(err).Error("Unhandled internal server error")
+	case errors.As(err, &appErr):
+		config = errorConfig{
+			statusCode: appErr.StatusCode,
+			message:    appErr.Error(),
+			logLevel:   logrus.ErrorLevel,
+		}
+		if config.statusCode < 500 {
+			config.logLevel = logrus.WarnLevel
+		}
+	case errors.As(err, &dbErr):
+		config = errorConfig{
+			statusCode: http.StatusInternalServerError,
+			message:    "An internal database error occurred",
+			logLevel:   logrus.ErrorLevel,
+			customLogFn: func(logger *logrus.Entry) {
+				logger.WithFields(logrus.Fields{"operation": dbErr.Operation}).
+					WithError(dbErr.Err).Error("Database error occurred")
+			},
+		}
 	}
 
-	// Record error on span regardless of type
-	span.RecordError(err)
-	span.SetStatus(spanStatus, spanMessage)
+	// Apply the custom log function if provided
+	if config.customLogFn != nil {
+		config.customLogFn(logger)
+	}
 
-	// Log the mapped error with the determined level
-	logrus.WithContext(ctx).WithError(err).Logf(logLevel, "Request error mapped to HTTP %d", code)
+	// Record error details on span using the modern pattern
+	span.SetStatus(codes.Error, config.message) // Set status first
+	span.RecordError(err, trace.WithAttributes(
+		attribute.Int("http.status_code", config.statusCode),
+	))
 
-	// Return the JSON error response
-	return c.Status(code).JSON(fiber.Map{"error": httpErrMessage})
+	// Log the mapped error
+	logger.Logf(config.logLevel, "Request error mapped to HTTP %d: %s", config.statusCode, config.message)
+
+	// Return the standardized JSON error response
+	return c.Status(config.statusCode).JSON(fiber.Map{"error": config.message})
 }

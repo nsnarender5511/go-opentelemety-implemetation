@@ -11,8 +11,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // LoggerProvider is the OpenTelemetry logger provider interface
@@ -26,26 +24,14 @@ func newLoggerProvider(ctx context.Context, cfg *config.Config, res *Resource, l
 		return nil, nil, fmt.Errorf("resource cannot be nil")
 	}
 
-	// Create OTLP exporter
-	var opts []otlploggrpc.Option
-	opts = append(opts, otlploggrpc.WithEndpoint(cfg.OtelEndpoint))
+	// Create common dial options
+	dialOpts := newOtlpGrpcDialOptions(cfg)
 
-	// Add insecure option if needed
-	if cfg.OtelInsecure {
-		opts = append(opts, otlploggrpc.WithInsecure())
-	} else {
-		// For secure connections, configure TLS if needed
-		opts = append(opts, otlploggrpc.WithTLSCredentials(insecure.NewCredentials()))
-	}
-
-	// Add timeout option
-	opts = append(opts, otlploggrpc.WithTimeout(10*time.Second))
-
-	// Add gRPC connection options
-	opts = append(opts, otlploggrpc.WithDialOption(grpc.WithBlock()))
+	// Create OTLP log exporter options using the helper
+	exporterOpts := newOtlpLogGrpcExporterOptions(cfg, dialOpts)
 
 	// Create the exporter
-	exp, err := otlploggrpc.New(ctx, opts...)
+	exp, err := otlploggrpc.New(ctx, exporterOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create log exporter: %w", err)
 	}

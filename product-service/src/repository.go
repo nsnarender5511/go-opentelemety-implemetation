@@ -9,13 +9,11 @@ import (
 	"sync"
 
 	commonErrors "github.com/narender/common/errors"
-	// "github.com/narender/common/config" // No longer needed for global access
-	// "github.com/narender/common/telemetry" // Replaced by otel
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute" // Import attribute package
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace" // Import trace package for Tracer type
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ProductRepository defines the interface for product data access
@@ -29,7 +27,7 @@ type productRepository struct {
 	products map[string]Product
 	mu       sync.RWMutex
 	filePath string
-	tracer   trace.Tracer // Use trace.Tracer type
+	tracer   trace.Tracer
 }
 
 // NewProductRepository creates a new product repository, accepting the data file path

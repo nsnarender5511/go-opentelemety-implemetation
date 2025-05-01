@@ -3,7 +3,6 @@ package otel
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
@@ -11,8 +10,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // TracerProvider is the OpenTelemetry tracer provider interface
@@ -26,26 +23,14 @@ func newTracerProvider(ctx context.Context, cfg *config.Config, res *Resource, l
 		return nil, nil, fmt.Errorf("resource cannot be nil")
 	}
 
-	// Create OTLP exporter
-	var opts []otlptracegrpc.Option
-	opts = append(opts, otlptracegrpc.WithEndpoint(cfg.OtelEndpoint))
+	// Create common dial options
+	dialOpts := newOtlpGrpcDialOptions(cfg)
 
-	// Add insecure option if needed
-	if cfg.OtelInsecure {
-		opts = append(opts, otlptracegrpc.WithInsecure())
-	} else {
-		// For secure connections, configure TLS if needed
-		opts = append(opts, otlptracegrpc.WithTLSCredentials(insecure.NewCredentials()))
-	}
-
-	// Add timeout option
-	opts = append(opts, otlptracegrpc.WithTimeout(10*time.Second))
-
-	// Add gRPC connection options
-	opts = append(opts, otlptracegrpc.WithDialOption(grpc.WithBlock()))
+	// Create OTLP trace exporter options using the helper
+	exporterOpts := newOtlpTraceGrpcExporterOptions(cfg, dialOpts)
 
 	// Create the exporter
-	exp, err := otlptracegrpc.New(ctx, opts...)
+	exp, err := otlptracegrpc.New(ctx, exporterOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}

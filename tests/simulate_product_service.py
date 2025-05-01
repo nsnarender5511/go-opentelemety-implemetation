@@ -5,12 +5,17 @@ import threading
 import uuid
 import os
 import json # Import json module
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Configuration
-BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
+BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1")
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 20 # Increased concurrent users
-DATA_FILE_PATH = "../product-service/data.json" # Relative path to data.json
+DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json") # Relative path to data.json
 
 # --- Load Product Data ---
 try:
@@ -35,42 +40,48 @@ INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
 # --- Request Functions ---
 
-def make_request(method, url, expected_status=None):
-    """Helper function to make requests and print status."""
-    try:
-        response = requests.request(method, url, timeout=10) # Increased timeout slightly
-        status_match = "OK" if expected_status and response.status_code == expected_status else "UNEXPECTED"
-        
-        log_message = f"-> {method} {url}: Status {response.status_code} ({status_match})"
-        if expected_status and response.status_code != expected_status:
-            log_message += f", Expected: {expected_status}"
-            
-        print(log_message)
+def make_request(product_id):
+    endpoints = [
+        (f"products/{product_id}", "GET"),
+        (f"products/{product_id}/stock", "GET"),
+    ]
+    endpoint, method = random.choice(endpoints)
+    url = f"{BASE_URL}/{endpoint}"
 
-        # Optionally: response.raise_for_status() # Or handle errors more gracefully
-    except requests.exceptions.Timeout:
-        print(f"-> {method} {url}: TIMEOUT")
-    except requests.exceptions.ConnectionError:
-        print(f"-> {method} {url}: CONNECTION ERROR (Is the service running?)")
+    try:
+        start_time = time.time()
+        response = requests.request(method, url, timeout=5) # Added timeout
+        duration = time.time() - start_time
+
+        if 200 <= response.status_code < 300:
+            logging.info(f"SUCCESS: {method} {url} -> {response.status_code} ({duration:.2f}s)")
+        else:
+            logging.warning(f"FAILED: {method} {url} -> {response.status_code} {response.text[:100]} ({duration:.2f}s)")
+            # Potentially add a small delay on failure
+            time.sleep(0.1)
+
+    except requests.exceptions.ConnectionError as e:
+        logging.error(f"CONNECTION_ERROR: {method} {url} -> {e}")
+        time.sleep(1) # Longer delay on connection error
+    except requests.exceptions.Timeout as e:
+        logging.error(f"TIMEOUT_ERROR: {method} {url} -> {e}")
+        time.sleep(0.5) # Delay on timeout
     except requests.exceptions.RequestException as e:
-        print(f"-> {method} {url}: Error {e}")
-    except Exception as e: # Catch broader exceptions during request handling
-        print(f"-> {method} {url}: UNEXPECTED ERROR during request: {e}")
+        logging.error(f"REQUEST_ERROR: {method} {url} -> {e}")
+        time.sleep(0.2) # General request error delay
 
 def get_all_products():
-    make_request("GET", PRODUCTS_ENDPOINT, expected_status=200)
+    make_request(random.choice(known_product_ids))
 
 def get_product_by_id(product_id, expected_status=200):
-    url = f"{PRODUCTS_ENDPOINT}/{product_id}"
-    make_request("GET", url, expected_status=expected_status)
+    make_request(product_id)
 
 def get_product_stock(product_id, expected_status=200):
-    url = f"{PRODUCTS_ENDPOINT}/{product_id}/stock"
-    make_request("GET", url, expected_status=expected_status)
+    make_request(product_id)
 
 def hit_invalid_path():
     url = f"{PRODUCTS_ENDPOINT}/some/invalid/path/{uuid.uuid4()}"
-    make_request("GET", url, expected_status=404) # Fiber often returns 404 for bad routes
+    make_request(INVALID_FORMAT_PRODUCT_ID)
 
 # --- Simulation Worker ---
 

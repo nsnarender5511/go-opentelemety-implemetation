@@ -72,14 +72,24 @@ func (s *Setup) WithPropagator() *Setup {
 	return s
 }
 
-// WithTracing sets up the OpenTelemetry tracer provider
-func (s *Setup) WithTracing(ctx context.Context) (*Setup, error) {
+// ensureResource ensures a resource exists, creating one if needed
+func (s *Setup) ensureResource(ctx context.Context) error {
 	if s.resource == nil {
 		var err error
-		s, err = s.WithResource(ctx)
+		resource, err := newResource(ctx, s.cfg.ServiceName, s.cfg.ServiceVersion)
 		if err != nil {
-			return s, err
+			return err
 		}
+		s.resource = resource
+		s.logger.Debug("OpenTelemetry resource created during ensureResource check")
+	}
+	return nil
+}
+
+// WithTracing sets up the OpenTelemetry tracer provider
+func (s *Setup) WithTracing(ctx context.Context) (*Setup, error) {
+	if err := s.ensureResource(ctx); err != nil {
+		return s, err
 	}
 
 	tracerProvider, shutdown, err := newTracerProvider(ctx, s.cfg, s.resource, s.logger)
@@ -99,12 +109,8 @@ func (s *Setup) WithTracing(ctx context.Context) (*Setup, error) {
 
 // WithMetrics sets up the OpenTelemetry meter provider
 func (s *Setup) WithMetrics(ctx context.Context) (*Setup, error) {
-	if s.resource == nil {
-		var err error
-		s, err = s.WithResource(ctx)
-		if err != nil {
-			return s, err
-		}
+	if err := s.ensureResource(ctx); err != nil {
+		return s, err
 	}
 
 	meterProvider, shutdown, err := newMeterProvider(ctx, s.cfg, s.resource, s.logger)
@@ -124,12 +130,8 @@ func (s *Setup) WithMetrics(ctx context.Context) (*Setup, error) {
 
 // WithLogging sets up the OpenTelemetry logger provider
 func (s *Setup) WithLogging(ctx context.Context) (*Setup, error) {
-	if s.resource == nil {
-		var err error
-		s, err = s.WithResource(ctx)
-		if err != nil {
-			return s, err
-		}
+	if err := s.ensureResource(ctx); err != nil {
+		return s, err
 	}
 
 	loggerProvider, shutdown, err := newLoggerProvider(ctx, s.cfg, s.resource, s.logger)

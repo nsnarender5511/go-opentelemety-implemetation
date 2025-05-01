@@ -18,11 +18,11 @@ services:
     env_file:
       - .env # Load environment variables (like OTLP endpoint, service name) from .env file
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8082"]
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 3
+      start_period: 15s # Give some time for the service to start initially
     deploy:
       resources:
         limits:

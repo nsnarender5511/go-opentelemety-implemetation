@@ -11,8 +11,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // MeterProvider is the OpenTelemetry meter provider interface
@@ -26,26 +24,14 @@ func newMeterProvider(ctx context.Context, cfg *config.Config, res *Resource, lo
 		return nil, nil, fmt.Errorf("resource cannot be nil")
 	}
 
-	// Create OTLP exporter
-	var opts []otlpmetricgrpc.Option
-	opts = append(opts, otlpmetricgrpc.WithEndpoint(cfg.OtelEndpoint))
+	// Create common dial options
+	dialOpts := newOtlpGrpcDialOptions(cfg)
 
-	// Add insecure option if needed
-	if cfg.OtelInsecure {
-		opts = append(opts, otlpmetricgrpc.WithInsecure())
-	} else {
-		// For secure connections, configure TLS if needed
-		opts = append(opts, otlpmetricgrpc.WithTLSCredentials(insecure.NewCredentials()))
-	}
-
-	// Add timeout option
-	opts = append(opts, otlpmetricgrpc.WithTimeout(10*time.Second))
-
-	// Add gRPC connection options
-	opts = append(opts, otlpmetricgrpc.WithDialOption(grpc.WithBlock()))
+	// Create OTLP metric exporter options using the helper
+	exporterOpts := newOtlpMetricGrpcExporterOptions(cfg, dialOpts)
 
 	// Create the exporter
-	exp, err := otlpmetricgrpc.New(ctx, opts...)
+	exp, err := otlpmetricgrpc.New(ctx, exporterOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create metric exporter: %w", err)
 	}

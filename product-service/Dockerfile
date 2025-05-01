@@ -46,33 +46,28 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/product-service .
 # If using vendor: go build -mod=vendor ...
 
 # ---- Final Stage ----
-# Use distroless nonroot image for minimal attack surface and security
-FROM gcr.io/distroless/static:nonroot
+# Switch to alpine to include necessary tools like curl for healthcheck
+FROM golang:1.24-alpine
 
-# Distroless images contain only the application and minimal OS libraries.
-# They don't include package managers or shells.
-# ca-certificates and tzdata are typically included in base images or handled differently.
-# We assume the base distroless image has necessary certificates.
+# Install curl and ca-certificates
+RUN apk add --no-cache curl ca-certificates
 
-# Set working directory (good practice, even if minimal)
+# Create a non-root user and group
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Set working directory
 WORKDIR /app
 
 # Copy ONLY the compiled binary from the builder stage
-# Ensure the binary is copied to a location accessible by the nonroot user
-# distroless/static:nonroot runs as user 65532 ('nonroot')
-COPY --from=builder --chown=nonroot:nonroot /app/product-service /app/product-service
+COPY --from=builder /app/product-service /app/product-service
 
 # DO NOT copy data.json here. It will be mounted as a volume via docker-compose.
 
-# Expose the port the application listens on (matches PRODUCT_SERVICE_PORT env var)
-# This is informational; the actual port comes from PRODUCT_SERVICE_PORT env var in compose/env
+# Expose the port the application listens on
 EXPOSE 8082
 
-# Set the entrypoint to run the binary
-# Use ENTRYPOINT exec form to handle signals properly
-ENTRYPOINT ["/app/product-service"]
+# Switch to the non-root user
+USER appuser
 
-# Remove the commented-out USER section as distroless handles it.
-# # Optional: Define a non-root user for better security
-# # RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-# # USER appuser 
+# Set the entrypoint to run the binary
+ENTRYPOINT ["/app/product-service"] 

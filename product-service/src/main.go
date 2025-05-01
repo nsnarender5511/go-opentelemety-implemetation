@@ -93,13 +93,18 @@ func main() {
 		}
 	}()
 
-	// --- Graceful Shutdown (using common helper) ---
-	lifecycle.WaitForGracefulShutdown(
-		ctx,
-		cfg,
-		&lifecycle.FiberAdapter{App: app},
-		otelSetup.Shutdown,
-	)
+	// --- Graceful Shutdown ---
+	// Create shutdown manager
+	shutdownManager := lifecycle.NewShutdownManager(logrus.StandardLogger()).WithTimeout(cfg.ShutdownTotalTimeout)
 
-	// Code here will not be reached as WaitForGracefulShutdown blocks and exits.
+	// Register OTel shutdown using the new adapter constructor
+	shutdownManager.Register("opentelemetry", lifecycle.NewFuncAdapter(otelSetup.Shutdown), cfg.ShutdownOtelMinTimeout)
+
+	// Register Fiber app shutdown
+	shutdownManager.Register("fiber-server", &lifecycle.FiberAdapter{App: app}, cfg.ShutdownServerTimeout)
+
+	// Start listening for signals and wait for shutdown completion
+	shutdownManager.Start(ctx)
+
+	// The shutdown manager now handles blocking and exiting.
 }

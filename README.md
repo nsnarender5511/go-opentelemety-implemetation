@@ -62,61 +62,113 @@ The `common` module is designed to be easily integrated into any service. Here's
 1. Import the required packages:
    ```go
    import (
+       "context"
+
        "github.com/narender/common/config"
        "github.com/narender/common/lifecycle"
-       "github.com/narender/common/telemetry"
+       "github.com/narender/common/otel"
+
+       "github.com/sirupsen/logrus"
    )
    ```
 
-2. Initialize telemetry in your service:
+2. Initialize telemetry in your service using the builder pattern:
    ```go
    // Load configuration
-   if err := config.LoadConfig(); err != nil {
+   cfg, err := config.LoadConfig(".") // Or appropriate path
+   if err != nil {
        logrus.Fatalf("Failed to load configuration: %v", err)
    }
 
-   // Initialize telemetry
-   telemetryConfig := telemetry.TelemetryConfig{
-       ServiceName: config.ServiceName(),
-       Endpoint:    config.OtelExporterEndpoint(),
-       Insecure:    config.IsOtelExporterInsecure(),
-       SampleRatio: config.OtelSampleRatio(),
-       LogLevel:    config.LogLevel(),
-   }
-   otelShutdown, err := telemetry.InitTelemetry(context.Background(), telemetryConfig)
+   // Create a logger instance (consider using common/logging setup if available)
+   logger := logrus.New()
+   level, _ := logrus.ParseLevel(cfg.LogLevel)
+   logger.SetLevel(level)
+   logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+   // Use the OTel setup builder
+   otelSetup := otel.NewSetup(cfg, logger)
+
+   // Create the resource
+   res, err := otelSetup.NewResource(context.Background(), cfg.ServiceName, cfg.ServiceVersion) // Add ServiceVersion to config if needed
    if err != nil {
-       logrus.WithError(err).Fatal("Failed to initialize telemetry")
+       logger.Fatalf("Failed to create OpenTelemetry resource: %v", err)
+   }
+
+   // Build the telemetry stack (tracing, metrics, logging)
+   shutdownFuncs, err := otelSetup.Build(context.Background(), res)
+   if err != nil {
+       logger.Fatalf("Failed to build OpenTelemetry stack: %v", err)
+   }
+
+   // Combine shutdown functions
+   otelShutdown := func(ctx context.Context) error {
+       var combinedErr error
+       for _, fn := range shutdownFuncs {
+           if err := fn(ctx); err != nil {
+               combinedErr = fmt.Errorf("%w; %v", combinedErr, err) // Combine errors
+           }
+       }
+       return combinedErr
    }
    ```
 
 3. Set up graceful shutdown:
    ```go
    // For Fiber apps
-   lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.FiberShutdownAdapter{App: app}, otelShutdown)
-   
+   // lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.FiberShutdownAdapter{App: app}, otelShutdown)
+
    // For standard HTTP server
-   server := &http.Server{...}
-   lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.HTTPShutdownAdapter{Server: server}, otelShutdown)
+   // server := &http.Server{...}
+   // lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.HTTPShutdownAdapter{Server: server}, otelShutdown)
+
+   // Example: Simple wait
+   lifecycle.WaitForSignal(context.Background(), otelShutdown)
    ```
 
 4. Create custom spans for important operations:
    ```go
-   ctx, span := telemetry.StartSpan(ctx, "operation-name")
+   // Get a tracer
+   tracer := otel.GetTracer("your-instrumentation-name")
+   ctx, span := tracer.Start(ctx, "operation-name")
    defer span.End()
-   
+
    // Add attributes to the span
-   span.SetAttributes(telemetry.StringAttribute("key", "value"))
+   span.SetAttributes(attribute.String("key", "value"))
    ```
 
 5. Record metrics:
    ```go
-   // Record a counter
-   telemetry.RecordCount(ctx, "requests.total", 1, telemetry.StringAttribute("endpoint", "/api/products"))
-   
-   // Record timing data
+   // Get a meter
+   meter := otel.GetMeter("your-instrumentation-name")
+
+   // Create a counter
+   counter, err := meter.Int64Counter("requests.total")
+   if err != nil {
+       logger.Errorf("Failed to create counter: %v", err)
+   }
+   if counter != nil {
+       counter.Add(ctx, 1, metric.WithAttributes(attribute.String("endpoint", "/api/products")))
+   }
+
+   // Record timing data (example using histogram)
+   histogram, err := meter.Int64Histogram("operation.duration.ms")
+   if err != nil {
+        logger.Errorf("Failed to create histogram: %v", err)
+   }
    start := time.Now()
    // ... do work ...
-   telemetry.RecordDuration(ctx, "operation.duration", time.Since(start), telemetry.StringAttribute("operation", "database-query"))
+   durationMs := time.Since(start).Milliseconds()
+   if histogram != nil {
+       histogram.Record(ctx, durationMs, metric.WithAttributes(attribute.String("operation", "database-query")))
+   }
+   ```
+
+6. Send logs via OpenTelemetry (using Logrus hook):
+   ```go
+   // The otelSetup.Build() function already configured the Logrus hook.
+   // Standard logrus calls will be exported.
+   logger.WithField("product_id", 123).Info("Product retrieved successfully")
    ```
 
 ## Testing with the Simulator

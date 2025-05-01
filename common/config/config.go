@@ -10,42 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Initialize a minimal logger for config loading phase
-var configLogger = logrus.New()
-
-func init() {
-	// Configure minimal logger - output to stderr, text format
-	configLogger.SetOutput(os.Stderr)
-	configLogger.SetFormatter(&logrus.TextFormatter{DisableColors: true, FullTimestamp: true})
-	configLogger.SetLevel(logrus.InfoLevel)
-}
-
 // Constants for keys and validation lists
 const (
-	envServiceName            = "OTEL_SERVICE_NAME"
-	envServiceVersion         = "SERVICE_VERSION"
-	envOtelExporterEndpoint   = "OTEL_EXPORTER_OTLP_ENDPOINT"
-	envOtelExporterInsecure   = "OTEL_EXPORTER_INSECURE"
-	envOtelSampleRatio        = "OTEL_SAMPLE_RATIO"
-	envLogLevel               = "LOG_LEVEL"
-	envLogFormat              = "LOG_FORMAT"
-	envProductServicePort     = "PRODUCT_SERVICE_PORT"
-	envDataFilePath           = "DATA_FILE_PATH"
-	envShutdownTotalTimeout   = "SHUTDOWN_TOTAL_TIMEOUT_SEC"
-	envShutdownServerTimeout  = "SHUTDOWN_SERVER_TIMEOUT_SEC"
-	envShutdownOtelMinTimeout = "SHUTDOWN_OTEL_MIN_TIMEOUT_SEC"
-	// Optional advanced OTel keys (if needed)
-	envOtelBatchTimeoutMS      = "OTEL_BATCH_TIMEOUT_MS"
-	envOtelMaxExportBatchSize  = "OTEL_MAX_EXPORT_BATCH_SIZE"
-	envOtelLogMaxQueueSize     = "OTEL_LOG_MAX_QUEUE_SIZE"
-	envOtelLogExportTimeoutMS  = "OTEL_LOG_EXPORT_TIMEOUT_MS"
-	envOtelLogExportIntervalMS = "OTEL_LOG_EXPORT_INTERVAL_MS"
-)
-
-var (
-	// Allowed values for validation
-	allowedLogLevels  = map[string]struct{}{"debug": {}, "info": {}, "warn": {}, "error": {}, "fatal": {}, "panic": {}}
-	allowedLogFormats = map[string]struct{}{"text": {}, "json": {}}
+	envServiceName        = "OTEL_SERVICE_NAME"
+	envOtelBatchTimeoutMS = "OTEL_BATCH_TIMEOUT_MS"
 )
 
 // Config holds all configuration settings
@@ -100,63 +68,57 @@ func NewConfig(opts ...Option) *Config {
 	return c
 }
 
+// Helper functions for environment variable loading
+func getEnvString(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
+func getEnvBool(key string, defaultVal bool) bool {
+	if val := os.Getenv(key); val != "" {
+		return strings.ToLower(val) == "true"
+	}
+	return defaultVal
+}
+
+func getEnvFloat(key string, defaultVal float64) float64 {
+	if val := os.Getenv(key); val != "" {
+		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
+			return parsed
+		}
+	}
+	return defaultVal
+}
+
+func getEnvDuration(key string, defaultVal time.Duration, unit time.Duration) time.Duration {
+	if val := os.Getenv(key); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil && parsed >= 0 {
+			return time.Duration(parsed) * unit
+		}
+	}
+	return defaultVal
+}
+
 // WithEnv loads configuration from environment variables
 func (c *Config) WithEnv() *Config {
-	// Map of environment variables to config fields
-	envMappings := map[string]*string{
-		envServiceName:                &c.ServiceName,
-		"SERVICE_VERSION":             &c.ServiceVersion,
-		"OTEL_EXPORTER_OTLP_ENDPOINT": &c.OtelEndpoint,
-		"LOG_LEVEL":                   &c.LogLevel,
-		"LOG_FORMAT":                  &c.LogFormat,
-		"PRODUCT_SERVICE_PORT":        &c.ProductServicePort,
-		"DATA_FILE_PATH":              &c.DataFilePath,
-	}
+	c.ServiceName = getEnvString(envServiceName, c.ServiceName)
+	c.ServiceVersion = getEnvString("SERVICE_VERSION", c.ServiceVersion)
+	c.OtelEndpoint = getEnvString("OTEL_EXPORTER_OTLP_ENDPOINT", c.OtelEndpoint)
+	c.LogLevel = getEnvString("LOG_LEVEL", c.LogLevel)
+	c.LogFormat = getEnvString("LOG_FORMAT", c.LogFormat)
+	c.ProductServicePort = getEnvString("PRODUCT_SERVICE_PORT", c.ProductServicePort)
+	c.DataFilePath = getEnvString("DATA_FILE_PATH", c.DataFilePath)
 
-	// Apply environment variables if they exist
-	for env, field := range envMappings {
-		if val := os.Getenv(env); val != "" {
-			*field = val
-		}
-	}
+	c.OtelInsecure = getEnvBool("OTEL_EXPORTER_INSECURE", c.OtelInsecure)
+	c.OtelSampleRatio = getEnvFloat("OTEL_SAMPLE_RATIO", c.OtelSampleRatio)
 
-	// Handle boolean values
-	if val := os.Getenv("OTEL_EXPORTER_INSECURE"); val != "" {
-		c.OtelInsecure = strings.ToLower(val) == "true"
-	}
+	c.ShutdownTotalTimeout = getEnvDuration("SHUTDOWN_TOTAL_TIMEOUT_SEC", c.ShutdownTotalTimeout, time.Second)
+	c.ShutdownServerTimeout = getEnvDuration("SHUTDOWN_SERVER_TIMEOUT_SEC", c.ShutdownServerTimeout, time.Second)
+	c.ShutdownOtelMinTimeout = getEnvDuration("SHUTDOWN_OTEL_MIN_TIMEOUT_SEC", c.ShutdownOtelMinTimeout, time.Second)
 
-	// Handle float values
-	if val := os.Getenv("OTEL_SAMPLE_RATIO"); val != "" {
-		if ratio, err := strconv.ParseFloat(val, 64); err == nil {
-			c.OtelSampleRatio = ratio
-		}
-	}
-
-	// Handle time durations (in seconds)
-	if val := os.Getenv("SHUTDOWN_TOTAL_TIMEOUT_SEC"); val != "" {
-		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
-			c.ShutdownTotalTimeout = time.Duration(seconds) * time.Second
-		}
-	}
-
-	if val := os.Getenv("SHUTDOWN_SERVER_TIMEOUT_SEC"); val != "" {
-		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
-			c.ShutdownServerTimeout = time.Duration(seconds) * time.Second
-		}
-	}
-
-	if val := os.Getenv("SHUTDOWN_OTEL_MIN_TIMEOUT_SEC"); val != "" {
-		if seconds, err := strconv.Atoi(val); err == nil && seconds >= 0 {
-			c.ShutdownOtelMinTimeout = time.Duration(seconds) * time.Second
-		}
-	}
-
-	// Handle time durations (in milliseconds)
-	if val := os.Getenv(envOtelBatchTimeoutMS); val != "" {
-		if ms, err := strconv.Atoi(val); err == nil && ms >= 0 {
-			c.OtelBatchTimeout = time.Duration(ms) * time.Millisecond
-		}
-	}
+	c.OtelBatchTimeout = getEnvDuration(envOtelBatchTimeoutMS, c.OtelBatchTimeout, time.Millisecond)
 
 	return c
 }
@@ -179,12 +141,12 @@ func (c *Config) Validate() []error {
 
 	// Validate numeric ranges
 	if port, err := strconv.Atoi(c.ProductServicePort); err == nil {
-		validator.RequireInRange("ProductServicePort", port, 1, 65535)
+		RequireInRange(validator, "ProductServicePort", port, 1, 65535)
 	} else {
 		validator.AddError("ProductServicePort", "must be a valid integer")
 	}
 
-	validator.RequireInRange("OtelSampleRatio", c.OtelSampleRatio, 0.0, 1.0)
+	RequireInRange(validator, "OtelSampleRatio", c.OtelSampleRatio, 0.0, 1.0)
 
 	// Validate file existence if specified
 	if c.DataFilePath != "" {
