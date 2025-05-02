@@ -21,6 +21,7 @@ product-service/product-service
 bin/
 
 #plans
+*.sum
 
 
 
