@@ -20,11 +20,13 @@ processors:
 
 exporters:
   otlp:
-    endpoint: "host.docker.internal:4317"
+    endpoint: "ingest.in.signoz.cloud:443"
     tls:
-      insecure: true
-  logging:
-    loglevel: info
+      insecure: false
+    headers:
+      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+  debug:
+    verbosity: detailed
 
 extensions:
   health_check: {}
@@ -32,17 +34,26 @@ extensions:
   zpages: {}
 
 service:
+  telemetry:
+    logs:
+      level: "DEBUG"
+      development: true
+      encoding: "json"
   extensions: [health_check, pprof, zpages]
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, logging]
+      exporters: [otlp, debug]
     metrics:
       receivers: [otlp, hostmetrics]
       processors: [batch]
-      exporters: [otlp, logging]
+      exporters: [otlp, debug]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, logging] 
+      exporters: [otlp, debug] 
+
+
+
+      
