@@ -1,8 +1,9 @@
-package otel
+package metric
 
 import (
 	"fmt"
 
+	"github.com/narender/common/telemetry/manager"
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
@@ -20,8 +21,8 @@ var (
 // DefineProductStockGauge defines the observable gauge for product stock.
 // It returns the instrument so the application can register its own callback.
 func DefineProductStockGauge() (otelmetric.Int64ObservableGauge, error) {
-	meter := GetMeter(ProductInstrumentationName)
-	logger := GetLogger()
+	meter := manager.GetMeter(ProductInstrumentationName)
+	logger := manager.GetLogger()
 
 	stockGauge, err := meter.Int64ObservableGauge(
 		productStock,

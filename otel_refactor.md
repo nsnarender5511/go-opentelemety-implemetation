@@ -1,341 +1,395 @@
-# OpenTelemetry Refactoring Plan
+Go OpenTelemetry Code Refactoring Plan
+1. Final Goal
+The primary goal of this refactoring is to reorganize the existing otel/ package (containing 12 Go files) into a new telemetry/ directory structure. This new structure will improve:
+Readability: Code related to specific concerns (tracing, metrics, exporting) will be grouped together.
+Maintainability: Changes to one aspect of telemetry (e.g., trace sampling) will be isolated to its specific package, reducing the risk of unintended side effects.
+Scalability: Easier to add new telemetry features or support different backends in the future.
+Testability: Smaller, focused packages are generally easier to unit test.
+Adherence to Single Responsibility Principle (SRP): Each package will have a more clearly defined responsibility.
+The final structure will look similar to this:
+telemetry/
+├── attributes/
+│   └── attributes.go
+├── exporter/
+│   ├── otlp_grpc.go
+│   ├── trace_exporter.go
+│   ├── metric_exporter.go
+│   └── log_exporter.go
+├── instrumentation/
+│   └── http.go
+├── log/
+│   ├── setup.go
+│   └── processor.go
+├── manager/
+│   └── manager.go
+├── metric/
+│   ├── setup.go
+│   ├── http_metrics.go
+│   └── product_metrics.go
+├── propagator/
+│   └── propagator.go
+├── resource/
+│   └── resource.go
+├── trace/
+│   ├── setup.go
+│   ├── processor.go
+│   └── utils.go
+└── setup.go
 
-## Summary
-This plan details the refactoring of the OpenTelemetry (OTel) integration within the `common/otel` module and its usage across the services (initially `product-service`). The goals are to eliminate global state via Dependency Injection (DI), ensure secure OTLP export by default, standardize telemetry attributes, decouple components from OTel internals, and remove dead/unnecessary code, thereby improving testability, maintainability, security, and adherence to Go best practices.
+# Potentially outside telemetry/
+logging/
+└── setup.go
 
-## Identified Code Quality Issues
-1.  **Global State for OTel Providers:** Use of global variables (`globalTracerProvider`, `globalMeterProvider`) accessed via `GetTracer()`/`GetMeter()` hinders testability and clarity.
-2.  **Insecure OTLP Exporter Default:** Defaults to insecure gRPC connection, ignoring the `OTEL_EXPORTER_INSECURE=false` setting and posing a security risk.
-3.  **Inconsistent Attribute Keys:** Mix of constants and raw string literals for attribute keys leads to potential typos and analysis issues.
-4.  **Tight Coupling in Metrics Callback:** `productRepository.ObserveStockLevels` is coupled to OTel SDK types (`Observer`, `ObservableGauge`).
-5.  **Boilerplate Span Creation:** Repetitive code for starting/ending spans and recording errors clutters logic.
-6.  **Potentially Redundant OTel Helpers:** Files like `trace.go`, `tracer.go`, `meter.go` might be unnecessary after DI.
-7.  **Dead Code:** Commented-out code exists in `common/config/config.go`.
 
----
+(Note: Some files like processor.go might be initially part of setup.go within their respective directories and extracted later if complexity warrants it.)
+2. Prerequisites
+Version Control: Ensure your project is under version control (e.g., Git). Create a new branch for this refactoring work.
+git checkout -b feat/otel-refactor
 
-## Refactoring Phases and Steps
 
-### Phase 1: Implement Dependency Injection & Secure Exporter
+Go Environment: A working Go development environment (Go 1.18+ recommended for generics, though the current code seems compatible with older versions).
+Build System: Ensure your project builds and compiles correctly before starting.
+Understanding of Go Packages: Familiarity with Go's package management and import paths.
+3. Refactoring Phases and Steps
+Phase 1: Preparation and Foundation
+Goal: Create the new directory structure and move existing files as a starting point. Establish basic compilation.
+Step 1.1: Create New Directory Structure
+What: Create the target directories under a new top-level telemetry directory. Also create the separate logging directory if desired.
+How: Use mkdir commands.
+mkdir -p telemetry/{attributes,exporter,instrumentation,log,manager,metric,propagator,resource,trace}
+mkdir logging # If moving Logrus setup out
 
-**Goal:** Eliminate global state for OTel providers and fix the insecure exporter default.
 
-**Step 1.1: Modify Structs & Constructors for DI**
-*   **Files:** `product-service/src/repository.go`, `product-service/src/service.go`, `product-service/src/handler.go` (and any others using OTel directly).
-*   **Action:**
-    *   Add fields for `oteltrace.TracerProvider` and `metric.MeterProvider` (or specific `oteltrace.Tracer`/`metric.Meter` instances) to the structs.
-    *   Update corresponding constructor functions (e.g., `NewProductRepository`) to accept these providers/meters as arguments.
-    *   Initialize the struct fields within the constructors. Example (`repository.go`):
-        ```diff
-        // product-service/src/repository.go
-        type productRepository struct {
-            products map[string]Product
-            mu       sync.RWMutex
-            filePath string
-        +   tracer   oteltrace.Tracer
-        +   meter    metric.Meter // Add Meter if repository creates metrics directly
-        }
+Why: Establishes the skeleton for the new organization.
+When: First step of the refactoring process.
+Step 1.2: Move Existing Files (Initial Placement)
+What: Move the existing 12 .go files from the otel/ directory into their most likely target directories within telemetry/ (and logging/). This is an initial placement; files will be broken down further later.
+How: Use mv or your file explorer.
+# Example movements (adjust based on final decision for logging.go)
+mv otel/attributes.go telemetry/attributes/
+mv otel/exporters.go telemetry/exporter/ # Will be split later
+mv otel/global_manager.go telemetry/manager/
+mv otel/http_metrics.go telemetry/metric/
+mv otel/log_setup.go telemetry/log/
+mv otel/logging.go logging/ # Or keep in telemetry temporarily
+mv otel/metric_setup.go telemetry/metric/
+mv otel/product_metrics.go telemetry/metric/
+mv otel/resource.go telemetry/resource/
+mv otel/setup.go telemetry/ # Top-level orchestrator
+mv otel/trace_setup.go telemetry/trace/ # Will be split later
+mv otel/trace_utils.go telemetry/trace/
+# Delete the now empty otel/ directory
+rmdir otel
 
-        -func NewProductRepository(dataFilePath string) (ProductRepository, error) {
-        +func NewProductRepository(dataFilePath string, tracerProvider oteltrace.TracerProvider, meterProvider metric.MeterProvider) (ProductRepository, error) {
-            // ... existing setup ...
-            repo := &productRepository{
-                products: make(map[string]Product),
-                filePath: dataFilePath,
-        +       tracer:   tracerProvider.Tracer("product-service/repository"), // Initialize tracer
-        +       meter:    meterProvider.Meter("product-service/repository"),   // Initialize meter
-            }
-            // ... rest of initialization ...
-            return repo, nil
-        }
-        ```
 
-**Step 1.2: Update OTel Initialization and Service Wiring**
-*   **File:** `product-service/src/main.go`
-*   **Action:**
-    *   Call `commonotel.InitTelemetry` to get the `tracerProvider` and `meterProvider`.
-    *   Pass these providers to the constructors of services, repositories, and handlers during application setup.
-    *   Example:
-        ```diff
-        // product-service/src/main.go
-        func main() {
-            // ... load config ...
-        -   shutdown, err := commonotel.InitTelemetry(context.Background(), cfg)
-        +   otelShutdown, tracerProvider, meterProvider, err := commonotel.InitTelemetry(context.Background(), cfg) // Assuming InitTelemetry returns providers now
-            if err != nil {
-                logrus.Fatalf("Failed to initialize OpenTelemetry: %v", err)
-            }
-        -   defer func() { /* handle shutdown */ }()
-        +   defer func() { /* handle otelShutdown */ }() // Adjust shutdown handling
+Why: Gets the files into the new structure to begin organizing and updating imports.
+When: After creating the directories.
+Step 1.3: Update Go Package Declarations
+What: Change the package otel declaration at the top of each moved file to reflect its new package name (directory name).
+How: Edit each .go file.
+Before (telemetry/resource/resource.go):
+package otel // Old package name
 
-            // ... other setup ...
+import (
+    // ...
+)
+// ...
 
-        -   repo, err := NewProductRepository(cfg.DataFilePath)
-        +   repo, err := NewProductRepository(cfg.DataFilePath, tracerProvider, meterProvider)
-            if err != nil {
-                 logrus.Fatalf("Failed to create repository: %v", err)
-            }
 
-        -   svc := NewProductService(repo)
-        +   svc := NewProductService(repo, tracerProvider, meterProvider) // Pass providers to service if needed
+After (telemetry/resource/resource.go):
+package resource // New package name matches directory
 
-        -   h := NewHandler(svc)
-        +   h := NewHandler(svc, tracerProvider, meterProvider) // Pass providers to handler if needed
+import (
+    // ...
+)
+// ...
 
-            // ... setup router and server ...
-        }
-        ```
 
-**Step 1.3: Update OTel Usage within Components**
-*   **Files:** `product-service/src/repository.go`, `product-service/src/service.go`, `product-service/src/handler.go`.
-*   **Action:** Modify methods that previously used `commonotel.GetTracer()` or `commonotel.GetMeter()` to use the injected instance fields (e.g., `r.tracer`, `s.meter`).
-*   Example (`repository.go`):
-    ```diff
-    // product-service/src/repository.go - Inside a method like GetAll
-    -   tracer := commonotel.GetTracer("product-service/repository")
-    -   ctx, span := tracer.Start(ctx, "ProductRepository.GetAll", ...)
-    +   ctx, span := r.tracer.Start(ctx, "ProductRepository.GetAll", ...) // Use injected tracer
-        defer span.End()
-        // ... rest of method ...
-    ```
+Repeat for all moved files (attributes, exporter, log, manager, metric, resource, trace, setup, logging). The top-level telemetry/setup.go should likely be package telemetry.
+Why: Aligns the package declaration with Go conventions and the new directory structure.
+When: After moving the files.
+Step 1.4: Initial Import Path Updates & Compile Check
+What: Update internal import paths within the moved files to reference the new locations. Run go build ./... or go test ./... to identify initial compilation errors (mostly related to imports and visibility).
+How: Search and replace import paths. Fix visibility issues (e.g., unexported functions/types needed across packages).
+Before (e.g., in telemetry/setup.go):
+// Assuming GetLogger was in the old 'otel' package
+logger := GetLogger()
+res, err := newResource(ctx, cfg) // Function in the same old 'otel' package
 
-**Step 1.4: Modify `InitTelemetry` Return Signature**
-*   **File:** `common/otel/provider.go`
-*   **Action:** Change `InitTelemetry` to return the initialized `tracerProvider` and `meterProvider` along with the shutdown function and error. Update the calling code in `main.go` accordingly (as shown in Step 1.2).
-    ```diff
-    // common/otel/provider.go
-    - func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
-    + func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, tp *trace.TracerProvider, mp *metric.MeterProvider, err error) {
-        // ... setup ...
-        // Keep local variables: tracerProvider, meterProvider
 
-        // ... existing setup for tracerProvider and meterProvider ...
+After (e.g., in telemetry/setup.go):
+import (
+    "your_module/logging" // Assuming Logrus setup moved here
+    "your_module/telemetry/resource"
+    // ... other new imports
+)
 
-        // Before returning:
-    -   otel.SetTracerProvider(tracerProvider)
-    -   otel.SetMeterProvider(meterProvider)
-    -   setGlobalProviders(tracerProvider, meterProvider) // Remove global setting
-    -   otel.SetTextMapPropagator(prop)
+// ...
+logger := logging.GetLogger() // Assuming GetLogger is now exported from logging
+res, err := resource.NewResource(ctx, cfg) // Assuming newResource is now exported as NewResource
 
-        // Instead, just set the global propagator and return the providers
-        otel.SetTextMapPropagator(prop)
-        logrustr.Info("Global OpenTelemetry propagator configured. Providers must be injected.")
 
-    -   return shutdown, nil
-    +   return shutdown, tracerProvider, meterProvider, nil // Return providers
+Run go mod tidy to clean up dependencies.
+Why: To make the code aware of the new structure and achieve a basic compilable state before splitting files further. Fixing visibility early is crucial.
+When: After updating package declarations. Do not proceed until the project compiles, even if functionality is broken.
+Phase 2: Core Component Isolation
+Goal: Break down larger files and isolate core, reusable components into their dedicated packages.
+Step 2.1: Isolate Resource Definition (telemetry/resource/)
+What: Ensure telemetry/resource/resource.go only contains the logic for creating the OTel resource. Export the main function (newResource becomes NewResource).
+How: Verify the file content. Update telemetry/setup.go and any other consumers to import "your_module/telemetry/resource" and call resource.NewResource.
+Why: The resource definition is fundamental and used by multiple providers.
+When: Beginning of Phase 2.
+Step 2.2: Isolate Common Attributes (telemetry/attributes/)
+What: Verify telemetry/attributes/attributes.go contains only attribute key definitions (both semantic and custom). Ensure keys are exported.
+How: Review the file. Update consumers (like trace/utils.go, metric/http_metrics.go) to import "your_module/telemetry/attributes" and use the exported keys (e.g., attributes.HTTPMethodKey).
+Why: Centralizes attribute definitions for consistency across traces, metrics, and logs.
+When: After isolating the resource.
+Step 2.3: Isolate Exporter Logic (telemetry/exporter/)
+What: Split the monolithic telemetry/exporter/exporters.go into separate files for each signal type and the common gRPC connection logic.
+How:
+Create telemetry/exporter/otlp_grpc.go: Move newOTLPGrpcConnection here (make it unexported if only used within the exporter package, or exported if needed elsewhere).
+Create telemetry/exporter/trace_exporter.go: Move newTraceExporter here (export as NewTraceExporter). Update it to call newOTLPGrpcConnection.
+Create telemetry/exporter/metric_exporter.go: Move newMetricExporter here (export as NewMetricExporter). Update it to call newOTLPGrpcConnection.
+Create telemetry/exporter/log_exporter.go: Move newLogExporter here (export as NewLogExporter). Update it to call newOTLPGrpcConnection.
+Delete the original telemetry/exporter/exporters.go.
+Update telemetry/setup.go to import "your_module/telemetry/exporter" and call the new exported functions (exporter.NewTraceExporter, etc.).
+Why: Separates the configuration logic for each signal's exporter, adhering to SRP.
+When: After isolating attributes.
+Step 2.4: Isolate Propagator Setup (telemetry/propagator/)
+What: Move the propagator setup logic from telemetry/setup.go to a new file telemetry/propagator/propagator.go.
+How:
+Create telemetry/propagator/propagator.go.
+Define an exported function, e.g., SetupPropagators().
+Move the propagation.NewCompositeTextMapPropagator(...) and otel.SetTextMapPropagator(prop) calls into this function.
+Call propagator.SetupPropagators() from telemetry/setup.go.
+Before (telemetry/setup.go):
+// ...
+prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+otel.SetTextMapPropagator(prop)
+// ...
+
+
+After (telemetry/propagator/propagator.go):
+package propagator
+
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/propagation"
+    // Potentially import logging if needed
+)
+
+// SetupPropagators configures the global OTel propagators.
+func SetupPropagators() {
+    prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+    otel.SetTextMapPropagator(prop)
+    // log.Debug("Global TextMapPropagator configured.") // Consider logging here or returning status
+}
+
+
+After (telemetry/setup.go):
+import "your_module/telemetry/propagator"
+// ...
+propagator.SetupPropagators()
+// ...
+
+
+Why: Isolates propagator configuration, simplifying the main setup function.
+When: After isolating exporters.
+Phase 3: Signal-Specific Refactoring
+Goal: Organize the setup and specific components for traces, metrics, and logs into their respective packages.
+Step 3.1: Refactor Trace Setup (telemetry/trace/)
+What: Organize trace-specific logic: provider setup, sampler setup, and span processor setup.
+How:
+Rename telemetry/trace/trace_setup.go to telemetry/trace/setup.go.
+Ensure newSampler (export as NewSampler) and newTraceProvider (export as NewTraceProvider) are in telemetry/trace/setup.go.
+Potentially create telemetry/trace/processor.go and move the sdktrace.NewBatchSpanProcessor logic into an exported function there (e.g., NewBatchSpanProcessor), which NewTraceProvider would call. This improves separation if processor options become complex.
+Update telemetry/setup.go to call trace.NewSampler and trace.NewTraceProvider.
+Why: Groups all core trace pipeline configuration (sampling, processing, provider) together.
+When: Beginning of Phase 3.
+Step 3.2: Refactor Metric Setup (telemetry/metric/)
+What: Consolidate metric provider setup and ensure metric definitions (http_metrics.go, product_metrics.go) reside here.
+How:
+Ensure newMeterProvider (export as NewMeterProvider) is in telemetry/metric/setup.go.
+Verify http_metrics.go and product_metrics.go are in telemetry/metric/ and use the correct package metric declaration. Ensure they use the global manager (manager.GetMeter) or accept a metric.MeterProvider / metric.Meter via parameters for better testability.
+Update telemetry/setup.go to call metric.NewMeterProvider.
+Why: Groups metric pipeline configuration and specific metric definitions.
+When: After refactoring trace setup.
+Step 3.3: Refactor Log Setup (telemetry/log/)
+What: Organize OTel log provider and processor setup.
+How:
+Ensure newLoggerProvider (export as NewLoggerProvider) is in telemetry/log/setup.go.
+Potentially create telemetry/log/processor.go and move the sdklog.NewBatchProcessor logic into an exported function there (e.g., NewBatchProcessor), which NewLoggerProvider would call.
+Update telemetry/setup.go to call log.NewLoggerProvider.
+Why: Groups OTel logging pipeline configuration.
+When: After refactoring metric setup.
+Phase 4: Utilities and Instrumentation
+Goal: Place utility functions and instrumentation wrappers into appropriate packages.
+Step 4.1: Relocate Trace Utilities (telemetry/trace/utils.go)
+What: Ensure the RecordSpanError utility function resides in telemetry/trace/utils.go.
+How: Verify the file location and package trace declaration. Ensure the function is exported. Update any callers if necessary.
+Why: Keeps trace-specific helper functions within the trace package.
+When: Beginning of Phase 4.
+Step 4.2: Relocate HTTP Instrumentation (telemetry/instrumentation/http.go)
+What: Move the NewHTTPHandler wrapper function from telemetry/trace/setup.go (its old location after the move) to telemetry/instrumentation/http.go.
+How:
+Create telemetry/instrumentation/http.go with package instrumentation.
+Move the NewHTTPHandler function definition into this new file. Ensure it's exported.
+Update any callers to import "your_module/telemetry/instrumentation" and use instrumentation.NewHTTPHandler.
+Before (telemetry/trace/setup.go):
+package trace
+// ...
+// NewHTTPHandler wraps an http.Handler with OpenTelemetry instrumentation.
+func NewHTTPHandler(handler http.Handler, operationName string) http.Handler {
+    return otelhttp.NewHandler(handler, operationName)
+}
+
+
+After (telemetry/instrumentation/http.go):
+package instrumentation
+
+import (
+    "net/http"
+    "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+)
+
+// NewHTTPHandler wraps an http.Handler with OpenTelemetry instrumentation.
+func NewHTTPHandler(handler http.Handler, operationName string) http.Handler {
+    // Consider adding specific otelhttp options if needed later
+    return otelhttp.NewHandler(handler, operationName)
+}
+
+
+Why: Groups instrumentation wrappers separately from core OTel setup logic. Makes it easier to add other instrumentation (e.g., gRPC, database) later.
+When: After relocating trace utilities.
+Step 4.3: Relocate Application Logging (logging/setup.go)
+What: Move the Logrus setup code (SetupLogrus) from its temporary location (likely telemetry/ or logging/) definitively into logging/setup.go.
+How:
+Ensure logging/setup.go exists with package logging.
+Move the SetupLogrus function here and ensure it's exported.
+Update telemetry/setup.go (or wherever it's called initially) to import "your_module/logging" and call logging.SetupLogrus.
+Update the global_manager.go and any other code using the logger to get it via the manager or potentially accept it via dependency injection in the future. For now, ensure the manager gets the logger instance from logging.SetupLogrus.
+Why: Separates application logging configuration (Logrus) from OpenTelemetry SDK configuration.
+When: After relocating HTTP instrumentation.
+Phase 5: Global Manager and Orchestration
+Goal: Refine the global access pattern and the main setup orchestration function.
+Step 5.1: Refactor Global Manager (telemetry/manager/)
+What: Update the TelemetryManager and its initialization/accessors to work with the new package structure.
+How:
+Ensure telemetry/manager/manager.go has package manager.
+Update the initializeGlobalManager function (make it unexported, e.g., initManager) to accept providers from the new packages.
+Ensure GetTracer, GetMeter, GetLoggerProvider, etc., are exported and correctly return the managed instances or appropriate NoOp versions if uninitialized.
+Verify that GetLogger returns the Logrus instance configured in logging/setup.go.
+Consider if GetTracer and GetMeter should use the service name/version stored in the manager by default.
+Why: Adapts the global access point to the refactored structure.
+When: Beginning of Phase 5.
+Step 5.2: Refactor Main Setup Orchestration (telemetry/setup.go)
+What: Simplify the main InitTelemetry function by having it call the setup functions from the specialized packages.
+How:
+Ensure telemetry/setup.go has package telemetry.
+Modify InitTelemetry to:
+Call logging.SetupLogrus (if applicable here).
+Call resource.NewResource.
+Call propagator.SetupPropagators.
+Call exporter.NewTraceExporter, exporter.NewMetricExporter, exporter.NewLogExporter.
+Call trace.NewSampler.
+Call trace.NewTraceProvider (passing resource, exporter, sampler).
+Call metric.NewMeterProvider (passing resource, exporter).
+Call log.NewLoggerProvider (passing resource, exporter).
+Call the manager's initialization function (e.g., manager.initManager) passing the created providers and logger.
+Handle shutdown logic correctly, potentially getting shutdown functions from provider setup calls.
+Conceptual Before (otel/setup.go):
+func InitTelemetry(...) (shutdown func(...) error, err error) {
+    // ... lots of inline setup for resource, exporters, providers, etc. ...
+    res, err := newResource(...)
+    traceExporter, err := newTraceExporter(...)
+    sampler := newSampler(...)
+    tp, bspShutdown := newTraceProvider(res, traceExporter, sampler)
+    // ... etc ...
+    initializeGlobalManager(...)
+    return shutdown, nil
+}
+
+
+Conceptual After (telemetry/setup.go):
+package telemetry
+
+import (
+    "your_module/logging"
+    "your_module/telemetry/resource"
+    "your_module/telemetry/propagator"
+    "your_module/telemetry/exporter"
+    "your_module/telemetry/trace"
+    "your_module/telemetry/metric"
+    logotel "your_module/telemetry/log" // Alias to avoid conflict
+    "your_module/telemetry/manager"
+    // ... other imports
+)
+
+func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
+    logger := logging.SetupLogrus(cfg) // Or called earlier by application main
+
+    var shutdownFuncs []func(context.Context) error
+    // Simplified shutdown logic placeholder
+    shutdown = func(ctx context.Context) error {
+        // ... aggregate shutdown errors from shutdownFuncs ...
+        manager.Shutdown(ctx) // Assuming manager handles provider shutdowns
+        return nil
     }
-    ```
 
-**Step 1.5: Implement Secure Exporter Logic**
-*   **File:** `common/otel/provider.go`
-*   **Action:** Implement the correct TLS configuration logic within `InitTelemetry` based on `cfg.OtelExporterInsecure`. Default to secure. Remove the misleading warning log.
-    ```diff
-    // common/otel/provider.go - Inside InitTelemetry
-        var transportCreds credentials.TransportCredentials
-    -   if cfg.OtelExporterInsecure {
-    -       transportCreds = insecure.NewCredentials()
-    -       logrustr.Warn("Using insecure connection for OTLP exporter")
-    -   } else {
-    -       logrustr.Warn("TLS configuration for OTLP exporter not implemented, using insecure connection as fallback.") // Remove this
-    -       transportCreds = insecure.NewCredentials()
-    -   }
-    +   if cfg.OtelExporterInsecure {
-    +       transportCreds = insecure.NewCredentials()
-    +       logrustr.Warn("Using insecure gRPC connection for OTLP exporter as per OTEL_EXPORTER_INSECURE=true")
-    +   } else {
-    +       // Default to secure connection using system certs or configure as needed
-    +       logrustr.Info("Using secure gRPC connection for OTLP exporter (verify collector TLS settings)")
-    +       // Basic TLS config (adjust as needed for custom CAs etc.)
-    +       transportCreds = credentials.NewTLS(&tls.Config{}) // Relies on system cert pool
-    +   }
-        exporterOpts = append(exporterOpts, grpc.WithTransportCredentials(transportCreds))
-        // ... rest of exporter setup ...
-    ```
-
-**Step 1.6: Remove Global Accessors & Setters**
-*   **Files:** `common/otel/provider.go`, `common/otel/accessors.go`
-*   **Action:**
-    *   Delete the global variables `globalTracerProvider`, `globalMeterProvider` (if they exist explicitly).
-    *   Delete the `setGlobalProviders` function from `provider.go`.
-    *   Delete the functions `GetTracer`, `GetMeter` from `accessors.go`. Ensure `accessors.go` is either removed or only contains truly necessary global accessors (ideally none related to providers).
-
-### Phase 2: Standardize Attributes & Decouple Metrics
-
-**Goal:** Ensure consistent attribute usage and decouple repository logic from OTel metric callbacks.
-
-**Step 2.1: Define Attribute Constants**
-*   **File:** `common/otel/attributes.go`
-*   **Action:** Define constants for all custom attribute keys. Use `semconv` constants where applicable.
-    ```go
-    package otel
-
-    import (
-        "go.opentelemetry.io/otel/attribute"
-        semconv "go.opentelemetry.io/otel/semconv/v1.21.0" // Or newer version
-    )
-
-    // Use semantic conventions directly or define constants referencing them
-    var (
-        DBSystemKey       = semconv.DBSystemKey
-        DBOperationKey    = semconv.DBOperationKey
-        DBStatementKey    = semconv.DBStatementKey // Example: useful for SQL or operations
-        NetPeerNameKey    = semconv.NetPeerNameKey
-        HTTPMethodKey     = semconv.HTTPMethodKey
-        HTTPRouteKey      = semconv.HTTPRouteKey
-        HTTPStatusCodeKey = semconv.HTTPStatusCodeKey
-        // Add other relevant semconv keys...
-
-        // Custom Attributes (Namespace appropriately if needed)
-        DBFilePathKey       = attribute.Key("db.file.path")
-        AppProductIDKey     = attribute.Key("app.product.id")
-        ProductNewStockKey  = attribute.Key("product.new_stock")
-        // Add other custom keys...
-    )
-    ```
-
-**Step 2.2: Update Attribute Usage**
-*   **Files:** `product-service/src/repository.go`, `product-service/src/handler.go` (anywhere attributes are set).
-*   **Action:** Replace all string literals used for attribute keys with the constants defined in `attributes.go`.
-    ```diff
-    // product-service/src/repository.go - Inside GetByID
-        defer span.End()
-        r.mu.RLock()
-        defer r.mu.RUnlock()
-        product, ok := r.products[id]
-        if !ok {
+    defer func() {
+        if err != nil {
             // ... error handling ...
-    -       span.RecordError(errNotFound, attribute.String("app.product.id", id))
-    +       span.RecordError(errNotFound, oteltrace.WithAttributes(commonotel.AppProductIDKey.String(id)))
-            return Product{}, errNotFound
+            manager.Initialize(nil, nil, nil, logger, cfg) // Init with NoOps on error
         }
-    -   span.SetAttributes(attribute.String("db.system", "file")) // Example, assuming this was set
-    +   span.SetAttributes(commonotel.DBSystemKey.String("file")) // Use constant
+    }()
 
-    // product-service/src/repository.go - Inside UpdateStock
-        span.SetAttributes(
-    -       attribute.String("db.key", productID),
-    -       attribute.Int("product.new_stock", newStock),
-    +       commonotel.AppProductIDKey.String(productID), // Assuming product ID is the key here
-    +       commonotel.ProductNewStockKey.Int(newStock),
-        )
-    ```
+    res, err := resource.NewResource(ctx, cfg)
+    if err != nil { /* handle error */ }
 
-**Step 2.3: Refactor Repository Metric Observation**
-*   **File:** `product-service/src/repository.go`
-*   **Action:**
-    *   Change `ObserveStockLevels` to a method like `GetCurrentStockLevels` that retrieves and returns data (`map[string]int`) without OTel SDK types.
-    *   Remove the `metric.Observer` and `metric.Int64ObservableGauge` parameters from the repository method.
-    ```diff
-    // product-service/src/repository.go
-    -func (r *productRepository) ObserveStockLevels(ctx context.Context, observer metric.Observer, stockGauge metric.Int64ObservableGauge) error {
-    +func (r *productRepository) GetCurrentStockLevels(ctx context.Context) (map[string]int, error) {
-    +   // Optional: Add tracing for this read operation using r.tracer
-    +   ctx, span := r.tracer.Start(ctx, "ProductRepository.GetCurrentStockLevels")
-    +   defer span.End()
+    propagator.SetupPropagators()
 
-        logrus.Debug("Repository: GetCurrentStockLevels called")
-        r.mu.RLock()
-        defer r.mu.RUnlock()
-    -   for _, product := range r.products {
-    -       observer.ObserveInt64(
-    -           stockGauge,
-    -           int64(product.Stock),
-    -           metric.WithAttributes(
-    -               // Use constants here before removing
-    -               commonotel.AppProductIDKey.String(product.ProductID),
-    -           ),
-    -       )
-    -   }
-    -   return nil
-    +   stockLevels := make(map[string]int, len(r.products))
-    +   for id, product := range r.products {
-    +        stockLevels[id] = product.Stock
-    +   }
-    +   span.SetAttributes(attribute.Int("app.products.count", len(stockLevels))) // Example attribute
-    +   return stockLevels, nil
-    }
+    traceExporter, err := exporter.NewTraceExporter(ctx, cfg)
+    if err != nil { /* handle error */ }
+    // ... create metricExporter, logExporter ...
 
-    // Ensure ProductRepository interface is updated if necessary
-    type ProductRepository interface {
-        // ... other methods ...
-    -   ObserveStockLevels(ctx context.Context, observer metric.Observer, stockGauge metric.Int64ObservableGauge) error
-    +   GetCurrentStockLevels(ctx context.Context) (map[string]int, error)
-    }
+    sampler := trace.NewSampler(cfg)
+    tp, tpShutdown := trace.NewTraceProvider(res, traceExporter, sampler)
+    shutdownFuncs = append(shutdownFuncs, tpShutdown) // Collect shutdown funcs
 
-    ```
+    mp := metric.NewMeterProvider(cfg, res, metricExporter)
+    lp, err := logotel.NewLoggerProvider(cfg, res, logExporter)
+    if err != nil { /* handle error */ }
 
-**Step 2.4: Update Metric Callback Registration**
-*   **File:** `common/otel/metrics.go` (or wherever `RegisterCallback` happens, likely needs access to the repo instance now). This might need restructuring, perhaps moving the callback registration to `main.go` where both the `meterProvider` and `repo` instance are available.
-*   **Action:** Modify the OTel metric callback function to:
-    1.  Call the repository's `GetCurrentStockLevels` method.
-    2.  Use the `metric.Observer` provided by the callback to record the retrieved values using the correct instrument (`stockGauge`) and attribute constants.
-    ```diff
-    // common/otel/metrics.go - Or potentially main.go after DI
-    -// Assume RegisterStockMetrics gets Meter and potentially the repo instance now
-    -func RegisterStockMetrics(meter metric.Meter, repo ProductRepository) error { // Example signature change
-    +func RegisterStockMetrics(meter metric.Meter, repo ProductRepository) error { // ProductRepository needs to be accessible
-        stockGauge, err := meter.Int64ObservableGauge(
-            "product.stock", // Use semantic conventions if applicable, e.g., `item.stock`?
-            metric.WithDescription("Current number of products in stock"),
-            metric.WithUnit("{items}"), // Standard unit
-        )
-        // ... handle error ...
+    // Initialize the global manager with configured providers
+    manager.Initialize(tp, mp, lp, logger, cfg)
 
-        _, err = meter.RegisterCallback(
-            func(ctx context.Context, o metric.Observer) error {
-    -           // Old way: Pass observer/gauge down to repo
-    -           // return repo.ObserveStockLevels(ctx, o, stockGauge)
-    +           // New way: Get data from repo, observe here
-    +           levels, err := repo.GetCurrentStockLevels(ctx) // Call the new repo method
-    +           if err != nil {
-    +               logrus.WithError(err).Error("Failed to get stock levels for metric callback")
-    +               // Decide if error should halt observation
-    +               return err
-    +           }
-    +           for id, stock := range levels {
-    +                o.ObserveInt64(stockGauge, int64(stock), metric.WithAttributes(
-    +                    commonotel.AppProductIDKey.String(id), // Use constant
-    +                ))
-    +           }
-    +           return nil
-            },
-            stockGauge,
-        )
-        // ... handle registration error ...
-        return nil // Or accumulated error
-    }
-    ```
+    logger.Info("OpenTelemetry SDK initialization completed successfully.")
+    return shutdown, nil
+}
 
-### Phase 3: Cleanup and Simplification
 
-**Goal:** Remove dead code and potentially redundant helper abstractions.
-
-**Step 3.1: Remove Dead Code**
-*   **File:** `common/config/config.go`
-*   **Action:** Delete the large commented-out block of code.
-
-**Step 3.2: Review/Simplify OTel Helper Files**
-*   **Files:** `common/otel/trace.go`, `tracer.go`, `meter.go`.
-*   **Action:**
-    *   Analyze the necessity of the interfaces and helper functions within these files now that DI is used.
-    *   If components can directly use `oteltrace.Tracer` and `metric.Meter` interfaces from the SDK effectively, remove the custom abstractions.
-    *   Consolidate any genuinely useful, non-redundant helpers (e.g., perhaps span creation wrappers if deemed valuable after Step 5 from the original plan).
-
-**Step 3.3: (Optional) Refactor Span Creation Boilerplate**
-*   **Files:** `product-service/src/repository.go`, potentially new helper in `common/otel`.
-*   **Action:** If significant boilerplate remains after DI, implement helper functions or wrappers as discussed in the initial plan (Refactoring Plan item #5) to abstract the span start/end/error recording logic.
-
----
-
-## Verification Strategy
-*   **Manual Testing:** After each phase (especially Phase 1 and 2), run the service and the simulator.
-*   **Observability Check:** Verify traces and metrics (especially `product.stock`) appear correctly in SigNoz (or the configured backend). Check for correct attributes and values.
-*   **Security Check:** Test OTLP connection with TLS enabled on the collector side (default behavior). Test with `OTEL_EXPORTER_INSECURE=true` against an insecure collector endpoint.
-*   **Functionality Check:** Ensure core API endpoints (`/products`, `/products/{id}`, `/products/{id}/stock`) still function as expected.
-
-## Expected Outcomes
-*   Testable components decoupled from global OTel state.
-*   Secure OTLP export enabled by default.
-*   Consistent and maintainable telemetry attributes.
-*   Improved separation of concerns (repository vs. metrics).
-*   Cleaner codebase with reduced boilerplate and no dead code.
+Why: Makes the main initialization function a high-level orchestrator, improving readability and delegating details to specialized packages.
+When: After refactoring the global manager.
+Phase 6: Testing and Validation
+Goal: Ensure the refactored code compiles, passes tests, and correctly emits telemetry data.
+Step 6.1: Compile and Run Static Analysis
+What: Perform a full build and run static analysis tools.
+How: Run go build ./..., go vet ./..., staticcheck ./... (if used). Fix any reported errors or warnings. Run go mod tidy.
+Why: Catch compilation errors, unused variables/imports, and potential bugs identified by static analysis.
+When: First step of Phase 6.
+Step 6.2: Update/Write Unit Tests
+What: Update existing unit tests to reflect the new package structure and function signatures. Write new unit tests for newly created or significantly modified functions/packages.
+How: Modify _test.go files. Use mocks/stubs for dependencies (like exporters) where appropriate. Test edge cases and error handling. Run go test ./....
+Why: Verify the logic within individual packages works as expected.
+When: After achieving successful compilation.
+Step 6.3: Integration Testing (Verify Telemetry Data)
+What: Run the application with the refactored telemetry code and verify that traces, metrics, and logs are being correctly generated and exported to your backend (or console exporter for testing).
+How: Configure the OTLP exporter endpoint to point to a test collector/backend. Perform actions in your application that should generate telemetry. Check the backend to ensure:
+Traces appear with correct spans, parent-child relationships, attributes, and error statuses.
+Metrics (HTTP, product stock) are present with correct names, values, units, and attributes.
+Logs (if using OTel logging exporter) appear with correct content and attributes.
+Trace IDs are potentially correlated with logs (if implemented).
+Why: Confirms that the end-to-end telemetry pipeline works correctly after the refactoring.
+When: After unit tests pass. This is the final validation step.
+4. Final Goal Recap
+Upon successful completion of these phases, the Go OpenTelemetry instrumentation code will be significantly more organized, maintainable, and aligned with best practices for code structure. This provides a solid foundation for future enhancements and easier onboarding for new developers. Remember to merge the feature branch (feat/otel-refactor) back into your main development branch after thorough testing and review.

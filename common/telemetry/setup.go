@@ -1,4 +1,4 @@
-package otel
+package telemetry
 
 import (
 	"context"
@@ -6,9 +6,17 @@ import (
 	"fmt"
 
 	"github.com/narender/common/config"
+	"github.com/narender/common/logging"
+	"github.com/narender/common/telemetry/exporter"
+	logotel "github.com/narender/common/telemetry/log"
+	"github.com/narender/common/telemetry/manager"
+	"github.com/narender/common/telemetry/metric"
+	"github.com/narender/common/telemetry/propagator"
+	"github.com/narender/common/telemetry/resource"
+	"github.com/narender/common/telemetry/trace"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
-	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -17,7 +25,7 @@ import (
 // Initialize the OpenTelemetry SDK with tracing, metrics, and logging configured.
 func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 
-	logger := SetupLogrus(cfg)
+	logger := logging.SetupLogrus(cfg)
 
 	var shutdownFuncs []func(context.Context) error
 	var tp *sdktrace.TracerProvider = nil
@@ -57,53 +65,51 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 				logger.WithError(shutdownErr).Error("Error during OTel cleanup after setup failure")
 			}
 
-			initializeGlobalManager(nil, nil, nil, logger, cfg.ServiceName, cfg.ServiceVersion)
+			manager.InitializeGlobalManager(nil, nil, nil, logger, cfg.ServiceName, cfg.ServiceVersion)
 		} else {
 
 			otel.SetTracerProvider(tp)
 			otel.SetMeterProvider(mp)
 			global.SetLoggerProvider(lp)
 
-			initializeGlobalManager(tp, mp, lp, logger, cfg.ServiceName, cfg.ServiceVersion)
+			manager.InitializeGlobalManager(tp, mp, lp, logger, cfg.ServiceName, cfg.ServiceVersion)
 			logger.Info("OpenTelemetry SDK initialization completed successfully.")
 		}
 	}()
 
-	res, err := newResource(ctx, cfg)
+	res, err := resource.NewResource(ctx, cfg)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
-	otel.SetTextMapPropagator(prop)
-	logger.Debug("Global TextMapPropagator configured.")
+	propagator.SetupPropagators()
 
-	traceExporter, err := newTraceExporter(ctx, cfg)
+	traceExporter, err := exporter.NewTraceExporter(ctx, cfg)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	sampler := newSampler(cfg)
+	sampler := trace.NewSampler(cfg)
 
 	var bspShutdown func(context.Context) error
-	tp, bspShutdown = newTraceProvider(res, traceExporter, sampler)
+	tp, bspShutdown = trace.NewTraceProvider(res, traceExporter, sampler)
 	if bspShutdown != nil {
 		shutdownFuncs = append(shutdownFuncs, bspShutdown)
 	}
 
-	metricExporter, err := newMetricExporter(ctx, cfg)
+	metricExporter, err := exporter.NewMetricExporter(ctx, cfg)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create metric exporter: %w", err)
 	}
 
-	mp = newMeterProvider(cfg, res, metricExporter)
+	mp = metric.NewMeterProvider(cfg, res, metricExporter)
 
-	logExporter, err := newLogExporter(ctx, cfg)
+	logExporter, err := exporter.NewLogExporter(ctx, cfg)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create log exporter: %w", err)
 	}
 
-	lp, err = newLoggerProvider(cfg, res, logExporter)
+	lp, err = logotel.NewLoggerProvider(cfg, res, logExporter)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create logger provider: %w", err)
 	}

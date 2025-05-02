@@ -1,12 +1,13 @@
-package otel
+package log
 
 import (
 	"github.com/narender/common/config"
+	"github.com/narender/common/telemetry/manager"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-func newLoggerProvider(cfg *config.Config, res *resource.Resource, exporter sdklog.Exporter) (*sdklog.LoggerProvider, error) {
+func NewLoggerProvider(cfg *config.Config, res *resource.Resource, exporter sdklog.Exporter) (*sdklog.LoggerProvider, error) {
 
 	var processorOpts []sdklog.BatchProcessorOption
 	if cfg.OtelBatchTimeout > 0 {
@@ -19,6 +20,6 @@ func newLoggerProvider(cfg *config.Config, res *resource.Resource, exporter sdkl
 		sdklog.WithResource(res),
 		sdklog.WithProcessor(proc),
 	)
-	GetLogger().Info("Logger provider configured.")
+	manager.GetLogger().Info("Logger provider configured.")
 	return lp, nil
 }

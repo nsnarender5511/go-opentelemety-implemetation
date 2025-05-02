@@ -1,4 +1,4 @@
-package otel
+package manager
 
 import (
 	"sync"
@@ -15,13 +15,12 @@ import (
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
-
 type TelemetryManager struct {
 	tracerProvider *sdktrace.TracerProvider
 	meterProvider  *sdkmetric.MeterProvider
 	loggerProvider *sdklog.LoggerProvider
-	tracer         oteltrace.Tracer 
-	meter          metric.Meter     
+	tracer         oteltrace.Tracer
+	meter          metric.Meter
 	logger         *logrus.Logger
 
 	serviceName    string
@@ -31,18 +30,13 @@ type TelemetryManager struct {
 var (
 	globalManager *TelemetryManager
 	once          sync.Once
-	managerMutex  sync.RWMutex 
+	managerMutex  sync.RWMutex
 )
 
+func InitializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterProvider, lp *sdklog.LoggerProvider, log *logrus.Logger, serviceName, serviceVersion string) {
 
-
-
-
-
-func initializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterProvider, lp *sdklog.LoggerProvider, log *logrus.Logger, serviceName, serviceVersion string) {
-	
 	once.Do(func() {
-		managerMutex.Lock() 
+		managerMutex.Lock()
 		defer managerMutex.Unlock()
 
 		globalManager = &TelemetryManager{
@@ -52,7 +46,7 @@ func initializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterPro
 			logger:         log,
 			serviceName:    serviceName,
 			serviceVersion: serviceVersion,
-			
+
 			tracer: func() oteltrace.Tracer {
 				if tp != nil {
 					return tp.Tracer(serviceName, oteltrace.WithInstrumentationVersion(serviceVersion))
@@ -66,8 +60,7 @@ func initializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterPro
 				return metricnoop.Meter{}
 			}(),
 		}
-		
-		
+
 		if tp != nil {
 			otel.SetTracerProvider(tp)
 		} else {
@@ -81,67 +74,51 @@ func initializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterPro
 		if lp != nil {
 			global.SetLoggerProvider(lp)
 		} else {
-			
-			
+
 		}
 
-		
 		if globalManager.logger != nil {
 			globalManager.logger.Info("Global TelemetryManager initialized.")
 		}
 	})
 }
 
-
-
-
 func GetTracer(instrumentationName string) oteltrace.Tracer {
-	managerMutex.RLock() 
+	managerMutex.RLock()
 	defer managerMutex.RUnlock()
 
-	if globalManager == nil || globalManager.tracerProvider == nil {
-		
-		logrus.Warn("GetTracer called before TelemetryManager initialization. Returning no-op tracer.")
-		return tracenoop.NewTracerProvider().Tracer(instrumentationName)
+	if globalManager == nil || globalManager.tracer == nil {
+		logrus.Warn("GetTracer called before TelemetryManager initialization or tracer is nil. Returning no-op tracer.")
+		return tracenoop.Tracer{}
 	}
-	
-	return globalManager.tracerProvider.Tracer(instrumentationName, oteltrace.WithInstrumentationVersion(globalManager.serviceVersion))
+
+	return globalManager.tracer
 }
-
-
-
 
 func GetMeter(instrumentationName string) metric.Meter {
-	managerMutex.RLock() 
+	managerMutex.RLock()
 	defer managerMutex.RUnlock()
 
-	if globalManager == nil || globalManager.meterProvider == nil {
-		
-		logrus.Warn("GetMeter called before TelemetryManager initialization. Returning no-op meter.")
-		return metricnoop.NewMeterProvider().Meter(instrumentationName)
+	if globalManager == nil || globalManager.meter == nil {
+		logrus.Warn("GetMeter called before TelemetryManager initialization or meter is nil. Returning no-op meter.")
+		return metricnoop.Meter{}
 	}
-	
-	return globalManager.meterProvider.Meter(instrumentationName, metric.WithInstrumentationVersion(globalManager.serviceVersion))
+
+	return globalManager.meter
 }
 
-
-
-
 func GetLogger() *logrus.Logger {
-	managerMutex.RLock() 
+	managerMutex.RLock()
 	defer managerMutex.RUnlock()
 
 	if globalManager == nil || globalManager.logger == nil {
-		
+
 		logrus.Warn("GetLogger called before TelemetryManager initialization. Returning default logger.")
-		
+
 		return logrus.StandardLogger()
 	}
 	return globalManager.logger
 }
-
-
-
 
 func GetLoggerProvider() *sdklog.LoggerProvider {
 	managerMutex.RLock()
@@ -153,9 +130,6 @@ func GetLoggerProvider() *sdklog.LoggerProvider {
 	return globalManager.loggerProvider
 }
 
-
-
-
 func GetTracerProvider() *sdktrace.TracerProvider {
 	managerMutex.RLock()
 	defer managerMutex.RUnlock()
@@ -164,9 +138,6 @@ func GetTracerProvider() *sdktrace.TracerProvider {
 	}
 	return globalManager.tracerProvider
 }
-
-
-
 
 func GetMeterProvider() metric.MeterProvider {
 	managerMutex.RLock()

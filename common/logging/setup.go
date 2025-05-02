@@ -1,4 +1,4 @@
-package otel
+package logging
 
 import (
 	"os"
@@ -8,7 +8,6 @@ import (
 	"github.com/narender/common/config"
 	"github.com/sirupsen/logrus"
 )
-
 
 func SetupLogrus(cfg *config.Config) *logrus.Logger {
 	logger := logrus.New()
@@ -37,7 +36,6 @@ func SetupLogrus(cfg *config.Config) *logrus.Logger {
 	}
 	logger.SetOutput(os.Stderr)
 
-	
 	logrus.SetLevel(logger.GetLevel())
 	logrus.SetFormatter(logger.Formatter)
 	logrus.SetOutput(logger.Out)

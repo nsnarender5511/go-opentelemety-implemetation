@@ -1,16 +1,17 @@
-package otel
+package metric
 
 import (
 	"context"
 	"fmt"
 	"time"
 
+	"github.com/narender/common/telemetry/manager"
 	"go.opentelemetry.io/otel/attribute"
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
 const (
-	HTTPMetricsInstrumentationName = "github.com/narender/common/otel/metrics"
+	HTTPMetricsInstrumentationName = "github.com/narender/common/telemetry/metric"
 )
 
 const (
@@ -31,7 +32,7 @@ type HTTPMetrics struct {
 // Renamed from NewMetrics for clarity.
 func NewHTTPMetrics() (*HTTPMetrics, error) {
 
-	meter := GetMeter(HTTPMetricsInstrumentationName)
+	meter := manager.GetMeter(HTTPMetricsInstrumentationName)
 	var err error
 	// Use renamed struct type
 	appMetrics := &HTTPMetrics{}
@@ -66,7 +67,7 @@ func NewHTTPMetrics() (*HTTPMetrics, error) {
 		return nil, fmt.Errorf("failed to create %s updowncounter: %w", httpServerActiveRequests, err)
 	}
 
-	GetLogger().Info("Common HTTP metrics initialized.")
+	manager.GetLogger().Info("Common HTTP metrics initialized.")
 	return appMetrics, nil
 }
 

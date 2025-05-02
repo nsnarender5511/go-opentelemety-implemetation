@@ -1,17 +1,16 @@
-package otel
+package trace
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/narender/common/config"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/narender/common/telemetry/manager"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-func newSampler(cfg *config.Config) sdktrace.Sampler {
-	log := GetLogger()
+func NewSampler(cfg *config.Config) sdktrace.Sampler {
+	log := manager.GetLogger()
 	samplerType := cfg.OtelSamplerType
 	ratio := cfg.OtelSampleRatio
 
@@ -36,7 +35,7 @@ func newSampler(cfg *config.Config) sdktrace.Sampler {
 	}
 }
 
-func newTraceProvider(res *resource.Resource, exporter sdktrace.SpanExporter, sampler sdktrace.Sampler) (*sdktrace.TracerProvider, func(context.Context) error) {
+func NewTraceProvider(res *resource.Resource, exporter sdktrace.SpanExporter, sampler sdktrace.Sampler) (*sdktrace.TracerProvider, func(context.Context) error) {
 
 	bspOpts := []sdktrace.BatchSpanProcessorOption{}
 	bsp := sdktrace.NewBatchSpanProcessor(exporter, bspOpts...)
@@ -46,14 +45,7 @@ func newTraceProvider(res *resource.Resource, exporter sdktrace.SpanExporter, sa
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
-	GetLogger().Info("Tracer provider configured.")
+	manager.GetLogger().Info("Tracer provider configured.")
 
 	return tp, bsp.Shutdown
-}
-
-// NewHTTPHandler wraps an http.Handler with OpenTelemetry instrumentation.
-// Moved from autoinstrument.go for better cohesion.
-func NewHTTPHandler(handler http.Handler, operationName string) http.Handler {
-	// Consider adding specific otelhttp options if needed later
-	return otelhttp.NewHandler(handler, operationName)
 }
