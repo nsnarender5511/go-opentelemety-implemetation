@@ -91,7 +91,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.WithError(err).Error("Handler: Error getting all products from service")
 		otel.RecordSpanError(span, err)
-		return err // Let the common error handler manage response
+		return err
 	}
 
 	h.logger.Infof("Handler: Successfully retrieved %d products", len(products))
@@ -109,10 +109,9 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 	product, err := h.service.GetByID(ctx, productIDStr)
 	if err != nil {
-		// Log the specific error from the service
 		h.logger.WithError(err).Errorf("Handler: Error getting product %s from service", productIDStr)
 		otel.RecordSpanError(span, err)
-		return err // Let common error handler determine status code and response
+		return err
 	}
 
 	h.logger.Infof("Handler: Successfully retrieved product %s", productIDStr)
@@ -130,13 +129,11 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 
 	stock, err := h.service.GetStock(ctx, productIDStr)
 	if err != nil {
-		// Log the specific error from the service
 		h.logger.WithError(err).Errorf("Handler: Error getting stock for product %s from service", productIDStr)
 		otel.RecordSpanError(span, err)
-		return err // Let common error handler handle it
+		return err
 	}
 
-	// Define a simple struct for the response
 	type StockResponse struct {
 		ProductID string `json:"productId"`
 		Stock     int    `json:"stock"`
@@ -147,20 +144,11 @@ func (h *ProductHandler) GetProductStock(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(StockResponse{ProductID: productIDStr, Stock: stock})
 }
 
-// HealthCheck handles GET /healthz requests.
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	_, span := h.tracer.Start(c.UserContext(), "handler.HealthCheck")
 	defer span.End()
 	h.logger.Info("Handler: HealthCheck called")
 
-	// Basic health check: just return OK
-	// Remove the service check as it was undefined
-	// if err := h.service.CheckHealth(c.UserContext()); err != nil {
-	// 	h.logger.WithError(err).Error("Handler: Service health check failed")
-	// 	otel.RecordSpanError(span, err)
-	// 	// Return a service unavailable error, wrapping the original
-	// 	return commonErrors.Wrap(err, http.StatusServiceUnavailable, "Service is unhealthy").WithUserMessage("Service temporarily unavailable")
-	// }
 
 	h.logger.Info("Handler: HealthCheck successful")
 	span.AddEvent("Health check successful")

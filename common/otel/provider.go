@@ -26,11 +26,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// SetupLogrus configures the global Logrus logger based on the provided config.
 func SetupLogrus(cfg *config.Config) *logrustr.Logger {
 	logger := logrustr.New()
 
-	// Set Log Level
 	level, err := logrustr.ParseLevel(cfg.LogLevel)
 	if err != nil {
 		logger.Warnf("Invalid log level '%s', defaulting to 'info': %v", cfg.LogLevel, err)
@@ -38,7 +36,6 @@ func SetupLogrus(cfg *config.Config) *logrustr.Logger {
 	}
 	logger.SetLevel(level)
 
-	// Set Log Format
 	switch strings.ToLower(cfg.LogFormat) {
 	case "json":
 		logger.SetFormatter(&logrustr.JSONFormatter{
@@ -57,9 +54,9 @@ func SetupLogrus(cfg *config.Config) *logrustr.Logger {
 		})
 	}
 
-	logger.SetOutput(os.Stderr) // Default output
+	logger.SetOutput(os.Stderr)
 
-	logrustr.SetLevel(logger.GetLevel()) // Set global level too, mainly for library logs
+	logrustr.SetLevel(logger.GetLevel())
 	logrustr.SetFormatter(logger.Formatter)
 	logrustr.SetOutput(logger.Out)
 
@@ -67,11 +64,7 @@ func SetupLogrus(cfg *config.Config) *logrustr.Logger {
 	return logger
 }
 
-// SetupOTelSDK initializes the OpenTelemetry SDK for tracing, metrics, and logging.
-// It configures exporters based on the provided Config and registers global providers.
-// Returns a configured Logrus logger, a shutdown function, and any error encountered.
 func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.Logger, shutdown func(context.Context) error, err error) {
-	// Setup Logrus first, as OTel setup logs things.
 	logger := SetupLogrus(cfg)
 
 	var shutdownFuncs []func(context.Context) error
@@ -81,19 +74,15 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
 			shutdownErr = errors.Join(shutdownErr, shutdownFuncs[i](ctx))
 		}
-		shutdownFuncs = nil // Clear funcs after execution
-		// Join with any setup error that might have been assigned to the named return var `err`
+		shutdownFuncs = nil
 		err = errors.Join(err, shutdownErr)
-		return shutdownErr // Return the combined shutdown error
+		return shutdownErr
 	}
 
-	// Automatically call shutdown at the end of SetupOTelSDK if an error occurs during setup.
-	// Note: The caller of SetupOTelSDK is still responsible for calling the returned shutdown function on graceful application exit.
 	defer func() {
 		if err != nil {
-			// If setup failed, attempt to clean up any partial setup
 			logger.Debug("Attempting OTel cleanup after setup error...")
-			shutdownErr := shutdown(context.Background()) // Use background context for cleanup
+			shutdownErr := shutdown(context.Background())
 			if shutdownErr != nil {
 				logger.WithError(shutdownErr).Error("Error during OTel cleanup after setup failure")
 			}
@@ -102,7 +91,6 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 		}
 	}()
 
-	// --- Resource ---
 	res, rErr := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(cfg.ServiceName),
@@ -116,11 +104,10 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 	if rErr != nil {
 		err = fmt.Errorf("failed to create OTel resource: %w", rErr)
 		logger.WithError(err).Error("OTel setup failed")
-		return logger, shutdown, err // Return immediately with logger and shutdown func
+		return logger, shutdown, err
 	}
 	logger.Debug("OpenTelemetry resource created")
 
-	// --- Propagator ---
 	prop := propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
@@ -128,24 +115,18 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 	otel.SetTextMapPropagator(prop)
 	logger.Debug("OpenTelemetry propagation configured")
 
-	// --- Shared Exporter Options ---
 	exporterOpts := []grpc.DialOption{
-		// Set keepalive options to proactively check connection health
-		// grpc.WithKeepaliveParams(keepalive.ClientParameters{...}),
 	}
 	var transportCreds credentials.TransportCredentials
 	if cfg.OtelExporterInsecure {
 		transportCreds = insecure.NewCredentials()
 		logger.Warn("Using insecure connection for OTLP exporter")
 	} else {
-		// transportCreds = credentials.NewClientTLSFromCert(nil, "") // Use system cert pool
-		// TODO: Add proper TLS configuration (loading certs, etc.)
 		logger.Warn("TLS configuration for OTLP exporter not implemented, using insecure connection as fallback.")
-		transportCreds = insecure.NewCredentials() // Fallback to insecure for now
+		transportCreds = insecure.NewCredentials()
 	}
 	exporterOpts = append(exporterOpts, grpc.WithTransportCredentials(transportCreds))
 
-	// --- Trace Provider ---
 	traceClientOpts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
 		otlptracegrpc.WithDialOption(exporterOpts...),
@@ -165,7 +146,6 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 
 	bspOpts := []trace.BatchSpanProcessorOption{
 		trace.WithBatchTimeout(cfg.OtelBatchTimeout),
-		// Consider adding MaxQueueSize, MaxExportBatchSize based on load
 	}
 	bsp := trace.NewBatchSpanProcessor(traceExporter, bspOpts...)
 
@@ -180,7 +160,6 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 	otel.SetTracerProvider(tracerProvider)
 	logger.Info("Trace provider registered globally")
 
-	// --- Meter Provider ---
 	metricClientOpts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
 		otlpmetricgrpc.WithDialOption(exporterOpts...),
@@ -200,38 +179,31 @@ func SetupOTelSDK(ctx context.Context, cfg *config.Config) (sdkLogger *logrustr.
 
 	meterProvider := metric.NewMeterProvider(
 		metric.WithResource(res),
-		metric.WithReader(metric.NewPeriodicReader(metricExporter, metric.WithTimeout(cfg.OtelExporterOtlpTimeout))), // Use exporter timeout for reader too
+		metric.WithReader(metric.NewPeriodicReader(metricExporter, metric.WithTimeout(cfg.OtelExporterOtlpTimeout))),
 	)
 	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
 	otel.SetMeterProvider(meterProvider)
 	logger.Info("Meter provider registered globally")
 
-	// Return the configured logger, the shutdown function, and nil error
 	return logger, shutdown, nil
 }
 
-// GetTracerProvider returns the global OpenTelemetry TracerProvider.
 func GetTracerProvider() oteltrace.TracerProvider {
 	return otel.GetTracerProvider()
 }
 
-// GetMeterProvider returns the global OpenTelemetry MeterProvider.
 func GetMeterProvider() otelmetric.MeterProvider {
 	return otel.GetMeterProvider()
 }
 
-// GetTracer returns a named Tracer instance from the global TracerProvider.
 func GetTracer(instrumentationName string) oteltrace.Tracer {
 	return otel.Tracer(instrumentationName)
 }
 
-// GetMeter returns a named Meter instance from the global MeterProvider.
 func GetMeter(instrumentationName string) otelmetric.Meter {
 	return otel.Meter(instrumentationName)
 }
 
-// Helper to parse OTEL_EXPORTER_INSECURE string to bool
-// Deprecated: Config parsing now handles this directly.
 func parseInsecure(insecureStr string) bool {
 	val, err := strconv.ParseBool(strings.ToLower(insecureStr))
 	if err != nil {

@@ -10,44 +10,36 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds all configuration parameters for the application.
 type Config struct {
-	// Service specific
 	ProductServicePort string
 	ServiceName        string
 	ServiceVersion     string
 	DataFilePath       string
 
-	// Logging
 	LogLevel  string
-	LogFormat string // e.g., "json", "text"
+	LogFormat string
 
-	// OTel related
 	OtelExporterOtlpEndpoint string
-	OtelExporterInsecure     bool              // Use bool for clarity
-	OtelSampleRatio          float64           // Use float for ratio
-	OtelBatchTimeout         time.Duration     // Use time.Duration
-	OtelExporterOtlpTimeout  time.Duration     // Use time.Duration
-	OtelExporterOtlpHeaders  map[string]string // Use map for headers
+	OtelExporterInsecure     bool
+	OtelSampleRatio          float64
+	OtelBatchTimeout         time.Duration
+	OtelExporterOtlpTimeout  time.Duration
+	OtelExporterOtlpHeaders  map[string]string
 
-	// Shutdown
-	ShutdownTimeout       time.Duration // Use time.Duration
-	ServerShutdownTimeout time.Duration // Use time.Duration
+	ShutdownTimeout       time.Duration
+	ServerShutdownTimeout time.Duration
 }
 
-// LoadConfig loads configuration from environment variables or a .env file.
-// It prioritizes environment variables over the .env file.
 func LoadConfig(path string) (*Config, error) {
-	// Attempt to load .env file, ignore error if it doesn't exist
 	_ = godotenv.Load(path)
 
 	cfg := &Config{}
 	var err error
 
 	cfg.ProductServicePort = getenv("PRODUCT_SERVICE_PORT", "8080")
-	cfg.ServiceName = getenv("OTEL_SERVICE_NAME", "product-service") // Use OTEL_SERVICE_NAME as ServiceName
+	cfg.ServiceName = getenv("OTEL_SERVICE_NAME", "product-service")
 	cfg.ServiceVersion = getenv("SERVICE_VERSION", "1.0.0")
-	cfg.DataFilePath = getenv("DATA_FILE_PATH", "") // Expect path to be set explicitly
+	cfg.DataFilePath = getenv("DATA_FILE_PATH", "")
 
 	cfg.LogLevel = getenv("LOG_LEVEL", "info")
 	cfg.LogFormat = getenv("LOG_FORMAT", "json")
@@ -89,16 +81,12 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	if cfg.DataFilePath == "" {
-		// Optionally return an error if the data file path is mandatory
-		// return nil, fmt.Errorf("DATA_FILE_PATH environment variable is not set")
-		fmt.Println("Warning: DATA_FILE_PATH environment variable is not set.") // Or just log a warning
+		fmt.Println("Warning: DATA_FILE_PATH environment variable is not set.")
 	}
 
 	return cfg, nil
 }
 
-// getenv retrieves the value of the environment variable named by the key.
-// It returns the defaultValue if the variable is not set or empty.
 func getenv(key string, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
@@ -107,7 +95,6 @@ func getenv(key string, defaultValue string) string {
 	return value
 }
 
-// parseDurationMs parses a string representing milliseconds into a time.Duration.
 func parseDurationMs(value string, envVarName string) (time.Duration, error) {
 	ms, err := strconv.Atoi(value)
 	if err != nil {
@@ -116,7 +103,6 @@ func parseDurationMs(value string, envVarName string) (time.Duration, error) {
 	return time.Duration(ms) * time.Millisecond, nil
 }
 
-// parseDurationSec parses a string representing seconds into a time.Duration.
 func parseDurationSec(value string, envVarName string) (time.Duration, error) {
 	sec, err := strconv.Atoi(value)
 	if err != nil {
@@ -125,7 +111,6 @@ func parseDurationSec(value string, envVarName string) (time.Duration, error) {
 	return time.Duration(sec) * time.Second, nil
 }
 
-// parseHeaders parses a comma-separated key=value string into a map.
 func parseHeaders(value string) map[string]string {
 	headers := make(map[string]string)
 	if value == "" {

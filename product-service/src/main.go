@@ -19,20 +19,18 @@ import (
 )
 
 const (
-	ServiceName = "product-service" // Or derive from config
+	ServiceName = "product-service"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// --- Load Configuration ---
-	cfg, err := config.LoadConfig(".env") // Load from .env file relative to executable
+	cfg, err := config.LoadConfig(".env")
 	if err != nil {
 		logrus.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// --- Initialize Logger & Telemetry ---
 	logger, otelShutdown, err := otel.SetupOTelSDK(ctx, cfg)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to initialize OpenTelemetry SDK")
@@ -47,28 +45,21 @@ func main() {
 
 	logger.Info("Logger and OpenTelemetry initialized.")
 
-	// --- Dependencies ---
-	// Get Meter & Tracer
 	meterProvider := otel.GetMeterProvider()
 	tracerProvider := otel.GetTracerProvider()
-	tracer := tracerProvider.Tracer(ServiceName) // Use service name for the main tracer
+	tracer := tracerProvider.Tracer(ServiceName)
 
-	// Common Metrics Helper
 	commonMetrics, err := otel.NewMetrics(meterProvider)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to create common metrics helper")
 	}
 
-	// Repository, Service, Handler initialization (Requires updated constructors)
 	repo, err := NewProductRepository(cfg.DataFilePath, logger, tracer)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to initialize repository")
 	}
 
-	// --- Register Observable Metrics (e.g., Stock Levels) ---
-	// Ensure repo implements a method suitable for callback, e.g., ObserveStockLevels
-	// Assume repo has: ObserveStockLevels(ctx context.Context, obs metric.Observer, gauge metric.Int64ObservableGauge) error
-	meter := meterProvider.Meter(otel.InstrumentationName) // Use common instrumentation name
+	meter := meterProvider.Meter(otel.InstrumentationName)
 	productStockGauge, err := meter.Int64ObservableGauge(
 		"product.stock.level",
 		otelmetric.WithDescription("Current stock level for each product"),
@@ -80,7 +71,6 @@ func main() {
 
 	_, err = meter.RegisterCallback(
 		func(ctx context.Context, obs otelmetric.Observer) error {
-			// Call the method directly on the interface
 			return repo.ObserveStockLevels(ctx, obs, productStockGauge)
 		},
 		productStockGauge,
@@ -93,27 +83,17 @@ func main() {
 	productService := NewProductService(repo, logger, tracer)
 	productHandler := NewProductHandler(productService, logger, tracer, commonMetrics)
 
-	// --- Fiber App Setup ---
-	// Common Error Handler
 	errorHandler := middleware.NewErrorHandler(logger, commonMetrics)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: errorHandler, // Use the common error handler
-		// Increase read timeout for server robustness
-		// ReadTimeout: 5 * time.Second,
+		ErrorHandler: errorHandler,
 	})
 
-	// Middleware
-	app.Use(recover.New()) // Recover should be early
-	app.Use(cors.New())    // Configure CORS as needed
-	// Use the common Otel middleware wrapper
-	// TODO: Fix otelfiber import/usage issue
-	// app.Use(middleware.OtelMiddleware(otelfiber.WithServerName(cfg.ServiceName)))
-	app.Use(middleware.OtelMiddleware()) // Use without options for now
-	// Use the common Request Logger middleware
+	app.Use(recover.New())
+	app.Use(cors.New())
+	app.Use(middleware.OtelMiddleware())
 	app.Use(middleware.RequestLoggerMiddleware(logger))
 
-	// --- Routes ---
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 	v1.Get("/products", productHandler.GetAllProducts)
@@ -121,7 +101,6 @@ func main() {
 	v1.Get("/products/:productId/stock", productHandler.GetProductStock)
 	v1.Get("/healthz", productHandler.HealthCheck)
 
-	// --- Start Server ---
 	go func() {
 		addr := ":" + cfg.ProductServicePort
 		logger.WithField("address", addr).Info("Server starting to listen...")
@@ -130,12 +109,10 @@ func main() {
 		}
 	}()
 
-	// --- Wait for shutdown signal ---
 	<-ctx.Done()
 
 	logger.Info("Shutdown signal received, starting graceful shutdown...")
 
-	// --- Graceful Shutdown ---
 	shutdownTimeoutCtx, cancelShutdown := context.WithTimeout(context.Background(), cfg.ServerShutdownTimeout)
 	defer cancelShutdown()
 

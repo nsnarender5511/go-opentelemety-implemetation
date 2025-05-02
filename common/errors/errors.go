@@ -35,7 +35,6 @@ var standardErrorToStatusCode = map[error]int{
 	ErrTooManyRequests:     http.StatusTooManyRequests,
 	ErrUnprocessableEntity: http.StatusUnprocessableEntity,
 	ErrDBConnection:        http.StatusServiceUnavailable,
-	// Note: ErrInternalServer is handled by the default case below
 }
 
 type AppError struct {
@@ -138,16 +137,12 @@ func ToStatusCode(err error) int {
 		return http.StatusOK
 	}
 
-	// --- Check for fiber.Error first (specifically NotFound) ---
 	var fiberErr *fiber.Error
 	if errors.As(err, &fiberErr) {
 		if fiberErr.Code == http.StatusNotFound {
 			return http.StatusNotFound
 		}
-		// Potentially handle other fiber errors here if needed
-		// return fiberErr.Code // Or map specific fiber codes
 	}
-	// --- End fiber error check ---
 
 	var appErr *AppError
 	if errors.As(err, &appErr) {
@@ -160,7 +155,6 @@ func ToStatusCode(err error) int {
 		}
 	}
 
-	// Default to 500 for unhandled/unmapped errors
 	return http.StatusInternalServerError
 }
 

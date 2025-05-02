@@ -12,7 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Configuration
-BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1")
+# BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1") # Use static URL for now
+BASE_URL = "http://localhost:8082/api/v1"
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 20 # Increased concurrent users
 DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json") # Relative path to data.json
