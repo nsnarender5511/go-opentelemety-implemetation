@@ -1,4 +1,3 @@
-# Main application Compose file
 version: "3.8"
 
 networks:
@@ -6,6 +5,7 @@ networks:
     driver: bridge
     name: signoz-net
     # Allow our services to connect to an external SigNoz instance
+    # (Note: signoz-net might be optional if OTEL integration is fully removed)
     external: true
 
 services:
@@ -16,15 +16,15 @@ services:
       dockerfile: ./product-service/Dockerfile
     container_name: product-service
     ports:
-      - "8082:8082"
+      - "8080:8080"
     networks:
       - signoz-net
     env_file:
-      - .env # OTEL_EXPORTER_OTLP_ENDPOINT should point to external SigNoz instance
+      - .env # OTEL_* variables in this file are no longer used by the simplified service
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -47,10 +47,11 @@ services:
       product-service:
         condition: service_healthy # Wait for product-service to be healthy
     env_file:
-      - .env
+      - .env # Ensure .env defines PRODUCT_SERVICE_URL=http://product-service:8080/api/v1
     networks:
       - signoz-net
-    deploy:
-      replicas: 5
+    # Removed deploy replicas block - use `docker-compose up --scale product-simulator=N` instead
+    # deploy:
+    #   replicas: 5
 
   

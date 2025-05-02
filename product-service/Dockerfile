@@ -1,79 +1,33 @@
-# ---- Builder Stage ----
-# Use a specific Go version matching your development environment
 FROM golang:1.24-alpine AS builder
 
-# Set working directory inside the builder stage
 WORKDIR /build
 
-# Install build tools if needed (e.g., git for private repos)
-# RUN apk add --no-cache git
-
-# --- Dependency Resolution ---
-# Copy ONLY the necessary go.mod/go.sum files first to leverage build cache
-# Paths are now relative to the project root context defined in docker-compose.yml
-COPY common/go.mod common/go.sum ./common/
 COPY product-service/go.mod product-service/go.sum ./product-service/
 
-# Create the necessary directory structure *required* by the replace directive
-# This allows `go mod download` within product-service to find `../common`
-# Needs to mirror the relative path in product-service/go.mod's replace directive
-RUN mkdir -p ./common
-
-# Change to the product-service directory. This respects the replace directive.
 WORKDIR /build/product-service
 
-# Download dependencies. This should fetch external dependencies for both
-# product-service and the replaced common module.
-# Use "go mod vendor" if you prefer vendoring dependencies
 RUN go mod download
-# RUN go mod vendor # Alternative: if vendoring
 
-# --- Source Code Copy ---
-# Now copy the *source code* needed for the build
-# Copy common module source (still needed due to local replace)
-WORKDIR /build
-COPY common/ ./common/
-# Copy product-service source
-# The source code is inside product-service/src in the project root
-COPY product-service/src ./product-service/src/
-# Optionally copy other necessary files like templates, assets etc. for product-service
+COPY product-service/src ./src/
+COPY product-service/data.json ./data.json
 
-# --- Build ---
-WORKDIR /build/product-service
-# Build the application binary within the product-service context
-# Use CGO_ENABLED=0 for static linking (good for Alpine)
-# Use -ldflags="-w -s" to strip debug symbols for smaller binary
-# Output the binary to a known location for the final stage
-# The source entrypoint is now ./src relative to /build/product-service
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/product-service ./src
-# If using vendor: go build -mod=vendor ...
 
-# ---- Final Stage ----
-# Switch to alpine to include necessary tools like curl for healthcheck
 FROM golang:1.24-alpine
 
-# Install curl and ca-certificates
 RUN apk add --no-cache curl ca-certificates
 
-# Create a non-root user and group
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Set working directory
 WORKDIR /app
 
-# Copy ONLY the compiled binary from the builder stage
 COPY --from=builder /app/product-service /app/product-service
+COPY --from=builder /build/product-service/data.json /app/data.json
 
-# Change ownership of the working directory to the non-root user
-RUN chown appuser:appgroup /app
+RUN chown -R appuser:appgroup /app
 
-# DO NOT copy data.json here. It will be mounted as a volume via docker-compose.
+EXPOSE 8080
 
-# Expose the port the application listens on
-EXPOSE 8082
-
-# Switch to the non-root user
 USER appuser
 
-# Set the entrypoint to run the binary
 ENTRYPOINT ["/app/product-service"] 

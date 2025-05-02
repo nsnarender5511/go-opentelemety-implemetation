@@ -8,17 +8,13 @@ import json # Import json module
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configuration
-# BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1") # Use static URL for now
-BASE_URL = "http://localhost:8082/api/v1"
+BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8080/api/v1") # Changed port to 8080
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 20 # Increased concurrent users
 DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json") # Relative path to data.json
 
-# --- Load Product Data ---
 try:
     with open(DATA_FILE_PATH, 'r') as f:
         product_data = json.load(f)
@@ -35,11 +31,9 @@ except json.JSONDecodeError:
     known_product_ids = ["prod_fallback_1", "prod_fallback_2"]
 
 
-# Product IDs for testing
 NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}" # Generate a random non-existing ID
 INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
-# --- Request Functions ---
 
 def make_request(relative_endpoint, method="GET"):
     """Makes a request to the specified relative endpoint."""
@@ -78,15 +72,10 @@ def get_product_by_id(product_id):
     """Requests a specific product by its ID."""
     make_request(f"products/{product_id}")
 
-def get_product_stock(product_id):
-    """Requests the stock for a specific product."""
-    make_request(f"products/{product_id}/stock")
-
 def hit_invalid_path():
     """Hits a deliberately non-existent path."""
     make_request(f"some/invalid/path/{uuid.uuid4()}")
 
-# --- Simulation Worker ---
 
 stop_event = threading.Event()
 
@@ -94,10 +83,10 @@ def worker(worker_id):
     """Simulates a single user making various requests."""
     print(f"Worker {worker_id} started.")
     while not stop_event.is_set():
+        # Removed stock-related actions, adjusted weights
         action_type = random.choices(
-            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 
-                        'get_stock_ok', 'get_stock_404', 'get_stock_invalid', 'bad_path'],
-            weights=[0.1, 0.2, 0.1, 0.1, 0.2, 0.1, 0.1, 0.1], # Adjust weights as needed
+            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 'bad_path'],
+            weights=   [0.2,       0.4,          0.2,           0.1,            0.1], # Weights sum to 1.0
             k=1
         )[0]
 
@@ -112,14 +101,7 @@ def worker(worker_id):
             elif action_type == 'get_one_invalid':
                 # Expected 404 based on Fiber routing for invalid path param format
                 get_product_by_id(INVALID_FORMAT_PRODUCT_ID)
-            elif action_type == 'get_stock_ok':
-                # Use IDs loaded from data.json
-                get_product_stock(random.choice(known_product_ids))
-            elif action_type == 'get_stock_404':
-                get_product_stock(NON_EXISTING_PRODUCT_ID)
-            elif action_type == 'get_stock_invalid':
-                # Expected 404 based on Fiber routing for invalid path param format
-                get_product_stock(INVALID_FORMAT_PRODUCT_ID)
+            # Removed elif blocks for get_stock actions
             elif action_type == 'bad_path':
                 hit_invalid_path()
 
@@ -132,7 +114,6 @@ def worker(worker_id):
 
     print(f"Worker {worker_id} stopped.")
 
-# --- Main Execution ---
 
 if __name__ == "__main__":
     print(f"Starting Product Service Simulation...")

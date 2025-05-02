@@ -1,27 +1,21 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
-
-	common_errors "github.com/narender/common/errors"
-	otel "github.com/narender/common/otel"
-	"github.com/sirupsen/logrus"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
+
+var ErrNotFound = errors.New("product not found")
+
 type ProductRepository interface {
-	GetAll(ctx context.Context) ([]Product, error)
-	GetByID(ctx context.Context, id string) (Product, error)
-	UpdateStock(ctx context.Context, productID string, newStock int) error
-	GetCurrentStockLevels(ctx context.Context) (map[string]int, error)
+	GetAll() ([]Product, error)
+	GetByID(id string) (Product, error)
+	UpdateStock(productID string, newStock int) error
 }
 
 type productRepository struct {
@@ -31,77 +25,54 @@ type productRepository struct {
 }
 
 func NewProductRepository(dataFilePath string) (ProductRepository, error) {
-	logger := otel.GetLogger()
-	logger.Infof("Repository: Initializing with file path: %s", dataFilePath)
+	fmt.Printf("Repository: Initializing with file path: %s\n", dataFilePath)
 
 	repo := &productRepository{
 		products: make(map[string]Product),
 		filePath: dataFilePath,
 	}
 
-	initCtx := context.Background()
 	if _, statErr := os.Stat(repo.filePath); statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
-			logger.Warnf("Repository: Data file %s not found, starting with empty product list.", dataFilePath)
+			fmt.Printf("WARN: Data file %s not found, starting with empty product list.\n", dataFilePath)
 		} else {
-			dbErr := &common_errors.DatabaseError{Operation: "StatFile", Err: statErr}
-			logger.WithError(dbErr).Errorf("Repository: Failed to stat data file %s", dataFilePath)
-			return nil, dbErr
+			err := fmt.Errorf("repository: failed to stat data file %s: %w", dataFilePath, statErr)
+			log.Printf("ERROR: %v", err)
+			return nil, err
 		}
 	} else {
-		if err := repo.readData(initCtx); err != nil {
-			logger.WithError(err).Errorf("Repository: Failed to initialize from %s", dataFilePath)
+		if err := repo.loadData(); err != nil {
+			log.Printf("ERROR: Repository: Failed to initialize from %s: %v", dataFilePath, err)
 			return nil, fmt.Errorf("failed to initialize product repository from %s: %w", dataFilePath, err)
 		}
 	}
-	logger.Infof("Repository: Initialized successfully, loaded %d products", len(repo.products))
+	fmt.Printf("Repository: Initialized successfully, loaded %d products\n", len(repo.products))
 	return repo, nil
 }
 
-const repoInstrumentationName = "product-service/repository"
-
-func (r *productRepository) readData(ctx context.Context) error {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.readData",
-		oteltrace.WithAttributes(otel.DBSystemKey.String("file"), otel.DBOperationKey.String("ReadFile")),
-	)
-	span.SetAttributes(otel.AttrDBFilePathKey.String(r.filePath))
-	defer span.End()
-
+func (r *productRepository) loadData() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	data, err := os.ReadFile(r.filePath)
 	if err != nil {
-		dbErr := &common_errors.DatabaseError{
-			Operation: "ReadFile",
-			Err:       err,
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Printf("WARN: Data file %s not found during load, initializing empty map.\n", r.filePath)
+			r.products = make(map[string]Product)
+			return nil
 		}
-		logger.WithContext(ctx).WithError(dbErr).Error("Failed to read data file")
-		span.RecordError(dbErr)
-		span.SetStatus(codes.Error, "Failed to read data file")
-		return dbErr
+		return fmt.Errorf("failed to read data file '%s': %w", r.filePath, err)
 	}
 
 	if len(data) == 0 {
-		logger.WithContext(ctx).Warnf("Data file %s is empty, initializing empty product map.", r.filePath)
+		fmt.Printf("WARN: Data file %s is empty, initializing empty product map.\n", r.filePath)
 		r.products = make(map[string]Product)
 		return nil
 	}
 
-	const unmarshalOperation = "UnmarshalJSON"
-	span.SetAttributes(otel.DBOperationKey.String(unmarshalOperation))
 	var productsMap map[string]Product
 	if err := json.Unmarshal(data, &productsMap); err != nil {
-		dbErr := &common_errors.DatabaseError{
-			Operation: unmarshalOperation,
-			Err:       fmt.Errorf("failed to unmarshal product data: %w", err),
-		}
-		logger.WithContext(ctx).WithError(dbErr).Error("Failed to unmarshal data")
-		span.RecordError(dbErr)
-		span.SetStatus(codes.Error, "Failed to unmarshal data")
-		return dbErr
+		return fmt.Errorf("failed to unmarshal product data from '%s': %w", r.filePath, err)
 	}
 
 	r.products = make(map[string]Product, len(productsMap))
@@ -110,121 +81,58 @@ func (r *productRepository) readData(ctx context.Context) error {
 	}
 
 	productCount := len(r.products)
-	logger.WithContext(ctx).WithFields(logrus.Fields{
-		"count": productCount,
-		"path":  r.filePath,
-	}).Debug("Successfully loaded products")
-	span.SetAttributes(otel.AttrAppProductCount.Int(productCount))
+	fmt.Printf("DEBUG: Successfully loaded %d products from %s\n", productCount, r.filePath)
 	return nil
 }
 
-func (r *productRepository) GetAll(ctx context.Context) ([]Product, error) {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.GetAll",
-		oteltrace.WithAttributes(otel.DBSystemKey.String("file"), otel.DBOperationKey.String("GetAll")),
-	)
-	defer span.End()
-
+func (r *productRepository) GetAll() ([]Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	if len(r.products) == 0 {
-		logger.WithContext(ctx).Warn("GetAll called but no products loaded.")
+		fmt.Println("WARN: GetAll called but no products loaded.")
 	}
 	result := make([]Product, 0, len(r.products))
 	for _, p := range r.products {
 		result = append(result, p)
 	}
-	span.SetAttributes(attribute.Int("db.rows_returned", len(result)))
 	return result, nil
 }
 
-func (r *productRepository) GetByID(ctx context.Context, id string) (Product, error) {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.GetByID",
-		oteltrace.WithAttributes(otel.DBSystemKey.String("file"), otel.DBOperationKey.String("GetByID")),
-	)
-	span.SetAttributes(otel.AttrAppProductIDKey.String(id))
-	defer span.End()
-
+func (r *productRepository) GetByID(id string) (Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	product, ok := r.products[id]
 	if !ok {
-		msg := fmt.Sprintf("product with ID %s not found", id)
-		logger.WithContext(ctx).WithField("product.id", id).Warn(msg)
-		errNotFound := common_errors.ErrNotFound
-		span.RecordError(errNotFound)
-		span.SetStatus(codes.Unset, msg)
-		return Product{}, errNotFound
+		return Product{}, ErrNotFound
 	}
 	return product, nil
 }
 
-func (r *productRepository) UpdateStock(ctx context.Context, productID string, newStock int) error {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.UpdateStock",
-		oteltrace.WithAttributes(otel.DBSystemKey.String("file"), otel.DBOperationKey.String("UpdateStock")),
-	)
-	span.SetAttributes(
-		otel.AttrAppProductIDKey.String(productID),
-		otel.AttrProductNewStockKey.Int(newStock),
-	)
-	defer span.End()
-
+func (r *productRepository) UpdateStock(productID string, newStock int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if _, exists := r.products[productID]; !exists {
-		logger.WithField("productID", productID).Warn("Attempted to update stock for non-existent product")
-		span.SetStatus(codes.Error, "Product not found for stock update")
-		return common_errors.ErrNotFound
+		fmt.Printf("WARN: Attempted to update stock for non-existent product ID: %s\n", productID)
+		return ErrNotFound
 	}
 
-	// Retrieve the product, modify it, and put it back in the map
 	p := r.products[productID]
 	p.Stock = newStock
-	r.products[productID] = p // Put the modified struct back
+	r.products[productID] = p
 
-	if err := r.saveData(ctx); err != nil {
-		span.SetStatus(codes.Error, "Failed to save updated stock data")
+	if err := r.saveData(); err != nil {
+		log.Printf("ERROR: Failed to save updated stock data for product %s: %v", productID, err)
 		return err
 	}
 
-	logger.WithContext(ctx).WithField("product.id", productID).Info("Successfully updated stock")
+	fmt.Printf("INFO: Successfully updated stock for product ID: %s\n", productID)
 	return nil
 }
 
-func (r *productRepository) GetCurrentStockLevels(ctx context.Context) (map[string]int, error) {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.GetCurrentStockLevels")
-	defer span.End()
-
-	logger.Debug("Repository: GetCurrentStockLevels called")
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	stockLevels := make(map[string]int, len(r.products))
-	for id, product := range r.products {
-		stockLevels[id] = product.Stock
-	}
-	span.SetAttributes(otel.AttrAppProductCount.Int(len(stockLevels)))
-	return stockLevels, nil
-}
-
-func (r *productRepository) saveData(ctx context.Context) error {
-	logger := otel.GetLogger()
-	tracer := otel.GetTracer(repoInstrumentationName)
-	ctx, span := tracer.Start(ctx, "ProductRepository.saveData",
-		oteltrace.WithAttributes(otel.DBSystemKey.String("file"), otel.DBOperationKey.String("WriteFile")),
-	)
-	span.SetAttributes(otel.AttrDBFilePathKey.String(r.filePath))
-	defer span.End()
-
+func (r *productRepository) saveData() error {
 	r.mu.RLock()
 	productsToSave := make(map[string]Product, len(r.products))
 	for k, v := range r.products {
@@ -232,32 +140,15 @@ func (r *productRepository) saveData(ctx context.Context) error {
 	}
 	r.mu.RUnlock()
 
-	const marshalOperation = "MarshalJSON"
-	span.SetAttributes(otel.DBOperationKey.String(marshalOperation))
 	data, err := json.MarshalIndent(productsToSave, "", "  ")
 	if err != nil {
-		dbErr := &common_errors.DatabaseError{
-			Operation: marshalOperation,
-			Err:       fmt.Errorf("failed to marshal product data: %w", err),
-		}
-		logger.WithContext(ctx).WithError(dbErr).Error("Failed to marshal data for saving")
-		span.RecordError(dbErr)
-		span.SetStatus(codes.Error, "Failed to marshal data")
-		return dbErr
+		return fmt.Errorf("failed to marshal product data for saving: %w", err)
 	}
 
-	span.SetAttributes(otel.DBOperationKey.String("WriteFile"))
 	if err := os.WriteFile(r.filePath, data, 0644); err != nil {
-		dbErr := &common_errors.DatabaseError{
-			Operation: "WriteFile",
-			Err:       fmt.Errorf("failed to write product data to file '%s': %w", r.filePath, err),
-		}
-		logger.WithContext(ctx).WithError(dbErr).Error("Failed to write data file")
-		span.RecordError(dbErr)
-		span.SetStatus(codes.Error, "Failed to write data file")
-		return dbErr
+		return fmt.Errorf("failed to write data file '%s': %w", r.filePath, err)
 	}
 
-	logger.WithContext(ctx).Debug("Successfully saved data")
+	fmt.Printf("DEBUG: Successfully saved %d products to %s\n", len(productsToSave), r.filePath)
 	return nil
 }
