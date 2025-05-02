@@ -1,79 +1,72 @@
 package otel
 
 import (
-	"context"
 	"fmt"
-	"strconv"
-	"time"
 
-	"github.com/narender/common/config"
-	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-type TracerProvider = sdktrace.TracerProvider
+// Common Semantic Attribute Keys for Tracing
+// See: https://opentelemetry.io/docs/specs/semconv/general/trace/
+// And specific conventions (HTTP, DB, RPC, etc.)
+var (
+	// General
+	AttrServiceName    = semconv.ServiceNameKey
+	AttrServiceVersion = semconv.ServiceVersionKey
+	AttrDeploymentEnv  = semconv.DeploymentEnvironmentKey
 
-func newTracerProvider(ctx context.Context, res *Resource, logger *logrus.Logger) (*TracerProvider, ShutdownFunc, error) {
-	logger.Debug("Creating tracer provider...")
+	// HTTP Client/Server (subset)
+	AttrHTTPRequestMethodKey      = semconv.HTTPRequestMethodKey
+	AttrHTTPResponseStatusCodeKey = semconv.HTTPResponseStatusCodeKey
+	AttrHTTPSchemeKey             = semconv.URLSchemeKey
+	AttrHTTPTargetKey             = semconv.URLPathKey       // Or semconv.HTTPTargetKey depending on context
+	AttrHTTPRouteKey              = semconv.HTTPRouteKey     // The matched route (path template)
+	AttrNetPeerIPKey              = semconv.ClientAddressKey // Or semconv.NetPeerNameKey / semconv.ServerSocketAddressKey
+	AttrNetHostNameKey            = semconv.NetHostNameKey
+	AttrNetHostPortKey            = semconv.NetHostPortKey
+	AttrUserAgentOriginalKey      = semconv.UserAgentOriginalKey
 
-	if res == nil {
-		return nil, nil, fmt.Errorf("resource cannot be nil")
+	// Database Client (subset)
+	AttrDBSystemKey    = semconv.DBSystemKey    // e.g., "postgresql", "mysql", "redis"
+	AttrDBNameKey      = semconv.DBNameKey      // Database name
+	AttrDBStatementKey = semconv.DBStatementKey // The query text
+	AttrDBOperationKey = semconv.DBOperationKey // e.g., "SELECT", "INSERT"
+
+	// Messaging (subset)
+	AttrMessagingSystemKey          = semconv.MessagingSystemKey          // e.g., "kafka", "rabbitmq"
+	AttrMessagingDestinationNameKey = semconv.MessagingDestinationNameKey // e.g., topic or queue name
+	AttrMessagingOperationKey       = semconv.MessagingOperationKey       // e.g., "publish", "receive"
+	AttrMessagingMessageIDKey       = semconv.MessagingMessageIDKey
+
+	// Error Attributes
+	AttrExceptionTypeKey       = semconv.ExceptionTypeKey
+	AttrExceptionMessageKey    = semconv.ExceptionMessageKey
+	AttrExceptionStacktraceKey = semconv.ExceptionStacktraceKey
+)
+
+// RecordSpanError sets the span status to Error, records the error event with stacktrace,
+// and adds standard error attributes.
+// It accepts additional attributes specific to the error context.
+func RecordSpanError(span oteltrace.Span, err error, attributes ...attribute.KeyValue) {
+	if span == nil || err == nil || !span.IsRecording() {
+		return
 	}
 
-	// Create OTLP trace exporter options using the helper (pass logger)
-	exporterOpts := newOtlpTraceGrpcExporterOptions(logger)
+	// Set span status to Error
+	span.SetStatus(codes.Error, err.Error()) // Use error message for description
 
-	// Create the exporter
-	exp, err := otlptracegrpc.New(ctx, exporterOpts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create trace exporter: %w", err)
+	// Prepare attributes for the event
+	eventAttrs := []attribute.KeyValue{
+		AttrExceptionTypeKey.String(fmt.Sprintf("%T", err)), // Record the type of the error
+		AttrExceptionMessageKey.String(err.Error()),
+		// AttrExceptionStacktraceKey.String(...), // OTel Go SDK often automatically captures stacktrace with RecordError
 	}
+	eventAttrs = append(eventAttrs, attributes...) // Add any custom attributes
 
-	// Parse sample ratio
-	sampleRatio := 1.0 // Default
-	if config.OTEL_SAMPLE_RATIO != "" {
-		parsedRatio, err := strconv.ParseFloat(config.OTEL_SAMPLE_RATIO, 64)
-		if err == nil && parsedRatio >= 0.0 && parsedRatio <= 1.0 {
-			sampleRatio = parsedRatio
-		} else {
-			logger.Warnf("Invalid OTEL_SAMPLE_RATIO '%s', using default 1.0", config.OTEL_SAMPLE_RATIO)
-		}
-	}
-
-	// Parse batch timeout
-	batchTimeout := defaultOtlpBatchTimeout // Use default from exporter_options.go
-	if config.OTEL_BATCH_TIMEOUT_MS != "" {
-		parsedMs, err := strconv.ParseInt(config.OTEL_BATCH_TIMEOUT_MS, 10, 64)
-		if err == nil && parsedMs >= 0 {
-			batchTimeout = time.Duration(parsedMs) * time.Millisecond
-		} else {
-			logger.Warnf("Invalid OTEL_BATCH_TIMEOUT_MS '%s', using default %v", config.OTEL_BATCH_TIMEOUT_MS, batchTimeout)
-		}
-	}
-
-	// Create trace provider with the exporter
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp,
-			sdktrace.WithBatchTimeout(batchTimeout), // Use parsed batch timeout
-			sdktrace.WithMaxExportBatchSize(512),    // Default batch size
-		),
-		sdktrace.WithResource(res.Unwrap()),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(sampleRatio)), // Use parsed sample ratio
-	)
-
-	// Create a shutdown function that properly cleans up the tracer provider
-	shutdown := func(shutdownCtx context.Context) error {
-		logger.Debug("Shutting down tracer provider...")
-		return tp.Shutdown(shutdownCtx)
-	}
-
-	logger.Info("Tracer provider created successfully")
-	return tp, shutdown, nil
-}
-
-func GetTracer(name string) trace.Tracer {
-	return otel.Tracer(name)
+	// Record the error event on the span.
+	// The SDK's RecordError implementation often includes the stack trace automatically.
+	span.RecordError(err, oteltrace.WithAttributes(eventAttrs...))
 }

@@ -40,13 +40,9 @@ INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
 # --- Request Functions ---
 
-def make_request(product_id):
-    endpoints = [
-        (f"products/{product_id}", "GET"),
-        (f"products/{product_id}/stock", "GET"),
-    ]
-    endpoint, method = random.choice(endpoints)
-    url = f"{BASE_URL}/{endpoint}"
+def make_request(relative_endpoint, method="GET"):
+    """Makes a request to the specified relative endpoint."""
+    url = f"{BASE_URL}/{relative_endpoint}"
 
     try:
         start_time = time.time()
@@ -56,9 +52,12 @@ def make_request(product_id):
         if 200 <= response.status_code < 300:
             logging.info(f"SUCCESS: {method} {url} -> {response.status_code} ({duration:.2f}s)")
         else:
-            logging.warning(f"FAILED: {method} {url} -> {response.status_code} {response.text[:100]} ({duration:.2f}s)")
-            # Potentially add a small delay on failure
-            time.sleep(0.1)
+            # Use warning level for expected client errors (4xx), error for server errors (5xx)
+            log_level = logging.WARNING if response.status_code < 500 else logging.ERROR
+            logging.log(log_level, f"FAILED:  {method} {url} -> {response.status_code} {response.text[:100]} ({duration:.2f}s)")
+            # Potentially add a small delay on failure only for server errors
+            if response.status_code >= 500:
+                 time.sleep(0.1)
 
     except requests.exceptions.ConnectionError as e:
         logging.error(f"CONNECTION_ERROR: {method} {url} -> {e}")
@@ -71,17 +70,20 @@ def make_request(product_id):
         time.sleep(0.2) # General request error delay
 
 def get_all_products():
-    make_request(random.choice(known_product_ids))
+    """Requests the list of all products."""
+    make_request("products") # Hit the base products endpoint
 
-def get_product_by_id(product_id, expected_status=200):
-    make_request(product_id)
+def get_product_by_id(product_id):
+    """Requests a specific product by its ID."""
+    make_request(f"products/{product_id}")
 
-def get_product_stock(product_id, expected_status=200):
-    make_request(product_id)
+def get_product_stock(product_id):
+    """Requests the stock for a specific product."""
+    make_request(f"products/{product_id}/stock")
 
 def hit_invalid_path():
-    url = f"{PRODUCTS_ENDPOINT}/some/invalid/path/{uuid.uuid4()}"
-    make_request(INVALID_FORMAT_PRODUCT_ID)
+    """Hits a deliberately non-existent path."""
+    make_request(f"some/invalid/path/{uuid.uuid4()}")
 
 # --- Simulation Worker ---
 
@@ -103,20 +105,20 @@ def worker(worker_id):
                 get_all_products()
             elif action_type == 'get_one_ok':
                 # Use IDs loaded from data.json
-                get_product_by_id(random.choice(known_product_ids), expected_status=200)
+                get_product_by_id(random.choice(known_product_ids))
             elif action_type == 'get_one_404':
-                get_product_by_id(NON_EXISTING_PRODUCT_ID, expected_status=404)
+                get_product_by_id(NON_EXISTING_PRODUCT_ID)
             elif action_type == 'get_one_invalid':
                 # Expected 404 based on Fiber routing for invalid path param format
-                get_product_by_id(INVALID_FORMAT_PRODUCT_ID, expected_status=404)
+                get_product_by_id(INVALID_FORMAT_PRODUCT_ID)
             elif action_type == 'get_stock_ok':
                 # Use IDs loaded from data.json
-                get_product_stock(random.choice(known_product_ids), expected_status=200)
+                get_product_stock(random.choice(known_product_ids))
             elif action_type == 'get_stock_404':
-                get_product_stock(NON_EXISTING_PRODUCT_ID, expected_status=404)
+                get_product_stock(NON_EXISTING_PRODUCT_ID)
             elif action_type == 'get_stock_invalid':
                 # Expected 404 based on Fiber routing for invalid path param format
-                get_product_stock(INVALID_FORMAT_PRODUCT_ID, expected_status=404)
+                get_product_stock(INVALID_FORMAT_PRODUCT_ID)
             elif action_type == 'bad_path':
                 hit_invalid_path()
 

@@ -11,7 +11,9 @@ networks:
 services:
   # --- Product Service (Your Application) ---
   product-service:
-    image: local/product-service:latest # Assuming image is built externally (e.g., via ko, Make)
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
     container_name: product-service
     ports:
       - "8082:8082"
@@ -19,6 +21,8 @@ services:
       - signoz-net
     env_file:
       - .env # OTEL_EXPORTER_OTLP_ENDPOINT should point to external SigNoz instance
+    volumes:
+      - ./product-service/data.json:/app/data.json:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
@@ -39,10 +43,11 @@ services:
     build:
       context: ./tests
       dockerfile: Dockerfile
-    container_name: product-simulator
     depends_on:
       product-service:
         condition: service_healthy # Wait for product-service to be healthy
+    env_file:
+      - .env
     networks:
       - signoz-net
     deploy:

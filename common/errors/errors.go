@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 	ErrTimeout             = errors.New("timeout")
 	ErrTooManyRequests     = errors.New("too many requests")
 	ErrUnprocessableEntity = errors.New("unprocessable entity")
+	ErrDBConnection        = errors.New("database connection error")
 )
 
 var standardErrorToStatusCode = map[error]int{
@@ -31,14 +34,16 @@ var standardErrorToStatusCode = map[error]int{
 	ErrTimeout:             http.StatusGatewayTimeout,
 	ErrTooManyRequests:     http.StatusTooManyRequests,
 	ErrUnprocessableEntity: http.StatusUnprocessableEntity,
+	ErrDBConnection:        http.StatusServiceUnavailable,
 	// Note: ErrInternalServer is handled by the default case below
 }
 
 type AppError struct {
-	Err        error
-	StatusCode int
-	Message    string
-	Context    map[string]interface{}
+	Err         error                  `json:"-"`
+	StatusCode  int                    `json:"statusCode"`
+	Message     string                 `json:"message"`
+	UserMessage string                 `json:"userMessage,omitempty"`
+	Context     map[string]interface{} `json:"context,omitempty"`
 }
 
 func (e *AppError) Error() string {
@@ -48,7 +53,10 @@ func (e *AppError) Error() string {
 	if e.Err != nil {
 		return e.Err.Error()
 	}
-	return "unknown error"
+	if e.UserMessage != "" {
+		return e.UserMessage
+	}
+	return "An unexpected error occurred"
 }
 
 func (e *AppError) Unwrap() error {
@@ -71,34 +79,57 @@ func New(err error, statusCode int, message string) *AppError {
 	}
 }
 
-func Wrap(err error, message string) error {
+func Wrap(err error, statusCode int, message string) *AppError {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("%s: %w", message, err)
+	return &AppError{
+		Err:        err,
+		StatusCode: statusCode,
+		Message:    message,
+	}
+}
+
+func Wrapf(err error, statusCode int, format string, args ...interface{}) *AppError {
+	if err == nil {
+		return nil
+	}
+	return &AppError{
+		Err:        err,
+		StatusCode: statusCode,
+		Message:    fmt.Sprintf(format, args...),
+	}
+}
+
+func (e *AppError) WithUserMessage(userMessage string) *AppError {
+	e.UserMessage = userMessage
+	return e
 }
 
 func NotFound(message string) *AppError {
 	return &AppError{
-		Err:        ErrNotFound,
-		StatusCode: http.StatusNotFound,
-		Message:    message,
+		Err:         ErrNotFound,
+		StatusCode:  http.StatusNotFound,
+		Message:     message,
+		UserMessage: message,
 	}
 }
 
 func BadRequest(message string) *AppError {
 	return &AppError{
-		Err:        ErrBadRequest,
-		StatusCode: http.StatusBadRequest,
-		Message:    message,
+		Err:         ErrBadRequest,
+		StatusCode:  http.StatusBadRequest,
+		Message:     message,
+		UserMessage: message,
 	}
 }
 
 func InternalServer(err error) *AppError {
 	return &AppError{
-		Err:        err,
-		StatusCode: http.StatusInternalServerError,
-		Message:    "Internal server error",
+		Err:         err,
+		StatusCode:  http.StatusInternalServerError,
+		Message:     fmt.Sprintf("Internal server error: %v", err),
+		UserMessage: "An internal server error occurred. Please try again later.",
 	}
 }
 
@@ -107,26 +138,35 @@ func ToStatusCode(err error) int {
 		return http.StatusOK
 	}
 
+	// --- Check for fiber.Error first (specifically NotFound) ---
+	var fiberErr *fiber.Error
+	if errors.As(err, &fiberErr) {
+		if fiberErr.Code == http.StatusNotFound {
+			return http.StatusNotFound
+		}
+		// Potentially handle other fiber errors here if needed
+		// return fiberErr.Code // Or map specific fiber codes
+	}
+	// --- End fiber error check ---
+
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr.StatusCode
 	}
 
-	// Check against the standard error map
 	for stdErr, statusCode := range standardErrorToStatusCode {
 		if errors.Is(err, stdErr) {
 			return statusCode
 		}
 	}
 
-	// Default to internal server error for unmapped errors
+	// Default to 500 for unhandled/unmapped errors
 	return http.StatusInternalServerError
 }
 
-
 type ValidationError struct {
-	Field   string // Optional field name
-	Message string // Specific validation message
+	Field   string
+	Message string
 }
 
 func (e *ValidationError) Error() string {
@@ -137,15 +177,14 @@ func (e *ValidationError) Error() string {
 }
 
 type DatabaseError struct {
-	Operation string // Description of the operation (e.g., "read", "unmarshal")
-	Err       error  // Underlying driver/database/file error
+	Operation string
+	Err       error
 }
 
 func (e *DatabaseError) Error() string {
-	return fmt.Sprintf("database error during %s: %v", e.Operation, e.Err)
+	return fmt.Sprintf("database error during %s operation: %v", e.Operation, e.Err)
 }
 
 func (e *DatabaseError) Unwrap() error {
 	return e.Err
 }
-

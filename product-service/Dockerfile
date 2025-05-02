@@ -10,6 +10,7 @@ WORKDIR /build
 
 # --- Dependency Resolution ---
 # Copy ONLY the necessary go.mod/go.sum files first to leverage build cache
+# Paths are now relative to the project root context defined in docker-compose.yml
 COPY common/go.mod common/go.sum ./common/
 COPY product-service/go.mod product-service/go.sum ./product-service/
 
@@ -33,7 +34,8 @@ RUN go mod download
 WORKDIR /build
 COPY common/ ./common/
 # Copy product-service source
-COPY product-service/src ./product-service/src
+# The source code is inside product-service/src in the project root
+COPY product-service/src ./product-service/src/
 # Optionally copy other necessary files like templates, assets etc. for product-service
 
 # --- Build ---
@@ -42,6 +44,7 @@ WORKDIR /build/product-service
 # Use CGO_ENABLED=0 for static linking (good for Alpine)
 # Use -ldflags="-w -s" to strip debug symbols for smaller binary
 # Output the binary to a known location for the final stage
+# The source entrypoint is now ./src relative to /build/product-service
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/product-service ./src
 # If using vendor: go build -mod=vendor ...
 
@@ -60,6 +63,9 @@ WORKDIR /app
 
 # Copy ONLY the compiled binary from the builder stage
 COPY --from=builder /app/product-service /app/product-service
+
+# Change ownership of the working directory to the non-root user
+RUN chown appuser:appgroup /app
 
 # DO NOT copy data.json here. It will be mounted as a volume via docker-compose.
 
