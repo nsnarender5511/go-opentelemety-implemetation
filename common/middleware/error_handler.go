@@ -9,12 +9,14 @@ import (
 	_ "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	commonErrors "github.com/narender/common/errors"
+	"github.com/narender/common/logging"
 	"github.com/narender/common/telemetry/attributes"
 	"github.com/narender/common/telemetry/metric"
 	"github.com/narender/common/telemetry/trace"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type ErrorResponse struct {
@@ -23,14 +25,14 @@ type ErrorResponse struct {
 	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
-func NewErrorHandler(logger *logrus.Logger, metrics *metric.HTTPMetrics) fiber.ErrorHandler {
+func NewErrorHandler(baseLogger *zap.Logger, metrics *metric.HTTPMetrics) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		statusCode := http.StatusInternalServerError
 		userMessage := "An unexpected error occurred. Please try again later."
 		internalMessage := err.Error()
 		var details map[string]interface{}
 		errorType := commonErrors.TypeUnknown
-		logLevel := logrus.ErrorLevel
+		logLevel := zapcore.ErrorLevel
 		var appErr *commonErrors.AppError
 		var fiberErr *fiber.Error
 		var validationErr *commonErrors.ValidationError
@@ -77,14 +79,19 @@ func NewErrorHandler(logger *logrus.Logger, metrics *metric.HTTPMetrics) fiber.E
 		}
 
 		if statusCode >= 400 && statusCode < 500 {
-			logLevel = logrus.WarnLevel
+			logLevel = zapcore.WarnLevel
 		} else if statusCode >= 500 {
-			logLevel = logrus.ErrorLevel
+			logLevel = zapcore.ErrorLevel
 		}
 
-		span := oteltrace.SpanFromContext(c.UserContext())
+		ctx := c.UserContext()
+		span := oteltrace.SpanFromContext(ctx)
 		if span != nil && span.IsRecording() {
 			trace.RecordSpanError(span, err)
+			span.SetAttributes(
+				attribute.String("error.message", internalMessage),
+				attribute.Int("error.type", int(errorType)),
+			)
 		}
 
 		if metrics != nil {
@@ -94,27 +101,29 @@ func NewErrorHandler(logger *logrus.Logger, metrics *metric.HTTPMetrics) fiber.E
 				attributes.HTTPStatusCodeKey.Int(statusCode),
 			}
 
-			metrics.RecordHTTPRequestDuration(c.UserContext(), 0*time.Second, attrs...)
+			metrics.RecordHTTPRequestDuration(ctx, 0*time.Second, attrs...)
 		}
 
-		entry := logger.WithFields(logrus.Fields{
-			"error":           internalMessage,
-			"error_type":      fmt.Sprintf("%d", errorType),
-			"status_code":     statusCode,
-			"user_message":    userMessage,
-			"method":          c.Method(),
-			"path":            c.Path(),
-			"ip":              c.IP(),
-			"route":           c.Route().Path,
-			"request_details": details,
-		})
-		if span != nil && span.SpanContext().IsValid() {
-			entry = entry.WithFields(logrus.Fields{
-				"trace_id": span.SpanContext().TraceID().String(),
-				"span_id":  span.SpanContext().SpanID().String(),
-			})
+		logger := logging.LoggerFromContext(ctx)
+
+		zapFields := []zap.Field{
+			zap.Error(err),
+			zap.String("internal_message", internalMessage),
+			zap.Int("error_type", int(errorType)),
+			zap.Int("status_code", statusCode),
+			zap.String("user_message", userMessage),
+			zap.String("method", c.Method()),
+			zap.String("path", c.Path()),
+			zap.String("ip", c.IP()),
+			zap.String("route", c.Route().Path),
+			zap.Any("request_details", details),
 		}
-		entry.Log(logLevel, fmt.Sprintf("%s %s resulted in %d: %s", c.Method(), c.Path(), statusCode, internalMessage))
+
+		logMessage := fmt.Sprintf("HTTP Error: %s %s -> %d", c.Method(), c.Path(), statusCode)
+
+		if ce := logger.Check(logLevel, logMessage); ce != nil {
+			ce.Write(zapFields...)
+		}
 
 		resp := ErrorResponse{
 			StatusCode: statusCode,

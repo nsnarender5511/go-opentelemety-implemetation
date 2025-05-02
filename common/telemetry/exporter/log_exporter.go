@@ -5,14 +5,16 @@ import (
 	"fmt"
 
 	"github.com/narender/common/config"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	logSdk "go.opentelemetry.io/otel/sdk/log"
+	"go.uber.org/zap"
 )
 
-func NewLogExporter(ctx context.Context, cfg *config.Config, logger *logrus.Logger) (logSdk.Exporter, error) {
+func NewLogExporter(ctx context.Context, cfg *config.Config, logger *zap.Logger) (logSdk.Exporter, error) {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 
-	// Construct options directly for the standard exporter
 	opts := []otlploggrpc.Option{
 		otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
 		otlploggrpc.WithTimeout(cfg.OtelExporterOtlpTimeout),
@@ -29,11 +31,9 @@ func NewLogExporter(ctx context.Context, cfg *config.Config, logger *logrus.Logg
 		opts = append(opts, otlploggrpc.WithHeaders(cfg.OtelExporterOtlpHeaders))
 	}
 
-	// Add other options like retry, compression if configured in cfg
-
 	logExporter, err := otlploggrpc.New(ctx, opts...)
 	if err != nil {
-		logger.Errorf("Failed to create OTLP log exporter client: %v", err)
+		logger.Error("Failed to create OTLP log exporter client", zap.Error(err))
 		return nil, fmt.Errorf("failed to create OTLP log exporter client: %w", err)
 	}
 

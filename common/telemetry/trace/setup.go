@@ -7,6 +7,7 @@ import (
 	"github.com/narender/common/telemetry/manager"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.uber.org/zap"
 )
 
 func NewSampler(cfg *config.Config) sdktrace.Sampler {
@@ -14,7 +15,7 @@ func NewSampler(cfg *config.Config) sdktrace.Sampler {
 	samplerType := cfg.OtelSamplerType
 	ratio := cfg.OtelSampleRatio
 
-	log.Infof("Configuring OTel sampler type: %s", samplerType)
+	log.Info("Configuring OTel sampler", zap.String("type", samplerType), zap.Float64("ratio", ratio))
 
 	switch samplerType {
 	case "always_on":
@@ -24,13 +25,17 @@ func NewSampler(cfg *config.Config) sdktrace.Sampler {
 		log.Info("Using NeverSample sampler.")
 		return sdktrace.NeverSample()
 	case "traceidratio":
-		log.Infof("Using TraceIDRatioBased sampler with ratio: %.2f", ratio)
+		log.Info("Using TraceIDRatioBased sampler", zap.Float64("ratio", ratio))
 		return sdktrace.TraceIDRatioBased(ratio)
 	case "parentbased_traceidratio":
-		log.Infof("Using ParentBased(TraceIDRatioBased) sampler with ratio: %.2f", ratio)
+		log.Info("Using ParentBased(TraceIDRatioBased) sampler", zap.Float64("ratio", ratio))
 		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
 	default:
-		log.Warnf("Invalid sampler type '%s' received, defaulting to parentbased_traceidratio with ratio: %.2f", samplerType, ratio)
+		log.Warn("Invalid sampler type received, defaulting",
+			zap.String("invalid_type", samplerType),
+			zap.String("default_type", "parentbased_traceidratio"),
+			zap.Float64("ratio", ratio),
+		)
 		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
 	}
 }

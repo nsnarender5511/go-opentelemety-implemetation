@@ -5,7 +5,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-// Common Semantic Convention attribute keys re-exported for convenience within this package.
+
 var (
 	DBSystemKey         = semconv.DBSystemKey
 	DBOperationKey      = semconv.DBOperationKey
@@ -21,7 +21,7 @@ var (
 	ExceptionMessageKey = semconv.ExceptionMessageKey
 	ExceptionTypeKey    = semconv.ExceptionTypeKey
 
-	// Custom application-specific attribute keys.
+	
 	AttrDBFilePathKey      = attribute.Key("db.file.path")
 	AttrAppProductIDKey    = attribute.Key("app.product.id")
 	AttrProductNewStockKey = attribute.Key("product.new_stock")

@@ -5,6 +5,7 @@ import (
 
 	"github.com/narender/common/telemetry/manager"
 	otelmetric "go.opentelemetry.io/otel/metric"
+	"go.uber.org/zap"
 )
 
 const (
@@ -12,14 +13,10 @@ const (
 	productStock               = "product.stock"
 )
 
-/*
-var (
-	AttrAppProductIDKey = semconv.AppProductIDKey
-)
-*/
 
-// DefineProductStockGauge defines the observable gauge for product stock.
-// It returns the instrument so the application can register its own callback.
+
+
+
 func DefineProductStockGauge() (otelmetric.Int64ObservableGauge, error) {
 	meter := manager.GetMeter(ProductInstrumentationName)
 	logger := manager.GetLogger()
@@ -30,9 +27,9 @@ func DefineProductStockGauge() (otelmetric.Int64ObservableGauge, error) {
 		otelmetric.WithUnit("{items}"),
 	)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create product.stock gauge")
+		logger.Error("Failed to create product.stock gauge", zap.Error(err))
 		return nil, fmt.Errorf("failed to create %s gauge: %w", productStock, err)
 	}
-	logger.Infof("Defined %s observable gauge.", productStock)
+	logger.Info("Defined observable gauge", zap.String("gauge_name", productStock))
 	return stockGauge, nil
 }

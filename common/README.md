@@ -8,9 +8,9 @@ The `common` module is organized into the following sub-packages:
 
 1.  [config](#config): Environment variable loading and configuration management.
 2.  [errors](#errors): Standardized application error types and handling.
-3.  [logging](#logging): Application logging setup (currently using Logrus).
-4.  [middleware](#middleware): Reusable HTTP middleware (e.g., error handling).
-5.  [telemetry](#telemetry): OpenTelemetry setup and instrumentation (traces, metrics, logs).
+3.  [logging](#logging): Application logging setup (using Zap) and context propagation.
+4.  [middleware](#middleware): Reusable HTTP middleware (e.g., error handling, request logging, context logger).
+5.  [telemetry](#telemetry): OpenTelemetry setup and instrumentation (traces, metrics, logs), including common wrappers.
 
 ---
 
@@ -102,49 +102,71 @@ Use `NewAppError` or specific constructors like `WrapDatabaseError` to create st
 
 ### `logging`
 
-**Purpose:** Initializes the application's primary logger (Logrus).
+**Purpose:** Initializes the application's primary Zap logger and provides helpers for injecting/retrieving a logger from `context.Context`.
 
 **Usage:**
 
-1.  Initialize the logger early in application startup (often done within `telemetry.InitTelemetry`):
+1.  Initialize the logger early in application startup (typically done within `telemetry.InitTelemetry` which calls `logging.InitZapLogger`):
 
     ```go
-    // Typically called inside InitTelemetry, but can be called directly if needed earlier
-    logger := logging.SetupLogrus(cfg)
-    logger.Info("Application starting...")
+    // Inside telemetry.InitTelemetry:
+    baseLogger, err := logging.InitZapLogger(cfg)
+    if err != nil {
+        // Handle error (InitZapLogger logs internally)
+        return nil, fmt.Errorf("failed to initialize base logger: %w", err)
+    }
+    // The baseLogger is stored globally via manager.InitializeGlobalManager
     ```
 
-2.  Access the configured global logger via the `telemetry/manager`:
+2.  Inject a request-scoped logger into context using `middleware.ContextLoggerMiddleware` (see [middleware](#middleware) section).
+
+3.  Access the context-aware logger within handlers or service functions:
 
     ```go
-    package main
+    package service
 
+    import (
+        "context"
+        "github.com/narender/common/logging"
+        "go.uber.org/zap"
+    )
+
+    func doSomething(ctx context.Context) {
+        logger := logging.LoggerFromContext(ctx) // Retrieves logger with trace context
+        logger.Info("User performed action", zap.Int("user_id", 123))
+    }
+    ```
+
+4.  Access the base global logger (if context is unavailable, use sparingly):
+
+    ```go
     import "github.com/narender/common/telemetry/manager"
 
-    func doSomething() {
-        logger := manager.GetLogger()
-        logger.WithField("user_id", 123).Info("User performed action")
+    func backgroundTask() {
+        logger := manager.GetLogger() // Gets the base logger
+        logger.Info("Running background task")
     }
     ```
 
 **Explanation:**
-`SetupLogrus` configures a Logrus instance based on the `Config` (level, format). The globally accessible instance can then be retrieved using `manager.GetLogger()` throughout the application.
+`InitZapLogger` configures a Zap instance based on `Config` (level, encoding). `ContextLoggerMiddleware` adds trace/span IDs to a cloned logger and injects it into the request's context. `LoggerFromContext` retrieves this enhanced logger. `manager.GetLogger()` provides access to the base logger instance.
 
 ---
 
 ### `middleware`
 
-**Purpose:** Provides reusable HTTP middleware for common cross-cutting concerns.
+**Purpose:** Provides reusable HTTP middleware for common cross-cutting concerns like error handling, request logging, and injecting the context logger.
 
 **Usage (Example with Fiber):**
 
-1.  Register the `ErrorHandler` middleware:
+1.  Register the middleware in the correct order:
 
     ```go
     package main
 
     import (
         "github.com/gofiber/fiber/v2"
+        otelfiber "github.com/gofiber/contrib/otelfiber/v2"
         "github.com/narender/common/middleware"
         "github.com/narender/common/telemetry/manager"
         // ... other imports
@@ -152,13 +174,23 @@ Use `NewAppError` or specific constructors like `WrapDatabaseError` to create st
 
     func main() {
         // ... config loading, telemetry init ...
-        logger := manager.GetLogger()
-        // httpMetrics should be initialized if metrics are needed by the handler
-        // httpMetrics, _ := metric.NewHTTPMetrics()
+        baseLogger := manager.GetLogger()
 
         app := fiber.New(fiber.Config{
-            ErrorHandler: middleware.NewErrorHandler(logger, nil), // Pass logger, and optionally metrics
+            // ErrorHandler uses LoggerFromContext if request context is available,
+            // otherwise falls back to the provided baseLogger.
+            ErrorHandler: middleware.NewErrorHandler(baseLogger, nil), // Pass base logger for fallback
         })
+
+        // 1. OTel Middleware (adds trace info to context)
+        app.Use(otelfiber.Middleware(otelfiber.WithServerName(cfg.ServiceName)))
+
+        // 2. ContextLogger Middleware (adds trace-aware logger to context)
+        //    MUST run AFTER OTel middleware
+        app.Use(middleware.ContextLoggerMiddleware(baseLogger))
+
+        // 3. RequestLogger Middleware (uses logger from context)
+        app.Use(middleware.NewRequestLogger())
 
         // ... setup routes ...
 
@@ -167,13 +199,16 @@ Use `NewAppError` or specific constructors like `WrapDatabaseError` to create st
     ```
 
 **Explanation:**
-The `NewErrorHandler` creates a Fiber-compatible error handler. It intercepts errors returned from route handlers. If the error is an `errors.AppError` (or similar), it uses the structured information to create an appropriate JSON error response and logs the details. Otherwise, it treats it as a generic internal server error.
+-   `otelfiber.Middleware`: Instruments requests, adding trace information to the `context.Context`.
+-   `ContextLoggerMiddleware`: Clones the `baseLogger`, extracts trace/span IDs from the context (populated by the OTel middleware), adds them to the cloned logger's fields, and injects this *new* logger instance back into the context using `logging.NewContextWithLogger`.
+-   `RequestLogger`: Retrieves the logger *from the context* using `logging.LoggerFromContext` and logs request/response details. Because it runs *after* `ContextLoggerMiddleware`, the logger it gets includes trace IDs.
+-   `ErrorHandler`: Tries to get the logger from context first. If an error occurs very early (before context logger is set) or outside a request context, it uses the `baseLogger` provided during initialization.
 
 ---
 
 ### `telemetry`
 
-**Purpose:** Configures and manages OpenTelemetry instrumentation (tracing, metrics, logging). Provides accessors for obtaining Tracers and Meters.
+**Purpose:** Configures and manages OpenTelemetry instrumentation (tracing, metrics, logging). Provides accessors (`manager`) and common wrappers (`trace`, `metric`) for simplified instrumentation.
 
 **Usage:**
 
@@ -211,68 +246,60 @@ The `NewErrorHandler` creates a Fiber-compatible error handler. It intercepts er
     }
     ```
 
-2.  Get a Tracer and start a span:
+2.  Start spans using the common wrapper:
 
     ```go
     package service
 
     import (
         "context"
-        "github.com/narender/common/telemetry/manager"
+        "time"
+        "github.com/narender/common/logging" // For logger from context
+        "github.com/narender/common/telemetry/trace" // For StartSpan
+        "github.com/narender/common/telemetry/metric" // For RecordOperationMetrics
+        "go.opentelemetry.io/otel/attribute"
     )
 
-    const tracerName = "my-service-tracer" // Or use a more specific name
+    const serviceLayerName = "service"
+    const serviceScopeName = "github.com/user/myapp/service"
 
-    func ProcessRequest(ctx context.Context, data string) error {
-        tracer := manager.GetTracer(tracerName) // Get the global tracer
-        ctx, span := tracer.Start(ctx, "ProcessRequest")
+    func ProcessRequest(ctx context.Context, data string) (err error) {
+        logger := logging.LoggerFromContext(ctx)
+        startTime := time.Now()
+        operation := "ProcessRequest"
+
+        // Use the wrapper to start the span
+        ctx, span := trace.StartSpan(ctx, serviceScopeName, operation, attribute.String("data.size", fmt.Sprintf("%d", len(data))))
         defer span.End()
 
+        // Use the wrapper to record metrics (defer AFTER span end)
+        defer func() {
+             metric.RecordOperationMetrics(ctx, serviceLayerName, operation, startTime, err, attribute.String("data.size", fmt.Sprintf("%d", len(data))))
+        }()
+
+        logger.Info("Processing request...")
         // ... perform processing ...
 
-        span.SetAttributes(attribute.String("app.data.size", fmt.Sprintf("%d", len(data))))
-
-        // ... handle errors and potentially record them on the span ...
         // if err != nil {
-        //     trace.RecordSpanError(span, err) // Using trace package utility
-        //     return err
+        //     span.RecordError(err) // Use span directly for errors
+        //     span.SetStatus(codes.Error, err.Error())
+        //     logger.Error("Processing failed", zap.Error(err))
+        //     return err // opErr in defer will capture this
         // }
 
-        return nil
+        logger.Info("Processing successful")
+        return nil // opErr in defer will be nil
     }
     ```
 
-3.  Get a Meter and record a metric (example using HTTP metrics):
+3.  Record metrics using the common wrapper (shown in the span example above with `RecordOperationMetrics`).
 
-    ```go
-    package middleware // Example usage in middleware
+4.  Logging is handled via `logging.LoggerFromContext` (shown above), automatically correlating with traces thanks to `middleware.ContextLoggerMiddleware`.
 
-    import (
-        "github.com/narender/common/telemetry/metric"
-        "github.com/narender/common/telemetry/attributes"
-        "go.opentelemetry.io/otel/attribute"
-        // ... other imports
-    )
+5.  Automatic HTTP instrumentation is typically handled by framework-specific middleware like `otelfiber` (shown in the [middleware](#middleware) section) rather than the generic `instrumentation.NewHTTPHandler` unless using `net/http` directly.
 
-    // Assuming httpMetrics were initialized and passed to where needed
-    var httpMetrics *metric.HTTPMetrics
-
-    func observeRequest(c *fiber.Ctx) {
-         start := time.Now()
-         // ... handle request ...
-         duration := time.Since(start)
-         statusCode := c.Response().StatusCode()
-
-         if httpMetrics != nil {
-             attrs := []attribute.KeyValue{
-                 attributes.HTTPMethodKey.String(c.Method()),
-                 attributes.HTTPRouteKey.String(c.Route().Path),
-                 attributes.HTTPStatusCodeKey.Int(statusCode),
-             }
-             httpMetrics.RecordHTTPRequestDuration(c.UserContext(), duration, attrs...)
-         }
-    }
-    ```
+**Explanation:**
+`InitTelemetry` sets up the SDK. `manager` provides global accessors. `trace.StartSpan` simplifies creating spans with the correct tracer. `metric.RecordOperationMetrics` standardizes duration, count, and error metrics. Logging uses Zap via `logging.LoggerFromContext` for automatic trace correlation.
 
 4.  Wrap an HTTP handler for automatic tracing (using `instrumentation` package):
 

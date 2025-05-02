@@ -17,8 +17,8 @@ This project has been enhanced with comprehensive OpenTelemetry integration for 
    - Endpoint information
 
 3. **Structured Logging with Trace Context**
-   - Log correlation with trace IDs
-   - JSON-formatted logs for better querying
+   - Log correlation with trace IDs (via `ContextLoggerMiddleware`)
+   - JSON-formatted logs using Zap
    - Proper log levels for different scenarios
 
 
@@ -47,9 +47,9 @@ This project demonstrates the integration of OpenTelemetry with SigNoz for compl
 ## Features
 
 - **Complete OpenTelemetry Integration** - Automatic instrumentation of HTTP requests, database calls, and service operations
-- **Custom Span Creation** - Utilities for manual span creation and enrichment
-- **Metric Recording** - Framework for capturing business and operational metrics
-- **Structured Logging** - Integrated with OpenTelemetry for correlation with traces
+- **Custom Span Creation** - Common wrappers (`trace.StartSpan`) for manual span creation and enrichment
+- **Metric Recording** - Common wrappers (`metric.RecordOperationMetrics`) for capturing standard operational metrics
+- **Structured Logging** - Using Zap, integrated with OpenTelemetry for correlation with traces via middleware
 - **Graceful Shutdown** - Clean termination of services with telemetry flushing
 - **Containerization** - Docker and Docker Compose setup for easy deployment
 
@@ -93,110 +93,110 @@ The `common` module is designed to be easily integrated into any service. Here's
        "context"
 
        "github.com/narender/common/config"
-       "github.com/narender/common/lifecycle"
-       "github.com/narender/common/otel"
+       "github.com/narender/common/logging" // For logger context access
+       "github.com/narender/common/middleware" // For context logger middleware
+       "github.com/narender/common/telemetry" // For initialization
+       "github.com/narender/common/telemetry/manager" // For global accessors
+       "github.com/narender/common/telemetry/trace" // For StartSpan wrapper
+       "github.com/narender/common/telemetry/metric" // For RecordOperationMetrics wrapper
 
-       "github.com/sirupsen/logrus"
+       "go.uber.org/zap" // Zap logger
    )
    ```
 
-2. Initialize telemetry in your service using the builder pattern:
+2. Initialize telemetry in your service:
    ```go
    // Load configuration
    cfg, err := config.LoadConfig(".") // Or appropriate path
    if err != nil {
-       logrus.Fatalf("Failed to load configuration: %v", err)
+       // Use a temporary basic logger or panic if config is critical
+       log.Fatalf("Failed to load configuration: %v", err)
    }
 
-   // Create a logger instance (consider using common/logging setup if available)
-   logger := logrus.New()
-   level, _ := logrus.ParseLevel(cfg.LogLevel)
-   logger.SetLevel(level)
-   logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
-
-   // Use the OTel setup builder
-   otelSetup := otel.NewSetup(cfg, logger)
-
-   // Create the resource
-   res, err := otelSetup.NewResource(context.Background(), cfg.ServiceName, cfg.ServiceVersion) // Add ServiceVersion to config if needed
+   // Initialize the full telemetry stack (includes base Zap logger setup)
+   shutdown, err := telemetry.InitTelemetry(context.Background(), cfg)
    if err != nil {
-       logger.Fatalf("Failed to create OpenTelemetry resource: %v", err)
+       // InitTelemetry handles its own logging on failure
+       log.Fatalf("Failed to initialize telemetry: %v", err)
    }
-
-   // Build the telemetry stack (tracing, metrics, logging)
-   shutdownFuncs, err := otelSetup.Build(context.Background(), res)
-   if err != nil {
-       logger.Fatalf("Failed to build OpenTelemetry stack: %v", err)
-   }
-
-   // Combine shutdown functions
-   otelShutdown := func(ctx context.Context) error {
-       var combinedErr error
-       for _, fn := range shutdownFuncs {
-           if err := fn(ctx); err != nil {
-               combinedErr = fmt.Errorf("%w; %v", combinedErr, err) // Combine errors
-           }
+   // Ensure graceful shutdown is handled (e.g., using common/lifecycle)
+   defer func() {
+       if err := shutdown(context.Background()); err != nil {
+           log.Printf("Error shutting down telemetry: %v", err)
        }
-       return combinedErr
+   }()
+
+   // Get the initialized base logger if needed directly (rarely)
+   baseLogger := manager.GetLogger()
+   baseLogger.Info("Telemetry initialized successfully")
+   ```
+
+3. Set up middleware (e.g., for Fiber):
+   ```go
+   import "github.com/gofiber/fiber/v2"
+   import otelfiber "github.com/gofiber/contrib/otelfiber/v2"
+
+   app := fiber.New()
+
+   // 1. OTel middleware (adds trace info to context)
+   app.Use(otelfiber.Middleware(otelfiber.WithServerName(cfg.ServiceName)))
+
+   // 2. Context Logger middleware (adds trace-aware logger to context)
+   //    Must run AFTER OTel middleware
+   app.Use(middleware.ContextLoggerMiddleware(baseLogger))
+
+   // 3. Request Logger (uses logger from context)
+   app.Use(middleware.NewRequestLogger())
+
+   // 4. Error Handler (uses logger from context)
+   app.ErrorHandler = middleware.NewErrorHandler(baseLogger, nil) // Base logger for unhandled routes
+   ```
+
+4. Create custom spans using the common wrapper:
+   ```go
+   import "go.opentelemetry.io/otel/attribute"
+
+   func myOperation(ctx context.Context) (err error) {
+       // Get logger from context (it will have trace IDs!)
+       logger := logging.LoggerFromContext(ctx)
+
+       // Use common span wrapper
+       ctx, span := trace.StartSpan(ctx, "myScope", "myOperation", attribute.String("key", "value"))
+       defer span.End() // Ensure span is ended
+
+       // Record metrics using common wrapper (defer AFTER span.End)
+       startTime := time.Now()
+       defer func() {
+           // Pass the error (opErr) to the metrics recorder
+           metric.RecordOperationMetrics(ctx, "myLayer", "myOperation", startTime, err, attribute.String("key", "value"))
+       }()
+
+       logger.Info("Starting operation", zap.String("some_field", "some_value"))
+
+       // ... perform operation ...
+       // if err != nil {
+       //    span.RecordError(err) // Record error on span
+       //    span.SetStatus(codes.Error, err.Error())
+       //    logger.Error("Operation failed", zap.Error(err))
+       //    return err // Return the error for metric recording
+       // }
+
+       logger.Info("Operation successful")
+       return nil // Ensure opErr is nil for metric recording on success
    }
    ```
 
-3. Set up graceful shutdown:
+5. Logging with trace context:
    ```go
-   // For Fiber apps
-   // lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.FiberShutdownAdapter{App: app}, otelShutdown)
+   func handleRequest(ctx context.Context) {
+       // Retrieve the request-scoped logger from context
+       logger := logging.LoggerFromContext(ctx)
 
-   // For standard HTTP server
-   // server := &http.Server{...}
-   // lifecycle.WaitForGracefulShutdown(context.Background(), &lifecycle.HTTPShutdownAdapter{Server: server}, otelShutdown)
+       // This log automatically includes trace_id and span_id if available in ctx
+       logger.Info("Processing request", zap.String("request_id", "xyz"))
 
-   // Example: Simple wait
-   lifecycle.WaitForSignal(context.Background(), otelShutdown)
-   ```
-
-4. Create custom spans for important operations:
-   ```go
-   // Get a tracer
-   tracer := otel.GetTracer("your-instrumentation-name")
-   ctx, span := tracer.Start(ctx, "operation-name")
-   defer span.End()
-
-   // Add attributes to the span
-   span.SetAttributes(attribute.String("key", "value"))
-   ```
-
-5. Record metrics:
-   ```go
-   // Get a meter
-   meter := otel.GetMeter("your-instrumentation-name")
-
-   // Create a counter
-   counter, err := meter.Int64Counter("requests.total")
-   if err != nil {
-       logger.Errorf("Failed to create counter: %v", err)
+       // ... call other functions passing ctx ...
    }
-   if counter != nil {
-       counter.Add(ctx, 1, metric.WithAttributes(attribute.String("endpoint", "/api/products")))
-   }
-
-   // Record timing data (example using histogram)
-   histogram, err := meter.Int64Histogram("operation.duration.ms")
-   if err != nil {
-        logger.Errorf("Failed to create histogram: %v", err)
-   }
-   start := time.Now()
-   // ... do work ...
-   durationMs := time.Since(start).Milliseconds()
-   if histogram != nil {
-       histogram.Record(ctx, durationMs, metric.WithAttributes(attribute.String("operation", "database-query")))
-   }
-   ```
-
-6. Send logs via OpenTelemetry (using Logrus hook):
-   ```go
-   // The otelSetup.Build() function already configured the Logrus hook.
-   // Standard logrus calls will be exported.
-   logger.WithField("product_id", 123).Info("Product retrieved successfully")
    ```
 
 ## Testing with the Simulator
@@ -211,9 +211,9 @@ The project includes a load simulator in the `tests/` directory to generate traf
 
 After running the application with the simulator, you can observe:
 
-1. **Traces** - End-to-end request flows with detailed span information
-2. **Metrics** - Service performance metrics, custom business metrics
-3. **Logs** - Structured logs correlated with traces
+1. **Traces** - End-to-end request flows with detailed span information, enriched by `trace.StartSpan`.
+2. **Metrics** - Service performance metrics (`ops.count`, `ops.error.count`, `ops.duration`), custom business metrics, recorded via `metric.RecordOperationMetrics`.
+3. **Logs** - Structured Zap logs correlated with traces via `ContextLoggerMiddleware` and `logging.LoggerFromContext`.
 4. **Service Map** - Visual representation of service interactions
 
 ## Recommended SigNoz Dashboards

@@ -3,7 +3,6 @@ package manager
 import (
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/metric"
@@ -13,6 +12,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
+	"go.uber.org/zap"
 )
 
 type TelemetryManager struct {
@@ -21,7 +21,7 @@ type TelemetryManager struct {
 	loggerProvider *sdklog.LoggerProvider
 	tracer         oteltrace.Tracer
 	meter          metric.Meter
-	logger         *logrus.Logger
+	logger         *zap.Logger
 
 	serviceName    string
 	serviceVersion string
@@ -33,11 +33,14 @@ var (
 	managerMutex  sync.RWMutex
 )
 
-func InitializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterProvider, lp *sdklog.LoggerProvider, log *logrus.Logger, serviceName, serviceVersion string) {
-
+func InitializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterProvider, lp *sdklog.LoggerProvider, log *zap.Logger, serviceName, serviceVersion string) {
 	once.Do(func() {
 		managerMutex.Lock()
 		defer managerMutex.Unlock()
+
+		if log == nil {
+			log = zap.NewNop()
+		}
 
 		globalManager = &TelemetryManager{
 			tracerProvider: tp,
@@ -77,9 +80,7 @@ func InitializeGlobalManager(tp *sdktrace.TracerProvider, mp *sdkmetric.MeterPro
 
 		}
 
-		if globalManager.logger != nil {
-			globalManager.logger.Info("Global TelemetryManager initialized.")
-		}
+		globalManager.logger.Info("Global TelemetryManager initialized.")
 	})
 }
 
@@ -88,10 +89,19 @@ func GetTracer(instrumentationName string) oteltrace.Tracer {
 	defer managerMutex.RUnlock()
 
 	if globalManager == nil || globalManager.tracer == nil {
-		logrus.Warn("GetTracer called before TelemetryManager initialization or tracer is nil. Returning no-op tracer.")
+		tempLogger := zap.NewNop()
+		if globalManager != nil && globalManager.logger != nil {
+			tempLogger = globalManager.logger
+		}
+		tempLogger.Warn("GetTracer called before TelemetryManager initialization or tracer is nil. Returning no-op tracer.")
 		return tracenoop.Tracer{}
 	}
 
+	if instrumentationName != "" && instrumentationName != globalManager.serviceName {
+		if globalManager.tracerProvider != nil {
+			return globalManager.tracerProvider.Tracer(instrumentationName, oteltrace.WithInstrumentationVersion(globalManager.serviceVersion))
+		}
+	}
 	return globalManager.tracer
 }
 
@@ -100,22 +110,28 @@ func GetMeter(instrumentationName string) metric.Meter {
 	defer managerMutex.RUnlock()
 
 	if globalManager == nil || globalManager.meter == nil {
-		logrus.Warn("GetMeter called before TelemetryManager initialization or meter is nil. Returning no-op meter.")
+		tempLogger := zap.NewNop()
+		if globalManager != nil && globalManager.logger != nil {
+			tempLogger = globalManager.logger
+		}
+		tempLogger.Warn("GetMeter called before TelemetryManager initialization or meter is nil. Returning no-op meter.")
 		return metricnoop.Meter{}
 	}
 
+	if instrumentationName != "" && instrumentationName != globalManager.serviceName {
+		if globalManager.meterProvider != nil {
+			return globalManager.meterProvider.Meter(instrumentationName, metric.WithInstrumentationVersion(globalManager.serviceVersion))
+		}
+	}
 	return globalManager.meter
 }
 
-func GetLogger() *logrus.Logger {
+func GetLogger() *zap.Logger {
 	managerMutex.RLock()
 	defer managerMutex.RUnlock()
 
 	if globalManager == nil || globalManager.logger == nil {
-
-		logrus.Warn("GetLogger called before TelemetryManager initialization. Returning default logger.")
-
-		return logrus.StandardLogger()
+		return zap.NewNop()
 	}
 	return globalManager.logger
 }
@@ -124,7 +140,11 @@ func GetLoggerProvider() *sdklog.LoggerProvider {
 	managerMutex.RLock()
 	defer managerMutex.RUnlock()
 	if globalManager == nil {
-		logrus.Warn("GetLoggerProvider called before TelemetryManager initialization.")
+		tempLogger := zap.NewNop()
+		if globalManager != nil && globalManager.logger != nil {
+			tempLogger = globalManager.logger
+		}
+		tempLogger.Warn("GetLoggerProvider called before TelemetryManager initialization.")
 		return nil
 	}
 	return globalManager.loggerProvider

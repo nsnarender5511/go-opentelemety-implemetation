@@ -11,6 +11,7 @@ type Config struct {
 	DataFilePath       string
 	LogLevel           string
 	LogFormat          string
+	Environment        string
 
 	OtelExporterOtlpEndpoint string
 	OtelExporterInsecure     bool
@@ -23,6 +24,11 @@ type Config struct {
 
 	ShutdownTimeout       time.Duration
 	ServerShutdownTimeout time.Duration
+
+	
+	SimulateDelayEnabled bool `mapstructure:"SIMULATE_DELAY_ENABLED"`
+	SimulateDelayMinMs   int  `mapstructure:"SIMULATE_DELAY_MIN_MS"`
+	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
 }
 
 func GetHardcodedConfig() *Config {
@@ -33,6 +39,7 @@ func GetHardcodedConfig() *Config {
 		DataFilePath:       "data.json",
 		LogLevel:           "info",
 		LogFormat:          "json",
+		Environment:        "development",
 
 		OtelExporterOtlpEndpoint: "host.docker.internal:4317",
 		OtelExporterInsecure:     true,
@@ -45,5 +52,10 @@ func GetHardcodedConfig() *Config {
 
 		ShutdownTimeout:       15 * time.Second,
 		ServerShutdownTimeout: 10 * time.Second,
+
+		
+		SimulateDelayEnabled: true,  
+		SimulateDelayMinMs:   10,    
+		SimulateDelayMaxMs:   10000, 
 	}
 }

@@ -1,44 +1,55 @@
 package middleware
+
 import (
 	"time"
+
 	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
-	oteltrace "go.opentelemetry.io/otel/trace"
+	"github.com/narender/common/logging" 
+	"go.uber.org/zap"                    
 )
-func RequestLoggerMiddleware(logger *logrus.Logger) fiber.Handler {
+
+
+
+
+func RequestLoggerMiddleware() fiber.Handler { 
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 		path := c.Path()
 		method := c.Method()
+
+		
+		
+		logger := logging.LoggerFromContext(c.UserContext())
+
 		err := c.Next()
+
 		duration := time.Since(start)
 		statusCode := c.Response().StatusCode()
-		span := oteltrace.SpanFromContext(c.UserContext())
-		traceID := ""
-		spanID := ""
-		if span != nil && span.SpanContext().IsValid() {
-			traceID = span.SpanContext().TraceID().String()
-			spanID = span.SpanContext().SpanID().String()
+
+		
+		zapFields := []zap.Field{
+			zap.String("method", method),
+			zap.String("path", path),
+			zap.Int("status_code", statusCode),
+			zap.Int64("duration_ms", duration.Milliseconds()),
+			zap.String("ip", c.IP()),
 		}
-		entry := logger.WithFields(logrus.Fields{
-			"method":      method,
-			"path":        path,
-			"status_code": statusCode,
-			"duration_ms": duration.Milliseconds(),
-			"ip":          c.IP(),
-			"trace_id":    traceID,
-			"span_id":     spanID,
-		})
+
+		
 		if err != nil {
-			entry = entry.WithError(err)
+			zapFields = append(zapFields, zap.Error(err))
 		}
+
+		
 		if statusCode >= 500 {
-			entry.Error("Request completed with server error")
+			logger.Error("Request completed with server error", zapFields...)
 		} else if statusCode >= 400 {
-			entry.Warn("Request completed with client error")
+			logger.Warn("Request completed with client error", zapFields...)
 		} else {
-			entry.Info("Request completed successfully")
+			logger.Info("Request completed successfully", zapFields...)
 		}
+
+		
 		return err
 	}
 }

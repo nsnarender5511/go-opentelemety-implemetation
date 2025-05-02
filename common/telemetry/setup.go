@@ -14,6 +14,7 @@ import (
 	"github.com/narender/common/telemetry/propagator"
 	"github.com/narender/common/telemetry/resource"
 	"github.com/narender/common/telemetry/trace"
+	"go.uber.org/zap"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/log/global"
@@ -22,10 +23,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// Initialize the OpenTelemetry SDK with tracing, metrics, and logging configured.
+
 func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 
-	logger := logging.SetupLogrus(cfg)
+	logger, err := logging.InitZapLogger(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize base logger for telemetry setup: %w", err)
+	}
 
 	var shutdownFuncs []func(context.Context) error
 	var tp *sdktrace.TracerProvider = nil
@@ -48,7 +52,7 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 			shutdownErr = errors.Join(shutdownErr, tp.Shutdown(ctx))
 		}
 
-		logger.Debugf("Executing %d additional shutdown functions...", len(shutdownFuncs))
+		logger.Debug("Executing additional shutdown functions", zap.Int("count", len(shutdownFuncs)))
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
 			shutdownErr = errors.Join(shutdownErr, shutdownFuncs[i](ctx))
 		}
@@ -59,10 +63,10 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 
 	defer func() {
 		if err != nil {
-			logger.WithError(err).Error("OpenTelemetry SDK initialization failed")
+			logger.Error("OpenTelemetry SDK initialization failed", zap.Error(err))
 
 			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
-				logger.WithError(shutdownErr).Error("Error during OTel cleanup after setup failure")
+				logger.Error("Error during OTel cleanup after setup failure", zap.Error(shutdownErr))
 			}
 
 			manager.InitializeGlobalManager(nil, nil, nil, logger, cfg.ServiceName, cfg.ServiceVersion)

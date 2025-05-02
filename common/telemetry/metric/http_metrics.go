@@ -20,21 +20,21 @@ const (
 	httpServerActiveRequests  = "http.server.active_requests"
 )
 
-// Metrics holds the instruments for common HTTP server observability.
-// Renamed from Metrics to HTTPMetrics for clarity.
+
+
 type HTTPMetrics struct {
 	httpReqCounter          otelmetric.Int64Counter
 	httpReqDurationHist     otelmetric.Float64Histogram
 	httpActiveRequestsGauge otelmetric.Int64UpDownCounter
 }
 
-// NewHTTPMetrics creates and initializes the common HTTP server metrics.
-// Renamed from NewMetrics for clarity.
+
+
 func NewHTTPMetrics() (*HTTPMetrics, error) {
 
 	meter := manager.GetMeter(HTTPMetricsInstrumentationName)
 	var err error
-	// Use renamed struct type
+	
 	appMetrics := &HTTPMetrics{}
 
 	appMetrics.httpReqCounter, err = meter.Int64Counter(
@@ -71,8 +71,8 @@ func NewHTTPMetrics() (*HTTPMetrics, error) {
 	return appMetrics, nil
 }
 
-// RecordHTTPRequestDuration records metrics for a completed HTTP request.
-// Changed receiver type to *HTTPMetrics
+
+
 func (m *HTTPMetrics) RecordHTTPRequestDuration(ctx context.Context, duration time.Duration, attributes ...attribute.KeyValue) {
 	if m == nil {
 		return
@@ -93,8 +93,8 @@ func (m *HTTPMetrics) RecordHTTPRequestDuration(ctx context.Context, duration ti
 	}
 }
 
-// AddActiveRequest updates the gauge for the number of active requests.
-// Changed receiver type to *HTTPMetrics
+
+
 func (m *HTTPMetrics) AddActiveRequest(ctx context.Context, delta int64, attributes ...attribute.KeyValue) {
 	if m == nil || m.httpActiveRequestsGauge == nil {
 		return
