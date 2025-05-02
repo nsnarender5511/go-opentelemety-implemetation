@@ -4,9 +4,8 @@ networks:
   signoz-net:
     driver: bridge
     name: signoz-net
-    # Allow our services to connect to an external SigNoz instance
-    # (Note: signoz-net might be optional if OTEL integration is fully removed)
-    external: true
+    # Removed external: true - Docker Compose will create this network
+    # external: true
 
 services:
   # --- Product Service (Your Application) ---
