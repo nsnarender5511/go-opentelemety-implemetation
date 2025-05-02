@@ -1,9 +1,8 @@
-version: "3.8"
-
 networks:
   signoz-net:
     driver: bridge
     name: signoz-net
+    external: true # Use the existing network created by SigNoz setup
     # Removed external: true - Docker Compose will create this network
     # external: true
 
@@ -15,15 +14,14 @@ services:
       dockerfile: ./product-service/Dockerfile
     container_name: product-service
     ports:
-      - "8080:8080"
+      - "8082:8082"
     networks:
       - signoz-net
-    env_file:
-      - .env # OTEL_* variables in this file are no longer used by the simplified service
+    # Removed env_file as config is hardcoded in Go
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -45,8 +43,9 @@ services:
     depends_on:
       product-service:
         condition: service_healthy # Wait for product-service to be healthy
-    env_file:
-      - .env # Ensure .env defines PRODUCT_SERVICE_URL=http://product-service:8080/api/v1
+    # Removed env_file, setting URL directly via environment
+    environment:
+      - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
     networks:
       - signoz-net
     # Removed deploy replicas block - use `docker-compose up --scale product-simulator=N` instead

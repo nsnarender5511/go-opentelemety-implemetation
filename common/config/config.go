@@ -30,11 +30,11 @@ func GetHardcodedConfig() *Config {
 		ProductServicePort: "8082",
 		ServiceName:        "product-service",
 		ServiceVersion:     "1.0.0",
-		DataFilePath:       "product-service/data.json",
+		DataFilePath:       "data.json",
 		LogLevel:           "info",
 		LogFormat:          "json",
 
-		OtelExporterOtlpEndpoint: "localhost:4317",
+		OtelExporterOtlpEndpoint: "host.docker.internal:4317",
 		OtelExporterInsecure:     true,
 		OtelSampleRatio:          1.0,
 		OtelSamplerType:          "parentbased_traceidratio",
