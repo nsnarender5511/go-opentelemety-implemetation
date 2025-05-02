@@ -2,9 +2,7 @@ networks:
   signoz-net:
     driver: bridge
     name: signoz-net
-    external: true # Use the existing network created by SigNoz setup
-    # Removed external: true - Docker Compose will create this network
-    # external: true
+    external: true 
 
 services:
   # --- Product Service (Your Application) ---
@@ -17,7 +15,6 @@ services:
       - "8082:8082"
     networks:
       - signoz-net
-    # Removed env_file as config is hardcoded in Go
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     healthcheck:
@@ -34,6 +31,10 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SERVICE_NAME=product-service
 
   # --- Product Simulator Service (Load Generator) ---
   product-simulator:
@@ -51,5 +52,16 @@ services:
     # Removed deploy replicas block - use `docker-compose up --scale product-simulator=N` instead
     # deploy:
     #   replicas: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib
+    container_name: otel-collector
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - 14317:4317 
+      - 14318:4318 
+    networks:
+      - signoz-net
 
   

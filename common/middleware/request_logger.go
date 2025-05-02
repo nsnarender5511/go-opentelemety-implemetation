@@ -4,52 +4,45 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/narender/common/logging" 
-	"go.uber.org/zap"                    
+	commonlog "github.com/narender/common/log"
+	"go.uber.org/zap"
 )
 
-
-
-
-func RequestLoggerMiddleware() fiber.Handler { 
+func RequestLoggerMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 		path := c.Path()
 		method := c.Method()
-
-		
-		
-		logger := logging.LoggerFromContext(c.UserContext())
 
 		err := c.Next()
 
 		duration := time.Since(start)
 		statusCode := c.Response().StatusCode()
 
-		
+		logger := commonlog.L.Ctx(c.UserContext())
+
 		zapFields := []zap.Field{
 			zap.String("method", method),
 			zap.String("path", path),
 			zap.Int("status_code", statusCode),
-			zap.Int64("duration_ms", duration.Milliseconds()),
+			zap.Duration("duration", duration),
 			zap.String("ip", c.IP()),
+			zap.String("user_agent", string(c.Request().Header.UserAgent())),
 		}
 
-		
 		if err != nil {
 			zapFields = append(zapFields, zap.Error(err))
 		}
 
-		
+		msg := "Request completed"
 		if statusCode >= 500 {
-			logger.Error("Request completed with server error", zapFields...)
+			logger.Error(msg, zapFields...)
 		} else if statusCode >= 400 {
-			logger.Warn("Request completed with client error", zapFields...)
+			logger.Warn(msg, zapFields...)
 		} else {
-			logger.Info("Request completed successfully", zapFields...)
+			logger.Info(msg, zapFields...)
 		}
 
-		
 		return err
 	}
 }

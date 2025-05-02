@@ -9,10 +9,10 @@ import (
 	_ "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	commonErrors "github.com/narender/common/errors"
-	"github.com/narender/common/logging"
 	"github.com/narender/common/telemetry/attributes"
 	"github.com/narender/common/telemetry/metric"
 	"github.com/narender/common/telemetry/trace"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -25,7 +25,7 @@ type ErrorResponse struct {
 	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
-func NewErrorHandler(baseLogger *zap.Logger, metrics *metric.HTTPMetrics) fiber.ErrorHandler {
+func NewErrorHandler(otelLogger *otelzap.Logger, metrics *metric.HTTPMetrics) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		statusCode := http.StatusInternalServerError
 		userMessage := "An unexpected error occurred. Please try again later."
@@ -104,8 +104,6 @@ func NewErrorHandler(baseLogger *zap.Logger, metrics *metric.HTTPMetrics) fiber.
 			metrics.RecordHTTPRequestDuration(ctx, 0*time.Second, attrs...)
 		}
 
-		logger := logging.LoggerFromContext(ctx)
-
 		zapFields := []zap.Field{
 			zap.Error(err),
 			zap.String("internal_message", internalMessage),
@@ -121,8 +119,13 @@ func NewErrorHandler(baseLogger *zap.Logger, metrics *metric.HTTPMetrics) fiber.
 
 		logMessage := fmt.Sprintf("HTTP Error: %s %s -> %d", c.Method(), c.Path(), statusCode)
 
-		if ce := logger.Check(logLevel, logMessage); ce != nil {
-			ce.Write(zapFields...)
+		switch logLevel {
+		case zapcore.ErrorLevel:
+			otelLogger.Ctx(ctx).Error(logMessage, zapFields...)
+		case zapcore.WarnLevel:
+			otelLogger.Ctx(ctx).Warn(logMessage, zapFields...)
+		default:
+			otelLogger.Ctx(ctx).Info(logMessage, zapFields...)
 		}
 
 		resp := ErrorResponse{

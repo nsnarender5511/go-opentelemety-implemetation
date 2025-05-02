@@ -7,21 +7,31 @@ import (
 	"github.com/narender/common/config"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.uber.org/zap"
 )
 
+func deltaTemporalitySelector(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+	switch kind {
+	case sdkmetric.InstrumentKindCounter,
+		sdkmetric.InstrumentKindUpDownCounter,
+		sdkmetric.InstrumentKindHistogram:
+		return metricdata.DeltaTemporality
+	default:
+		return metricdata.CumulativeTemporality
+	}
+}
+
 func NewMetricExporter(ctx context.Context, cfg *config.Config, logger *zap.Logger) (sdkmetric.Exporter, error) {
-	
+
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	
 	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
 		otlpmetricgrpc.WithTimeout(cfg.OtelExporterOtlpTimeout),
-		
-		
+		otlpmetricgrpc.WithTemporalitySelector(deltaTemporalitySelector),
 	}
 
 	if cfg.OtelExporterInsecure {
@@ -35,11 +45,6 @@ func NewMetricExporter(ctx context.Context, cfg *config.Config, logger *zap.Logg
 		opts = append(opts, otlpmetricgrpc.WithHeaders(cfg.OtelExporterOtlpHeaders))
 	}
 
-	
-	
-	
-
-	
 	metricExporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP metric exporter client: %w", err)

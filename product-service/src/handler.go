@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/narender/common/logging"
-	"github.com/narender/common/telemetry/metric"
+	commonlog "github.com/narender/common/log"
+	"github.com/narender/common/telemetry/manager"
+	commonmetric "github.com/narender/common/telemetry/metric"
 	"github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	otelmetric "go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.uber.org/zap"
 )
@@ -31,11 +33,11 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	startTime := time.Now()
 	ctx := c.UserContext()
 	defer func() {
-		metric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr)
+		commonmetric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr)
 	}()
 
 	simulateDelayIfEnabled()
-	logger := logging.LoggerFromContext(ctx)
+	logger := commonlog.L.Ctx(ctx)
 	ctx, span := trace.StartSpan(ctx, handlerScopeName, "ProductHandler."+operation,
 		semconv.HTTPRouteKey.String(c.Route().Path),
 	)
@@ -67,11 +69,11 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	productID := c.Params("productId")
 	productIdAttr := attribute.String("product.id", productID)
 	defer func() {
-		metric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr, productIdAttr)
+		commonmetric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr, productIdAttr)
 	}()
 
 	simulateDelayIfEnabled()
-	logger := logging.LoggerFromContext(ctx)
+	logger := commonlog.L.Ctx(ctx)
 	ctx, span := trace.StartSpan(ctx, handlerScopeName, "ProductHandler."+operation,
 		semconv.HTTPRouteKey.String(c.Route().Path),
 		productIdAttr,
@@ -79,6 +81,13 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	defer span.End()
 
 	logger.Info("Handler: Received request for GetProductByID", zap.String("product_id", productID))
+
+	meter := manager.GetMeter(ServiceName)
+	requestCounter, _ := meter.Int64Counter("product_service.requests", otelmetric.WithDescription("Counts requests to product service endpoints"))
+	requestCounter.Add(c.UserContext(), 1, otelmetric.WithAttributes(
+		attribute.String("http.route", c.Path()),
+		attribute.String("product.id.param", productID),
+	))
 
 	simulateDelayIfEnabled()
 	product, err := h.service.GetByID(ctx, productID)
@@ -110,11 +119,11 @@ func (h *ProductHandler) HealthCheck(c *fiber.Ctx) (opErr error) {
 	startTime := time.Now()
 	ctx := c.UserContext()
 	defer func() {
-		metric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr)
+		commonmetric.RecordOperationMetrics(ctx, handlerLayerName, operation, startTime, opErr)
 	}()
 
 	simulateDelayIfEnabled()
-	logger := logging.LoggerFromContext(ctx)
+	logger := commonlog.L.Ctx(ctx)
 	logger.Info("Handler: Health check requested")
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status": "ok",

@@ -44,10 +44,8 @@ require (
 require (
 	github.com/gofiber/contrib/otelfiber/v2 v2.2.2
 	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/uptrace/opentelemetry-go-extra/otelzap v0.3.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.11.0
-	go.opentelemetry.io/otel/log v0.11.0
-	go.opentelemetry.io/otel/sdk/log v0.11.0
 )
 
 require (
@@ -58,11 +56,13 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
+	github.com/uptrace/opentelemetry-go-extra/otelutil v0.3.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	go.opentelemetry.io/contrib v1.20.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
+	go.opentelemetry.io/otel/log v0.11.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 )
 
 // Add any *other* dependencies specific to the common module here if needed in the future
