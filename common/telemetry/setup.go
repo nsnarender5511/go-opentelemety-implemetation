@@ -84,7 +84,7 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 
 	propagator.SetupPropagators()
 
-	traceExporter, err := exporter.NewTraceExporter(ctx, cfg)
+	traceExporter, err := exporter.NewTraceExporter(ctx, cfg, logger)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
@@ -97,14 +97,14 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 		shutdownFuncs = append(shutdownFuncs, bspShutdown)
 	}
 
-	metricExporter, err := exporter.NewMetricExporter(ctx, cfg)
+	metricExporter, err := exporter.NewMetricExporter(ctx, cfg, logger)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create metric exporter: %w", err)
 	}
 
 	mp = metric.NewMeterProvider(cfg, res, metricExporter)
 
-	logExporter, err := exporter.NewLogExporter(ctx, cfg)
+	logExporter, err := exporter.NewLogExporter(ctx, cfg, logger)
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create log exporter: %w", err)
 	}

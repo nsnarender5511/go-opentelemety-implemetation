@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8080/api/v1") # Changed port to 8080
+BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1") # Updated default port to 8082
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
 CONCURRENT_USERS = 20 # Increased concurrent users
 DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json") # Relative path to data.json

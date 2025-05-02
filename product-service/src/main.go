@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"log" // Use standard log for critical bootstrap errors
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -13,98 +12,133 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+
+	// Assuming these common packages exist and are correct
 	"github.com/narender/common/config"
 	"github.com/narender/common/logging"
 	"github.com/narender/common/middleware"
 	"github.com/narender/common/telemetry"
+
+	"go.opentelemetry.io/otel"
+	// Needed for GetTextMapPropagator
+	// Needed for logger type in DI
+	// TODO: Add import for metric.HTTPMetrics if needed for error handler
+	// "github.com/narender/common/telemetry/metric"
 )
 
 const (
-	ServiceName = "product-service"
+	ServiceName = "product-service" // Define service name here
 )
 
 func main() {
-	config, err := config.LoadConfig(".env", config.NewEnvironmentProvider())
-	if err != nil {
-		log.Fatalf("Initial config load failed: %v", err)
-	}
-	config.ServiceName = ServiceName
+	// --- Hardcoded Configuration ---
+	cfg := config.GetHardcodedConfig()
+	cfg.ServiceName = ServiceName // Override service name if needed
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// --- Telemetry Setup --- Must happen before logger setup for the hook
-	shutdownTelemetry, err := telemetry.InitTelemetry(ctx, config)
+	// --- Telemetry Setup ---
+	setupCtx := context.Background()
+	shutdownTelemetry, err := telemetry.InitTelemetry(setupCtx, cfg)
 	if err != nil {
-		// Use standard log here as our logger isn't initialized yet
 		log.Fatalf("Failed to initialize telemetry: %v", err)
 	}
 	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer shutdownCancel()
 		if err := shutdownTelemetry(shutdownCtx); err != nil {
-			// Use standard log or try GetLogger if it might be initialized by now
-			if logger := logging.GetLogger(); logger != nil {
-				logger.Errorf("Error shutting down telemetry: %v", err)
+			otelLogger := logging.GetLogger()
+			if otelLogger != nil {
+				otelLogger.Errorf("Error shutting down telemetry: %v", err)
 			} else {
-				log.Printf("Error shutting down telemetry: %v", err) // Fallback
+				log.Printf("Error shutting down telemetry: %v", err)
 			}
 		}
 	}()
 
 	// --- Logging Setup ---
-	logger := logging.SetupLogrus(config)
+	logger := logging.SetupLogrus(cfg)
 	if logger == nil {
-		log.Fatalf("Failed to initialize logger.") // Handle nil logger case
+		log.Fatalf("Failed to initialize logger.")
 	}
-	logger.Info("Initializing application...")
+	logger.Info("Logger initialized.")
 
+	// --- Application Context ---
+	appCtx, cancelApp := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancelApp()
+
+	logger.Info("Initializing application dependencies...")
 	// --- Dependency Injection ---
-	repo := NewProductRepository()
+	// Repository only takes path and returns an error
+	repo, err := NewProductRepository(cfg.DataFilePath)
+	if err != nil {
+		// Log fatal here as repo is critical
+		logger.Fatalf("Failed to initialize product repository: %v", err)
+	}
+	// Service only takes repo
 	productService := NewProductService(repo)
+	// Handler only takes service
 	productHandler := NewProductHandler(productService)
 
+	logger.Info("Setting up Fiber application...")
 	// --- Fiber App Setup ---
+	// TODO: Create/pass a valid *metric.HTTPMetrics instance if required by error handler
 	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.NewErrorHandler(),
+		ErrorHandler: middleware.NewErrorHandler(logger, nil), // Passing nil for metrics for now
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	})
 
+	// --- Fiber Middleware ---
 	app.Use(recover.New())
 	app.Use(cors.New())
 
+	// OTel Middleware - uses global providers set by telemetry.InitTelemetry
+	propagator := otel.GetTextMapPropagator() // Get global propagator
+
 	app.Use(otelfiber.Middleware(
-		otelfiber.WithTracerProvider(telemetry.GetTracerProvider()),
-		otelfiber.WithMeterProvider(telemetry.GetMeterProvider()),
-		otelfiber.WithPropagators(telemetry.GetTextMapPropagator()),
+		// Default options use global providers for Tracer and Meter
+		otelfiber.WithPropagators(propagator),
 	))
+	logger.Info("OpenTelemetry middleware configured for Fiber.")
 
-	app.Use(middleware.RequestLoggerMiddleware())
+	// Custom Request Logger Middleware
+	// TODO: Ensure RequestLoggerMiddleware takes logger - If not, remove logger arg
+	app.Use(middleware.RequestLoggerMiddleware(logger)) // Pass logger if needed
 
+	// --- API Routes ---
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 	v1.Get("/products", productHandler.GetAllProducts)
 	v1.Get("/products/:productId", productHandler.GetProductByID)
 	v1.Get("/healthz", productHandler.HealthCheck)
+	logger.Info("API routes configured.")
 
-	// --- Server Start & Shutdown ---
-	port := config.ProductServicePort
+	// --- Server Start ---
+	port := cfg.ProductServicePort
 	addr := ":" + port
-
 	go func() {
-		logging.GetLogger().Infof("Server starting on %s", addr)
+		logger.Infof("Server starting on %s", addr)
 		if err := app.Listen(addr); err != nil && err != http.ErrServerClosed {
 			logger.Fatalf("Server failed to start listening: %v", err)
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	logger.Info("Shutting down server...")
+	// --- Graceful Shutdown ---
+	<-appCtx.Done()
+	logger.Info("Shutdown signal received, initiating graceful shutdown...")
 
-	if err := app.ShutdownWithTimeout(5 * time.Second); err != nil {
-		logger.Errorf("Error shutting down Fiber server: %v", err)
+	shutdownTimeout := cfg.ServerShutdownTimeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	logger.Infof("Attempting to shut down Fiber server within %v...", shutdownTimeout)
+	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
+		logger.Errorf("Error during Fiber server shutdown: %v", err)
+	} else {
+		logger.Info("Fiber server shut down successfully.")
 	}
 
 	logger.Info("Application exiting gracefully.")
 }
+
+// Removed all placeholder declarations as they exist in other files
