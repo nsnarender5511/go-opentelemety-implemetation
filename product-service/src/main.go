@@ -7,14 +7,17 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gofiber/contrib/otelfiber"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/narender/common/config"
 	_ "github.com/narender/common/errors"
 	"github.com/narender/common/middleware"
-	"github.com/narender/common/otel"
+	otel "github.com/narender/common/otel"
 	"github.com/sirupsen/logrus"
+
+	// Add imports needed for metric callback
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
@@ -26,73 +29,88 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	cfg, err := config.LoadConfig(".env")
+	cfgProvider := config.NewEnvironmentProvider()
+	cfg, err := config.LoadConfig(".env", cfgProvider)
 	if err != nil {
+
 		logrus.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	logger, otelShutdown, err := otel.SetupOTelSDK(ctx, cfg)
+	otelShutdown, err := otel.InitTelemetry(ctx, cfg)
 	if err != nil {
+
 		logrus.WithError(err).Fatal("Failed to initialize OpenTelemetry SDK")
 	}
+
 	defer func() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer shutdownCancel()
 		if err := otelShutdown(shutdownCtx); err != nil {
-			logger.WithError(err).Error("Error shutting down OpenTelemetry SDK")
+
+			otel.GetLogger().WithError(err).Error("Error shutting down OpenTelemetry SDK")
 		}
 	}()
+	otel.GetLogger().Info("Logger and OpenTelemetry initialized globally.")
 
-	logger.Info("Logger and OpenTelemetry initialized.")
-
-	meterProvider := otel.GetMeterProvider()
-	tracerProvider := otel.GetTracerProvider()
-	tracer := tracerProvider.Tracer(ServiceName)
-
-	commonMetrics, err := otel.NewMetrics(meterProvider)
+	// Initialize helper for recording specific HTTP metrics (e.g., in error handler)
+	// Note: otelfiber middleware uses the global meter provider configured by InitTelemetry
+	// for its automatic instrumentation.
+	// Call renamed function NewHTTPMetrics
+	httpMetricsHelper, err := otel.NewHTTPMetrics()
 	if err != nil {
-		logger.WithError(err).Fatal("Failed to create common metrics helper")
+		otel.GetLogger().WithError(err).Fatal("Failed to create common HTTP metrics helper")
 	}
 
-	repo, err := NewProductRepository(cfg.DataFilePath, logger, tracer)
+	repo, err := NewProductRepository(cfg.DataFilePath)
 	if err != nil {
-		logger.WithError(err).Fatal("Failed to initialize repository")
+		otel.GetLogger().WithError(err).Fatal("Failed to initialize repository")
 	}
 
-	meter := meterProvider.Meter(otel.InstrumentationName)
-	productStockGauge, err := meter.Int64ObservableGauge(
-		"product.stock.level",
-		otelmetric.WithDescription("Current stock level for each product"),
-		otelmetric.WithUnit("{items}"),
-	)
+	// Define the gauge instrument using the function from common/otel
+	stockGauge, err := otel.DefineProductStockGauge()
 	if err != nil {
-		logger.WithError(err).Fatal("Failed to create product stock gauge")
+		otel.GetLogger().WithError(err).Fatal("Failed to define stock gauge")
 	}
 
-	_, err = meter.RegisterCallback(
-		func(ctx context.Context, obs otelmetric.Observer) error {
-			return repo.ObserveStockLevels(ctx, obs, productStockGauge)
-		},
-		productStockGauge,
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("Failed to register product stock callback")
+	// Register the callback here using the application's repo instance
+	if stockGauge != nil { // Only register if gauge definition succeeded
+		meter := otel.GetMeter(otel.ProductInstrumentationName) // Get meter using constant from otel pkg
+		_, err = meter.RegisterCallback(
+			func(ctx context.Context, o otelmetric.Observer) error {
+				levels, err := repo.GetCurrentStockLevels(ctx) // Call repo directly
+				if err != nil {
+					otel.GetLogger().WithError(err).Error("Failed to get stock levels for metric callback")
+					return nil // Don't propagate error to SDK
+				}
+				for id, stock := range levels {
+					o.ObserveInt64(stockGauge, int64(stock), otelmetric.WithAttributes(
+						otel.AttrAppProductIDKey.String(id), // Use attribute from otel pkg
+					))
+				}
+				return nil
+			},
+			stockGauge,
+		)
+		if err != nil {
+			otel.GetLogger().WithError(err).Fatal("Failed to register stock metrics callback")
+		}
+		otel.GetLogger().Info("Stock metrics callback registered.")
 	}
-	logger.Info("Registered product stock observable gauge callback.")
 
-	productService := NewProductService(repo, logger, tracer)
-	productHandler := NewProductHandler(productService, logger, tracer, commonMetrics)
+	productService := NewProductService(repo)
+	productHandler := NewProductHandler(productService)
 
-	errorHandler := middleware.NewErrorHandler(logger, commonMetrics)
-
+	// Pass the helper for use cases like error handler metrics
+	errorHandler := middleware.NewErrorHandler(otel.GetLogger(), httpMetricsHelper)
 	app := fiber.New(fiber.Config{
 		ErrorHandler: errorHandler,
 	})
-
 	app.Use(recover.New())
 	app.Use(cors.New())
-	app.Use(middleware.OtelMiddleware())
-	app.Use(middleware.RequestLoggerMiddleware(logger))
+
+	app.Use(otelfiber.Middleware(otelfiber.WithServerName(cfg.ServiceName)))
+
+	app.Use(middleware.RequestLoggerMiddleware(otel.GetLogger()))
 
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
@@ -103,24 +121,22 @@ func main() {
 
 	go func() {
 		addr := ":" + cfg.ProductServicePort
-		logger.WithField("address", addr).Info("Server starting to listen...")
+		otel.GetLogger().WithField("address", addr).Info("Server starting to listen...")
 		if err := app.Listen(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.WithError(err).Fatal("Server failed to start listening")
+			otel.GetLogger().WithError(err).Fatal("Server failed to start listening")
 		}
 	}()
 
 	<-ctx.Done()
-
-	logger.Info("Shutdown signal received, starting graceful shutdown...")
+	otel.GetLogger().Info("Shutdown signal received, starting graceful shutdown...")
 
 	shutdownTimeoutCtx, cancelShutdown := context.WithTimeout(context.Background(), cfg.ServerShutdownTimeout)
 	defer cancelShutdown()
-
 	if err := app.ShutdownWithContext(shutdownTimeoutCtx); err != nil {
-		logger.WithError(err).Errorf("Error during server graceful shutdown (timeout %s)", cfg.ServerShutdownTimeout)
+		otel.GetLogger().WithError(err).Errorf("Error during server graceful shutdown (timeout %s)", cfg.ServerShutdownTimeout)
 	} else {
-		logger.Info("Server gracefully shut down.")
+		otel.GetLogger().Info("Server gracefully shut down.")
 	}
 
-	logger.Info("Application exiting.")
+	otel.GetLogger().Info("Application exiting.")
 }

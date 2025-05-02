@@ -1,15 +1,12 @@
 package main
-
 const (
 	JSONFieldProductID = "productId"
 	JSONFieldStock     = "stock"
 )
-
 const (
 	JSONDataField       = "data"
 	JSONPaginationField = "pagination"
 )
-
 type Product struct {
 	ProductID   string   `json:"productId"`
 	Name        string   `json:"name"`

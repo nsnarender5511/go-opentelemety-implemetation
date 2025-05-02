@@ -27,7 +27,13 @@ This project demonstrates the integration of OpenTelemetry with SigNoz for compl
 ## Project Structure
 
 - **common/** - Reusable module that contains OpenTelemetry integration and other common utilities
-  - **telemetry/** - Comprehensive OpenTelemetry integration (traces, metrics, logs)
+- **telemetry/** - Comprehensive OpenTelemetry integration (traces, metrics, logs)
+  - **otel/** - OpenTelemetry setup and utilities for Traces, Metrics, and Logs.
+    - **Note:** If this module is intended *only* for use within `product-service`,
+      consider moving it to `product-service/internal/otel/` to adhere to Go's
+      internal package conventions. If it's designed as a reusable library for
+      multiple future services, keeping it in `common/` or moving to a dedicated
+      `pkg/` directory is appropriate.
   - **config/** - Configuration management
   - **lifecycle/** - Application lifecycle management (graceful shutdown)
   - **errors/** - Error handling utilities

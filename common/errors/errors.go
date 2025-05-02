@@ -1,13 +1,28 @@
 package errors
-
 import (
 	"errors"
 	"fmt"
 	"net/http"
-
 	"github.com/gofiber/fiber/v2"
 )
-
+type ErrorType int
+const (
+	TypeNotFound ErrorType = iota + 1
+	TypeInvalidInput
+	TypeUnauthorized
+	TypeForbidden
+	TypeInternalServer
+	TypeBadRequest
+	TypeConflict
+	TypeUnavailable
+	TypeTimeout
+	TypeTooManyRequests
+	TypeUnprocessableEntity
+	TypeDBConnection
+	TypeValidation 
+	TypeDatabase   
+	TypeUnknown    
+)
 var (
 	ErrNotFound            = errors.New("not found")
 	ErrInvalidInput        = errors.New("invalid input")
@@ -22,29 +37,30 @@ var (
 	ErrUnprocessableEntity = errors.New("unprocessable entity")
 	ErrDBConnection        = errors.New("database connection error")
 )
-
-var standardErrorToStatusCode = map[error]int{
-	ErrNotFound:            http.StatusNotFound,
-	ErrInvalidInput:        http.StatusBadRequest,
-	ErrBadRequest:          http.StatusBadRequest,
-	ErrUnauthorized:        http.StatusUnauthorized,
-	ErrForbidden:           http.StatusForbidden,
-	ErrConflict:            http.StatusConflict,
-	ErrUnavailable:         http.StatusServiceUnavailable,
-	ErrTimeout:             http.StatusGatewayTimeout,
-	ErrTooManyRequests:     http.StatusTooManyRequests,
-	ErrUnprocessableEntity: http.StatusUnprocessableEntity,
-	ErrDBConnection:        http.StatusServiceUnavailable,
+var errorTypeToStatusCode = map[ErrorType]int{
+	TypeNotFound:            http.StatusNotFound,
+	TypeInvalidInput:        http.StatusBadRequest,
+	TypeBadRequest:          http.StatusBadRequest,
+	TypeUnauthorized:        http.StatusUnauthorized,
+	TypeForbidden:           http.StatusForbidden,
+	TypeConflict:            http.StatusConflict,
+	TypeUnavailable:         http.StatusServiceUnavailable,
+	TypeTimeout:             http.StatusGatewayTimeout,
+	TypeTooManyRequests:     http.StatusTooManyRequests,
+	TypeUnprocessableEntity: http.StatusUnprocessableEntity,
+	TypeDBConnection:        http.StatusServiceUnavailable,
+	TypeValidation:          http.StatusBadRequest,          
+	TypeDatabase:            http.StatusInternalServerError, 
+	TypeInternalServer:      http.StatusInternalServerError,
 }
-
 type AppError struct {
-	Err         error                  `json:"-"`
-	StatusCode  int                    `json:"statusCode"`
-	Message     string                 `json:"message"`
-	UserMessage string                 `json:"userMessage,omitempty"`
-	Context     map[string]interface{} `json:"context,omitempty"`
+	Err         error                  `json:"-"`                     
+	Type        ErrorType              `json:"-"`                     
+	StatusCode  int                    `json:"statusCode"`            
+	Message     string                 `json:"message"`               
+	UserMessage string                 `json:"userMessage,omitempty"` 
+	Context     map[string]interface{} `json:"context,omitempty"`     
 }
-
 func (e *AppError) Error() string {
 	if e.Message != "" {
 		return e.Message
@@ -55,13 +71,11 @@ func (e *AppError) Error() string {
 	if e.UserMessage != "" {
 		return e.UserMessage
 	}
-	return "An unexpected error occurred"
+	return "An unexpected application error occurred"
 }
-
 func (e *AppError) Unwrap() error {
 	return e.Err
 }
-
 func (e *AppError) WithContext(key string, value interface{}) *AppError {
 	if e.Context == nil {
 		e.Context = make(map[string]interface{})
@@ -69,116 +83,134 @@ func (e *AppError) WithContext(key string, value interface{}) *AppError {
 	e.Context[key] = value
 	return e
 }
-
-func New(err error, statusCode int, message string) *AppError {
+func New(errType ErrorType, message string) *AppError {
+	statusCode := errorTypeToStatusCode[errType]
+	if statusCode == 0 {
+		statusCode = http.StatusInternalServerError 
+	}
 	return &AppError{
-		Err:        err,
+		Type:       errType,
 		StatusCode: statusCode,
 		Message:    message,
 	}
 }
-
-func Wrap(err error, statusCode int, message string) *AppError {
+func Wrap(err error, errType ErrorType, message string) *AppError {
 	if err == nil {
 		return nil
 	}
+	statusCode := errorTypeToStatusCode[errType]
+	if statusCode == 0 {
+		statusCode = http.StatusInternalServerError 
+	}
 	return &AppError{
 		Err:        err,
+		Type:       errType,
 		StatusCode: statusCode,
 		Message:    message,
 	}
 }
-
-func Wrapf(err error, statusCode int, format string, args ...interface{}) *AppError {
+func Wrapf(err error, errType ErrorType, format string, args ...interface{}) *AppError {
 	if err == nil {
 		return nil
 	}
+	statusCode := errorTypeToStatusCode[errType]
+	if statusCode == 0 {
+		statusCode = http.StatusInternalServerError 
+	}
 	return &AppError{
 		Err:        err,
+		Type:       errType,
 		StatusCode: statusCode,
 		Message:    fmt.Sprintf(format, args...),
 	}
 }
-
 func (e *AppError) WithUserMessage(userMessage string) *AppError {
 	e.UserMessage = userMessage
 	return e
 }
-
 func NotFound(message string) *AppError {
-	return &AppError{
-		Err:         ErrNotFound,
-		StatusCode:  http.StatusNotFound,
-		Message:     message,
-		UserMessage: message,
-	}
+	return New(TypeNotFound, message).WithUserMessage(message)
 }
-
 func BadRequest(message string) *AppError {
-	return &AppError{
-		Err:         ErrBadRequest,
-		StatusCode:  http.StatusBadRequest,
-		Message:     message,
-		UserMessage: message,
-	}
+	return New(TypeBadRequest, message).WithUserMessage(message)
 }
-
 func InternalServer(err error) *AppError {
-	return &AppError{
-		Err:         err,
-		StatusCode:  http.StatusInternalServerError,
-		Message:     fmt.Sprintf("Internal server error: %v", err),
-		UserMessage: "An internal server error occurred. Please try again later.",
-	}
+	
+	userMsg := "An internal server error occurred. Please try again later."
+	return Wrap(err, TypeInternalServer, fmt.Sprintf("Internal server error: %v", err)).WithUserMessage(userMsg)
 }
-
 func ToStatusCode(err error) int {
 	if err == nil {
 		return http.StatusOK
 	}
-
-	var fiberErr *fiber.Error
-	if errors.As(err, &fiberErr) {
-		if fiberErr.Code == http.StatusNotFound {
-			return http.StatusNotFound
-		}
-	}
-
 	var appErr *AppError
 	if errors.As(err, &appErr) {
-		return appErr.StatusCode
-	}
-
-	for stdErr, statusCode := range standardErrorToStatusCode {
-		if errors.Is(err, stdErr) {
+		if appErr.StatusCode != 0 {
+			return appErr.StatusCode
+		}
+		
+		statusCode := errorTypeToStatusCode[appErr.Type]
+		if statusCode != 0 {
 			return statusCode
 		}
 	}
-
+	
+	var fiberErr *fiber.Error
+	if errors.As(err, &fiberErr) {
+		
+		
+		
+		
+		return fiberErr.Code 
+	}
+	
+	var validationErr *ValidationError
+	if errors.As(err, &validationErr) {
+		return errorTypeToStatusCode[TypeValidation]
+	}
+	var dbErr *DatabaseError
+	if errors.As(err, &dbErr) {
+		return errorTypeToStatusCode[TypeDatabase]
+	}
+	
+	if errors.Is(err, ErrNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrInvalidInput) || errors.Is(err, ErrBadRequest) {
+		return http.StatusBadRequest
+	}
+	
+	
 	return http.StatusInternalServerError
 }
-
 type ValidationError struct {
 	Field   string
 	Message string
+	Err     error 
 }
-
 func (e *ValidationError) Error() string {
+	base := "validation failed"
 	if e.Field != "" {
-		return fmt.Sprintf("validation failed for field '%s': %s", e.Field, e.Message)
+		base += fmt.Sprintf(" for field '%s'", e.Field)
 	}
-	return fmt.Sprintf("validation failed: %s", e.Message)
+	if e.Message != "" {
+		base += ": " + e.Message
+	}
+	if e.Err != nil {
+		base += fmt.Sprintf(" (caused by: %v)", e.Err)
+	}
+	return base
 }
-
+func (e *ValidationError) Unwrap() error {
+	return e.Err
+}
 type DatabaseError struct {
 	Operation string
 	Err       error
 }
-
 func (e *DatabaseError) Error() string {
 	return fmt.Sprintf("database error during %s operation: %v", e.Operation, e.Err)
 }
-
 func (e *DatabaseError) Unwrap() error {
 	return e.Err
 }
