@@ -5,30 +5,38 @@ import (
 	"fmt"
 
 	"github.com/narender/common/config"
-	"github.com/narender/common/telemetry/manager"
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
+	logSdk "go.opentelemetry.io/otel/sdk/log"
 )
 
-func NewLogExporter(ctx context.Context, cfg *config.Config) (sdklog.Exporter, error) {
-	conn, err := newOTLPGrpcConnection(ctx, cfg, "log")
-	if err != nil {
-		return nil, err
-	}
+func NewLogExporter(ctx context.Context, cfg *config.Config, logger *logrus.Logger) (logSdk.Exporter, error) {
 
-	logClientOpts := []otlploggrpc.Option{
-		otlploggrpc.WithGRPCConn(conn),
+	// Construct options directly for the standard exporter
+	opts := []otlploggrpc.Option{
+		otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
 		otlploggrpc.WithTimeout(cfg.OtelExporterOtlpTimeout),
 	}
-	if len(cfg.OtelExporterOtlpHeaders) > 0 {
-		logClientOpts = append(logClientOpts, otlploggrpc.WithHeaders(cfg.OtelExporterOtlpHeaders))
+
+	if cfg.OtelExporterInsecure {
+		opts = append(opts, otlploggrpc.WithInsecure())
+		logger.Warn("OTLP log exporter: using insecure gRPC connection.")
+	} else {
+		logger.Info("OTLP log exporter: using secure gRPC connection.")
 	}
 
-	logExporter, err := otlploggrpc.New(ctx, logClientOpts...)
+	if len(cfg.OtelExporterOtlpHeaders) > 0 {
+		opts = append(opts, otlploggrpc.WithHeaders(cfg.OtelExporterOtlpHeaders))
+	}
+
+	// Add other options like retry, compression if configured in cfg
+
+	logExporter, err := otlploggrpc.New(ctx, opts...)
 	if err != nil {
-		_ = conn.Close()
+		logger.Errorf("Failed to create OTLP log exporter client: %v", err)
 		return nil, fmt.Errorf("failed to create OTLP log exporter client: %w", err)
 	}
-	manager.GetLogger().Info("OTLP log exporter created")
+
+	logger.Info("OTLP log exporter created successfully.")
 	return logExporter, nil
 }
