@@ -9,11 +9,11 @@ import (
 	commonlog "github.com/narender/common/log"
 	"github.com/narender/common/telemetry/manager"
 	commonmetric "github.com/narender/common/telemetry/metric"
-	"github.com/narender/common/telemetry/trace"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -38,9 +38,8 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
-	ctx, span := trace.StartSpan(ctx, handlerScopeName, "ProductHandler."+operation,
-		semconv.HTTPRouteKey.String(c.Route().Path),
-	)
+	tracer := otel.Tracer(handlerScopeName)
+	ctx, span := tracer.Start(ctx, "ProductHandler.GetAllProducts", oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
 
 	logger.Info("Handler: Received request for GetAllProducts")
@@ -74,10 +73,8 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
-	ctx, span := trace.StartSpan(ctx, handlerScopeName, "ProductHandler."+operation,
-		semconv.HTTPRouteKey.String(c.Route().Path),
-		productIdAttr,
-	)
+	tracer := otel.Tracer(handlerScopeName)
+	ctx, span := tracer.Start(ctx, "ProductHandler.GetProductByID", oteltrace.WithAttributes(productIdAttr), oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
 
 	logger.Info("Handler: Received request for GetProductByID", zap.String("product_id", productID))

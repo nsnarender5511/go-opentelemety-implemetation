@@ -9,7 +9,8 @@ import (
 	commonlog "github.com/narender/common/log"
 	"github.com/narender/common/telemetry/manager"
 	"github.com/narender/common/telemetry/metric"
-	"github.com/narender/common/telemetry/trace"
+	commontrace "github.com/narender/common/telemetry/trace"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	oteMetric "go.opentelemetry.io/otel/metric"
@@ -106,8 +107,14 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, serviceScopeName, "ProductService."+operation)
-	defer span.End()
+	tracer := otel.Tracer(serviceScopeName)
+	ctx, span := tracer.Start(ctx, "ProductService.GetAll")
+	defer func() {
+		if opErr != nil {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Service: GetAll called")
 
@@ -142,8 +149,14 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, serviceScopeName, "ProductService."+operation, productIdAttr)
-	defer span.End()
+	tracer := otel.Tracer(serviceScopeName)
+	ctx, span := tracer.Start(ctx, "ProductService.GetProductByID", oteltrace.WithAttributes(productIdAttr))
+	defer func() {
+		if opErr != nil {
+			commontrace.RecordSpanError(span, opErr, productIdAttr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Service: GetByID called", zap.String("product_id", productID))
 

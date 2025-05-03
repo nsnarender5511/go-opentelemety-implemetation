@@ -13,7 +13,6 @@ import (
 	commonlog "github.com/narender/common/log"
 	"github.com/narender/common/telemetry/manager"
 	"github.com/narender/common/telemetry/metric"
-	"github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -21,10 +20,12 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
+	commontrace "github.com/narender/common/telemetry/trace"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
-const repositoryScopeName = "github.com/narender/product-service/repository"
+const repositoryScopeName = "product.repository"
 const repoLayerName = "repository"
 
 var ErrNotFound = errors.New("product not found")
@@ -95,22 +96,30 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	const operation = "loadData"
 	startTime := time.Now()
 	defer func() {
-
-		metric.RecordOperationMetrics(ctx, repoLayerName, operation, startTime, opErr)
+		metric.RecordOperationMetrics(ctx, repoLayerName, operation, startTime, opErr,
+			attribute.String("file.path", r.filePath),
+		)
 	}()
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, repositoryScopeName, "ProductRepository."+operation,
+	tracer := otel.Tracer(repositoryScopeName)
+	ctx, span := tracer.Start(ctx, "ProductRepository.loadData", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("READ"),
 		attribute.String("file.path", r.filePath),
-	)
-	defer span.End()
-
-	fileOpStartTime := time.Now()
-	logger.Info("Repository: Loading data", zap.String("file_path", r.filePath))
+	))
+	defer func() {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("panic recovered in %s: %v", operation, r)
+			commontrace.RecordSpanError(span, err)
+			span.SetStatus(codes.Error, "panic recovered")
+		} else {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	span.AddEvent("Acquiring lock for loadData")
 	r.mu.Lock()
@@ -119,10 +128,8 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 
 	span.AddEvent("Starting file read", oteltrace.WithAttributes(attribute.String("file.path", r.filePath)))
 	data, err := os.ReadFile(r.filePath)
-	fileIODuration := time.Since(fileOpStartTime).Seconds()
 
 	span.AddEvent("File read finished", oteltrace.WithAttributes(
-		attribute.Float64("duration_sec", fileIODuration),
 		attribute.Bool("read_error", err != nil),
 	))
 
@@ -175,21 +182,30 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 }
 
 func (r *productRepository) GetAll(ctx context.Context) (products []Product, opErr error) {
-	const operation = "GetAll"
+	const operation = "GetAllProducts"
 	startTime := time.Now()
 	defer func() {
-
 		metric.RecordOperationMetrics(ctx, repoLayerName, operation, startTime, opErr)
 	}()
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, repositoryScopeName, "ProductRepository."+operation,
+	tracer := otel.Tracer(repositoryScopeName)
+	ctx, span := tracer.Start(ctx, "ProductRepository.GetAll", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ_ALL"),
-	)
-	defer span.End()
+	))
+	defer func() {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("panic recovered in %s: %v", operation, r)
+			commontrace.RecordSpanError(span, err)
+			span.SetStatus(codes.Error, "panic recovered")
+		} else {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Repository: GetAll called")
 
@@ -213,23 +229,32 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 }
 
 func (r *productRepository) GetByID(ctx context.Context, id string) (product Product, opErr error) {
-	const operation = "GetByID"
+	const operation = "GetProductByID"
 	startTime := time.Now()
 	productIdAttr := attribute.String("product.id", id)
 	defer func() {
-
 		metric.RecordOperationMetrics(ctx, repoLayerName, operation, startTime, opErr, productIdAttr)
 	}()
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, repositoryScopeName, "ProductRepository."+operation,
+	tracer := otel.Tracer(repositoryScopeName)
+	ctx, span := tracer.Start(ctx, "ProductRepository.GetByID", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ"),
 		productIdAttr,
-	)
-	defer span.End()
+	))
+	defer func() {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("panic recovered in %s: %v", operation, r)
+			commontrace.RecordSpanError(span, err)
+			span.SetStatus(codes.Error, "panic recovered")
+		} else {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Repository: GetByID called", zap.String("product.id", id))
 
@@ -254,7 +279,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 }
 
 func (r *productRepository) UpdateStock(ctx context.Context, productID string, newStock int) (opErr error) {
-	const operation = "UpdateStock"
+	const operation = "UpdateProduct"
 	startTime := time.Now()
 	productIdAttr := attribute.String("product.id", productID)
 	newStockAttr := attribute.Int("product.stock.new", newStock)
@@ -265,13 +290,23 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, repositoryScopeName, "ProductRepository."+operation,
+	tracer := otel.Tracer(repositoryScopeName)
+	ctx, span := tracer.Start(ctx, "ProductRepository.UpdateStock", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("UPDATE"),
 		productIdAttr,
 		newStockAttr,
-	)
-	defer span.End()
+	))
+	defer func() {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("panic recovered in %s: %v", operation, r)
+			commontrace.RecordSpanError(span, err)
+			span.SetStatus(codes.Error, "panic recovered")
+		} else {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Repository: UpdateStock called", zap.String("product.id", productID), zap.Int("product.stock.new", newStock))
 
@@ -311,22 +346,34 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 	const operation = "saveData"
 	startTime := time.Now()
 	defer func() {
-		metric.RecordOperationMetrics(context.Background(), repoLayerName, operation, startTime, opErr)
+		metric.RecordOperationMetrics(ctx, repoLayerName, operation, startTime, opErr,
+			attribute.String("file.path", r.filePath),
+			attribute.Int("products.to_save.count", len(r.products)),
+		)
 	}()
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	ctx, span := trace.StartSpan(ctx, repositoryScopeName, "ProductRepository."+operation,
+	tracer := otel.Tracer(repositoryScopeName)
+	ctx, span := tracer.Start(ctx, "ProductRepository.saveData", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("WRITE"),
 		attribute.String("file.path", r.filePath),
 		attribute.Int("products.to_save.count", len(r.products)),
-	)
-	defer span.End()
+	))
+	defer func() {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("panic recovered in %s: %v", operation, r)
+			commontrace.RecordSpanError(span, err)
+			span.SetStatus(codes.Error, "panic recovered")
+		} else {
+			commontrace.RecordSpanError(span, opErr)
+		}
+		span.End()
+	}()
 
 	logger.Info("Repository: Saving data", zap.String("file_path", r.filePath))
-	fileOpStartTime := time.Now()
 
 	span.AddEvent("Starting JSON marshal")
 	data, err := json.MarshalIndent(r.products, "", "  ")
@@ -342,10 +389,8 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 
 	span.AddEvent("Starting file write", oteltrace.WithAttributes(attribute.String("file.path", r.filePath)))
 	err = os.WriteFile(r.filePath, data, 0644)
-	fileIODuration := time.Since(fileOpStartTime).Seconds()
 
 	span.AddEvent("File write finished", oteltrace.WithAttributes(
-		attribute.Float64("duration_sec", fileIODuration),
 		attribute.Bool("write_error", err != nil),
 	))
 

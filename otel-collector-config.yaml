@@ -2,29 +2,20 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
-  hostmetrics:
-    collection_interval: 10s
-    scrapers:
-      cpu: {}
-      memory: {}
-      disk: {}
-      filesystem: {}
-      load: {}
-      network: {}
-      paging: {}
-      processes: {}
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch: {}
 
 exporters:
-  otlp:
-    endpoint: "ingest.in.signoz.cloud:443"
-    tls:
-      insecure: false
-    headers:
-      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+  # otlp: # Temporarily removed
+  #   endpoint: "ingest.in.signoz.cloud:443"
+  #   tls:
+  #     insecure: false
+  #   headers:
+  #     signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
   debug:
     verbosity: detailed
 
@@ -44,15 +35,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, debug]
+      exporters: [debug] # Only debug exporter
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, debug]
+      exporters: [debug] # Only debug exporter
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, debug] 
+      exporters: [debug] # Only debug exporter 
 
 
 

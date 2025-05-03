@@ -1,3 +1,6 @@
+networks:
+  otel_internal-network:
+    driver: bridge
 
 
 services:
@@ -25,7 +28,10 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-
+    networks:
+      - otel_internal-network
+    depends_on:
+      - otel-collector
 
   # --- Product Simulator Service (Load Generator) ---
   # product-simulator:
@@ -52,6 +58,10 @@ services:
     ports:
       - 4317:4317
       - 4318:4318
+      # Expose zPages for healthcheck if needed, often on 55679
+      # - 55679:55679 
+    networks:
+      - otel_internal-network
 
 
   
