@@ -64,11 +64,11 @@ service:
     metrics:
       receivers: [otlp, docker_stats] # Receive OTLP metrics AND docker stats
       processors: [resource, batch] # Apply resource attributes (like deployment.environment) and batch
-      exporters: [otlp] # Add debug here temporarily if needed: [otlp, debug]
+      exporters: [otlp] # Remove debug exporter
     logs:
       receivers: [otlp]
       processors: [resource, batch] # Add resource processor if you want common attributes on logs too
-      exporters: [otlp, debug] # Send logs to SigNoz
+      exporters: [otlp] # Send logs to SigNoz
 
 
 
