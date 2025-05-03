@@ -10,10 +10,15 @@ services:
       context: .
       dockerfile: ./product-service/Dockerfile
     container_name: product-service
+    hostname: product-service-container
     ports:
       - 8082:8082
     volumes:
       - ./product-service/data.json:/app/data.json:ro
+    environment:
+      - OTEL_SERVICE_NAME=product-service
+      - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=${HOSTNAME},host.name=${HOSTNAME}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
@@ -23,15 +28,16 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
+          cpus: '0.25'
+          memory: 128M
         reservations:
           cpus: '0.25'
           memory: 128M
     networks:
       - otel_internal-network
     depends_on:
-      - otel-collector
+      otel-collector:
+        condition: service_started
 
   # --- Product Simulator Service (Load Generator) ---
   product-simulator:
@@ -52,8 +58,10 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib
     container_name: otel-collector
+    user: "0"
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - 4317:4317
       - 4318:4318
@@ -61,6 +69,36 @@ services:
       # - 55679:55679 
     networks:
       - otel_internal-network
+
+  # --- Example: Hypothetical Service A ---
+  # service-A:
+  #   build: ./service-A
+  #   container_name: service-A
+  #   environment:
+  #     - OTEL_SERVICE_NAME=service-A
+  #     - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=${HOSTNAME}
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #   networks:
+  #     - otel_internal-network
+  #   depends_on:
+  #     otel-collector:
+  #       condition: service_started
+
+  # --- Example: Hypothetical Service B ---
+  # service-B:
+  #   build: ./service-B
+  #   container_name: service-B
+  #   environment:
+  #     - OTEL_SERVICE_NAME=service-B
+  #     - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=${HOSTNAME}
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #   networks:
+  #     - otel_internal-network
+  #   depends_on:
+  #     otel-collector:
+  #       condition: service_started
+
+  # ... Add similar blocks for service-C, service-D, service-E ...
 
 
   
