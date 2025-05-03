@@ -1,8 +1,6 @@
 networks:
   otel_internal-network:
     driver: bridge
-  signoz-network:
-    driver: bridge
 
 
 services:
@@ -22,7 +20,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -39,7 +37,6 @@ services:
     depends_on:
       product-service:
         condition: service_healthy
-
     environment:
       - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
     networks:
@@ -57,8 +54,13 @@ services:
       - "4318:4318"
       - "13133:13133"
       - "55679:55679"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     networks:
-      - signoz-network
       - otel_internal-network
 
 

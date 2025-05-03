@@ -14,16 +14,13 @@ processors:
   batch: {}
 
   resourcedetection:
-    detectors: [env, system, docker]
-    override: false
+    detectors: [system, docker]
+    override: true
   resource:
     attributes:
-      - key: deployment.environment
-        value: "production"
-        action: insert
       - key: host.name
-        value: "narenders-microservices-demo"
-        action: insert
+        value: "without-resourcedetection-override-application-disabled"
+        action: upsert
 
 
 exporters:
@@ -58,7 +55,7 @@ service:
     #   exporters: [otlp]
     logs:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch, resourcedetection, resource]
       exporters: [otlp, debug]
 
 

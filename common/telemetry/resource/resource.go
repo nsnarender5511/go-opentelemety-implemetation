@@ -11,9 +11,6 @@ func NewResource(ctx context.Context) (*resource.Resource, error) {
 
 	res, err := resource.New(ctx,
 		resource.WithProcess(),
-		resource.WithOS(),
-		resource.WithHost(),
-		resource.WithContainer(),
 		resource.WithTelemetrySDK(),
 	)
 	if err != nil {
