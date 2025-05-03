@@ -12,12 +12,12 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-// --- Placeholder for Metric Instruments ---
-// In a real application, these would be initialized properly during setup
-// (e.g., in a telemetry package init or main) and accessed globally or via dependency injection.
+
+
+
 
 var (
-	meter           = otel.Meter("common/telemetry/metric") // Placeholder meter
+	meter           = otel.Meter("common/telemetry/metric") 
 	operationsTotal metric.Int64Counter
 	durationMillis  metric.Float64Histogram
 	errorsTotal     metric.Int64Counter
@@ -25,7 +25,7 @@ var (
 )
 
 func init() {
-	// Initialize instruments - handle errors properly in production code
+	
 	operationsTotal, initErr = meter.Int64Counter(
 		"app.operations.total",
 		metric.WithDescription("Total number of operations executed"),
@@ -54,9 +54,9 @@ func init() {
 	}
 }
 
-// --- End Placeholder ---
 
-// MetricsController defines methods for controlling metric recording for an operation.
+
+
 type MetricsController interface {
 	End(ctx context.Context, err *error, additionalAttrs ...attribute.KeyValue)
 }
@@ -65,10 +65,10 @@ type metricsControllerImpl struct {
 	startTime time.Time
 	layer     string
 	operation string
-	// Add other common attributes if needed
+	
 }
 
-// StartMetricsTimer begins timing an operation and returns a controller.
+
 func StartMetricsTimer(layer, operation string) MetricsController {
 	return &metricsControllerImpl{
 		startTime: time.Now(),
@@ -77,15 +77,15 @@ func StartMetricsTimer(layer, operation string) MetricsController {
 	}
 }
 
-// End calculates the duration, records metrics (count, duration, error count),
-// and adds appropriate attributes, including error type if applicable.
+
+
 func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additionalAttrs ...attribute.KeyValue) {
 	duration := time.Since(mc.startTime)
-	durationMs := float64(duration.Microseconds()) / 1000.0 // Convert to milliseconds
+	durationMs := float64(duration.Microseconds()) / 1000.0 
 
 	isError := errPtr != nil && *errPtr != nil
 
-	// Base attributes for all metrics
+	
 	baseAttrs := []attribute.KeyValue{
 		attribute.String("app.layer", mc.layer),
 		attribute.String("app.operation", mc.operation),
@@ -93,7 +93,7 @@ func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additio
 	}
 	attrs := append(baseAttrs, additionalAttrs...)
 
-	// Add specific error type attribute if an error occurred
+	
 	if isError {
 		err := *errPtr
 		errorType := "unknown"
@@ -113,7 +113,7 @@ func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additio
 
 	opt := metric.WithAttributes(attrs...)
 
-	// Record metrics (check if instruments were initialized)
+	
 	if operationsTotal != nil {
 		operationsTotal.Add(ctx, 1, opt)
 	}

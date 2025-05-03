@@ -75,11 +75,11 @@ func main() {
 	go func() {
 		if err := app.Listen(addr); err != nil && err != http.ErrServerClosed {
 			logger.Error("Fiber listener failed", slog.Any("error", err))
-			os.Exit(1) // Exit if the listener fails
+			os.Exit(1) 
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server with a timeout.
+	
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -94,7 +94,7 @@ func main() {
 		logger.Info("Fiber server shutdown complete.")
 	}
 
-	// Shutdown OpenTelemetry
+	
 	shutdownCtx, otelCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer otelCancel()
 

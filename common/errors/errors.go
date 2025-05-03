@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// ErrorType defines the category of an application error.
+
 type ErrorType int
 
 const (
-	TypeUnknown ErrorType = iota // 0
+	TypeUnknown ErrorType = iota 
 	TypeValidation
 	TypeDatabase
 	TypeNotFound
@@ -18,8 +18,8 @@ const (
 	TypeInternal
 	TypeForbidden
 	TypeUnauthorized
-	TypeConflict // Added for consistency
-	// Add other types as needed
+	TypeConflict 
+	
 )
 
 func (et ErrorType) String() string {
@@ -45,26 +45,26 @@ func (et ErrorType) String() string {
 	}
 }
 
-// Standard application sentinel errors
+
 var (
 	ErrNotFound     = errors.New("resource not found")
-	ErrValidation   = errors.New("validation failed") // Basic sentinel
+	ErrValidation   = errors.New("validation failed") 
 	ErrInternal     = errors.New("internal server error")
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrForbidden    = errors.New("forbidden")
-	ErrInvalidInput = errors.New("invalid input provided")     // Added
-	ErrBadRequest   = errors.New("bad request")                // Added
-	ErrDatabase     = errors.New("database operation failed")  // Basic sentinel
-	ErrConflict     = errors.New("resource conflict occurred") // Added
-	// Add other common errors as needed
+	ErrInvalidInput = errors.New("invalid input provided")     
+	ErrBadRequest   = errors.New("bad request")                
+	ErrDatabase     = errors.New("database operation failed")  
+	ErrConflict     = errors.New("resource conflict occurred") 
+	
 )
 
-// AppError represents a general application error with context.
+
 type AppError struct {
 	Type        ErrorType
 	StatusCode  int
 	UserMessage string
-	OriginalErr error // The underlying error
+	OriginalErr error 
 	Context     map[string]interface{}
 }
 
@@ -75,12 +75,12 @@ func (e *AppError) Error() string {
 	return e.Type.String()
 }
 
-// Unwrap allows AppError to be used with errors.Is and errors.As
+
 func (e *AppError) Unwrap() error {
 	return e.OriginalErr
 }
 
-// NewAppError creates a new AppError.
+
 func NewAppError(errType ErrorType, statusCode int, userMessage string, originalErr error, context map[string]interface{}) *AppError {
 	return &AppError{
 		Type:        errType,
@@ -91,12 +91,12 @@ func NewAppError(errType ErrorType, statusCode int, userMessage string, original
 	}
 }
 
-// --- Specific Error Types (embedding AppError or standalone) ---
 
-// ValidationError represents an error during data validation.
+
+
 type ValidationError struct {
-	AppError                   // Embed AppError for common fields
-	Fields   map[string]string // Map of field names to validation error messages
+	AppError                   
+	Fields   map[string]string 
 }
 
 func (e *ValidationError) Error() string {
@@ -114,12 +114,12 @@ func (e *ValidationError) Error() string {
 	return baseMsg
 }
 
-// NewValidationError creates a new ValidationError.
+
 func NewValidationError(fields map[string]string, originalErr error) *ValidationError {
 	return &ValidationError{
 		AppError: AppError{
 			Type:        TypeValidation,
-			StatusCode:  400, // Typically Bad Request
+			StatusCode:  400, 
 			UserMessage: "Validation failed. Please check the provided data.",
 			OriginalErr: originalErr,
 			Context:     map[string]interface{}{"validation_fields": fields},
@@ -128,10 +128,10 @@ func NewValidationError(fields map[string]string, originalErr error) *Validation
 	}
 }
 
-// DatabaseError represents an error during a database operation.
+
 type DatabaseError struct {
-	AppError        // Embed AppError for common fields
-	Query    string // Optional: The query that failed
+	AppError        
+	Query    string 
 }
 
 func (e *DatabaseError) Error() string {
@@ -145,9 +145,9 @@ func (e *DatabaseError) Error() string {
 	return baseMsg
 }
 
-// NewDatabaseError creates a new DatabaseError.
+
 func NewDatabaseError(query string, originalErr error) *DatabaseError {
-	// Wrap the original error with the basic sentinel if not already done
+	
 	wrappedErr := originalErr
 	if !errors.Is(originalErr, ErrDatabase) {
 		wrappedErr = fmt.Errorf("%w: %v", ErrDatabase, originalErr)
@@ -156,7 +156,7 @@ func NewDatabaseError(query string, originalErr error) *DatabaseError {
 	return &DatabaseError{
 		AppError: AppError{
 			Type:        TypeDatabase,
-			StatusCode:  500, // Typically Internal Server Error
+			StatusCode:  500, 
 			UserMessage: "An internal error occurred while accessing data.",
 			OriginalErr: wrappedErr,
 			Context:     map[string]interface{}{"db_query": query},

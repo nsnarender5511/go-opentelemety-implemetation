@@ -40,35 +40,35 @@ var (
 func LoadConfig() (*Config, error) {
 	var loadErr error
 	configOnce.Do(func() {
-		// TODO: Implement actual config loading logic (e.g., from env vars, file)
+		
 		log.Println("WARN: LoadConfig returning default config; ensure environment variable parsing is implemented.")
 		cfg := GetDefaultConfig()
 
 		configMutex.Lock()
 		globalConfig = cfg
 		configMutex.Unlock()
-		// If loading fails, set loadErr
-		// loadErr = someError
+		
+		
 	})
 
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 	if loadErr != nil {
-		return nil, loadErr // Return error if loading failed
+		return nil, loadErr 
 	}
-	return globalConfig, nil // Return potentially nil config if Do block didn't run/set it? Check logic.
+	return globalConfig, nil 
 }
 
-// Get returns a read-only copy of the globally loaded configuration.
-// It assumes LoadConfig has been called successfully at least once.
+
+
 func Get() *Config {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
-	// Return a copy to prevent modification? Or assume read-only usage?
-	// For simplicity, returning direct pointer for now.
+	
+	
 	if globalConfig == nil {
 		log.Println("WARN: config.Get() called before LoadConfig() or LoadConfig() failed, returning default config.")
-		// Potential panic? Or return default? Returning default for resilience.
+		
 		return GetDefaultConfig()
 	}
 	return globalConfig
@@ -79,15 +79,15 @@ func GetDefaultConfig() *Config {
 		ProductServicePort:       "8082",
 		ServiceName:              "product-service",
 		ServiceVersion:           "1.0.0",
-		DataFilePath:             "/app/data.json", // Adjusted default path
+		DataFilePath:             "/app/data.json", 
 		LogLevel:                 "info",
-		Environment:              "development", // Or "development"
+		Environment:              "development", 
 		OtelExporterOtlpEndpoint: "otel-collector:4317",
-		// Default delay settings
+		
 		SimulateDelayEnabled: false,
 		SimulateDelayMinMs:   10,
 		SimulateDelayMaxMs:   100,
-		// Add other defaults as needed
+		
 		ShutdownTimeout:       5 * time.Second,
 		ServerShutdownTimeout: 10 * time.Second,
 	}
