@@ -80,7 +80,7 @@ func GetDefaultConfig() *Config {
 		ServiceName:              "product-service",
 		ServiceVersion:           "1.0.0",
 		DataFilePath:             "/app/data.json", 
-		LogLevel:                 "info",
+		LogLevel:                 "debug",
 		Environment:              "development", 
 		OtelExporterOtlpEndpoint: "otel-collector:4317",
 		

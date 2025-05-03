@@ -38,6 +38,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	const operation = "GetAllProducts"
 	ctx := c.UserContext()
 	logger := commonlog.L
+	logger.DebugContext(ctx, "Entering GetAllProducts handler", slog.String("operation", operation))
 
 	mc := commonmetric.StartMetricsTimer(commonconst.HandlerLayer, operation)
 	defer mc.End(ctx, &opErr)
@@ -54,9 +55,10 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 		}
 	}()
 
-	logger.Info("Handler: Received request for GetAllProducts")
+	logger.InfoContext(ctx, "Handler: Received request for GetAllProducts", slog.String("operation", operation))
 
 	debugutils.Simulate(ctx)
+	logger.InfoContext(ctx, "Handler: Calling service GetAll", slog.String("operation", operation))
 	spanner.AddEvent("Calling service GetAll")
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
@@ -66,10 +68,12 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	}
 	productCount := len(products)
 	spanner.AddEvent("Service GetAll successful", trace.WithAttributes(attribute.Int("products.count", productCount)))
+	logger.InfoContext(ctx, "Handler: Service GetAll returned successfully", slog.Int("productCount", productCount), slog.String("operation", operation))
 
 	debugutils.Simulate(ctx)
-	logger.Info("Handler: Successfully retrieved all products")
+	logger.InfoContext(ctx, "Handler: Successfully retrieved all products", slog.Int("productCount", productCount))
 	spanner.SetAttributes(attribute.Int("products.count", productCount))
+	logger.DebugContext(ctx, "Handler: Preparing successful response", slog.String("operation", operation), slog.Int("productCount", productCount))
 	return c.Status(http.StatusOK).JSON(products)
 }
 
@@ -79,6 +83,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	logger := commonlog.L
 	productID := c.Params("productId")
 	productIdAttr := attribute.String("product.id", productID)
+	logger.DebugContext(ctx, "Entering GetProductByID handler", slog.String("operation", operation), productIdAttr)
 
 	mc := commonmetric.StartMetricsTimer(commonconst.HandlerLayer, operation)
 	defer mc.End(ctx, &opErr, productIdAttr)
@@ -104,9 +109,10 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		}
 	}()
 
-	logger.Info("Handler: Received request for GetProductByID", slog.String("product_id", productID))
+	logger.InfoContext(ctx, "Handler: Received request for GetProductByID", slog.String("product_id", productID), slog.String("operation", operation))
 
 	debugutils.Simulate(ctx)
+	logger.InfoContext(ctx, "Handler: Calling service GetByID", slog.String("product_id", productID), slog.String("operation", operation))
 	spanner.AddEvent("Calling service GetByID", trace.WithAttributes(productIdAttr))
 	product, err := h.service.GetByID(ctx, productID)
 	if err != nil {
@@ -115,16 +121,21 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		return opErr
 	}
 	spanner.AddEvent("Service GetByID successful")
+	logger.InfoContext(ctx, "Handler: Service GetByID returned successfully", slog.String("product_id", productID), slog.String("operation", operation))
 
 	debugutils.Simulate(ctx)
-	logger.Info("Handler: Successfully retrieved product by ID", slog.String("product_id", productID))
+	logger.InfoContext(ctx, "Handler: Successfully retrieved product by ID", slog.String("product_id", productID))
+	logger.DebugContext(ctx, "Handler: Preparing successful response", slog.String("operation", operation), productIdAttr)
 	return c.Status(http.StatusOK).JSON(product)
 }
 
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
+	ctx := c.UserContext()
 	logger := commonlog.L
-	logger.Info("Handler: Health check requested")
-
+	const operation = "HealthCheckHandler"
+	logger.DebugContext(ctx, "Entering HealthCheck handler", slog.String("operation", operation))
+	logger.InfoContext(ctx, "Handler: Health check requested", slog.String("operation", operation))
+	logger.DebugContext(ctx, "Handler: Preparing health check response", slog.String("operation", operation))
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status": "ok",
 	})

@@ -155,6 +155,8 @@ func NewJsonProductService(dataPath string, logger *slog.Logger) (*JsonProductSe
 }
 
 func (s *JsonProductService) GetAll(ctx context.Context) ([]Product, error) {
+	const operation = "JsonGetAll"
+	s.logger.DebugContext(ctx, "Entering JsonProductService GetAll", slog.String("operation", operation))
 	s.mu.RLock() // Use RLock for read operations
 	defer s.mu.RUnlock()
 
@@ -162,17 +164,23 @@ func (s *JsonProductService) GetAll(ctx context.Context) ([]Product, error) {
 	for _, product := range s.products {
 		productList = append(productList, product)
 	}
+	s.logger.InfoContext(ctx, "JsonProductService returning all products", slog.Int("count", len(productList)), slog.String("operation", operation))
 	return productList, nil
 }
 
 func (s *JsonProductService) GetByID(ctx context.Context, id string) (Product, error) {
+	const operation = "JsonGetByID"
+	s.logger.DebugContext(ctx, "Entering JsonProductService GetByID", slog.String("product_id", id), slog.String("operation", operation))
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	product, found := s.products[id]
 	if !found {
-		s.logger.WarnContext(ctx, "Product not found in service", slog.String("product_id", id))
+		s.logger.WarnContext(ctx, "Product not found in JsonProductService", slog.String("product_id", id), slog.String("operation", operation))
+		s.logger.DebugContext(ctx, "JsonProductService returning not found error", slog.String("product_id", id), slog.String("operation", operation))
 		return Product{}, commonerrors.ErrNotFound // Use the imported common error
 	}
+	s.logger.DebugContext(ctx, "JsonProductService found product", slog.String("product_id", id), slog.String("operation", operation))
+	s.logger.InfoContext(ctx, "JsonProductService returning product successfully", slog.String("product_id", id), slog.String("operation", operation))
 	return product, nil
 }

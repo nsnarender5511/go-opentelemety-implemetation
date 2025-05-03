@@ -53,8 +53,16 @@ func Init() error {
 
 	L = slog.New(handler)
 
+	// Enrich the logger with common application attributes
+	cfg := config.Get()
+	L = L.With(
+		slog.String("service.name", cfg.ServiceName),
+		slog.String("service.version", cfg.ServiceVersion),
+		slog.String("deployment.environment", cfg.Environment),
+	)
+
 	slog.SetDefault(L)
 
-	L.Info("Logger initialized and set as default", slog.String("environment", config.Get().Environment), slog.String("level", level.String()))
+	L.Info("Logger initialized, enriched with common attributes, and set as default", slog.String("level", level.String()))
 	return nil
 }
