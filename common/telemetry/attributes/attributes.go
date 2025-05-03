@@ -5,7 +5,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-
 var (
 	DBSystemKey         = semconv.DBSystemKey
 	DBOperationKey      = semconv.DBOperationKey
@@ -21,7 +20,6 @@ var (
 	ExceptionMessageKey = semconv.ExceptionMessageKey
 	ExceptionTypeKey    = semconv.ExceptionTypeKey
 
-	
 	AttrDBFilePathKey      = attribute.Key("db.file.path")
 	AttrAppProductIDKey    = attribute.Key("app.product.id")
 	AttrProductNewStockKey = attribute.Key("product.new_stock")

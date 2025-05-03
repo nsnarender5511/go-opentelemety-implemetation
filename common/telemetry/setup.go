@@ -102,18 +102,12 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 	return shutdown, nil
 }
 
-
-
 func GetTracer(instrumentationName string) oteltrace.Tracer {
-	
-	
+
 	return otel.Tracer(instrumentationName)
 }
 
-
-
 func GetMeter(instrumentationName string) metric.Meter {
-	
-	
+
 	return otel.Meter(instrumentationName)
 }

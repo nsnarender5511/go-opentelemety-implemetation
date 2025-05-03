@@ -44,8 +44,7 @@ service:
   telemetry:
     logs:
       level: "debug"
-
-      encoding: "json"
+      encoding: "text"
   extensions: [health_check, pprof, zpages]
   pipelines:
     traces:
@@ -56,6 +55,10 @@ service:
       receivers: [otlp, docker_stats]
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [resourcedetection, resource, batch]
+      exporters: [otlp, debug]
 
 
 

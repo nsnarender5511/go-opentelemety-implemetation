@@ -16,17 +16,11 @@ require (
 	google.golang.org/grpc v1.72.0
 )
 
-// Add replace directives for local sub-packages if used internally,
-// although in this simple common module, it might not be strictly needed
-// if sub-packages don't import each other heavily via the full path.
-// Example if lifecycle used config:
-// replace github.com/narender/common/config => ./config
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	// github.com/go-viper/mapstructure/v2 v2.2.1 // indirect // Will be removed by go mod tidy
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
@@ -38,7 +32,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
-// gopkg.in/yaml.v3 v3.0.1 // indirect // Will be removed by go mod tidy
 )
 
 require (
@@ -63,9 +56,4 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 )
 
-// Add any *other* dependencies specific to the common module here if needed in the future
 
-// Add any dependencies specific to the common module here if needed in the future
-// require (
-//    example.com/some/dependency v1.0.0
-// )

@@ -21,27 +21,23 @@ import (
 	"go.uber.org/zap"
 )
 
-
 var appConfig *config.Config
 
 func main() {
-	
+
 	tempLogger := zap.NewExample()
 	cfg, err := config.LoadConfig(tempLogger)
 	if err != nil {
 		tempLogger.Fatal("Failed to load configuration", zap.Error(err))
 	}
-	
-	appConfig = cfg
-	
 
-	
+	appConfig = cfg
+
 	if err := commonlog.Init(cfg); err != nil {
 		tempLogger.Fatal("Failed to initialize application logger", zap.Error(err))
 	}
 	defer commonlog.Cleanup()
 
-	
 	appLogger := commonlog.L
 
 	appLogger.Info("Starting service",
@@ -50,7 +46,6 @@ func main() {
 		zap.String("environment", cfg.Environment),
 	)
 
-	
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
 	otelShutdown, err := telemetry.InitTelemetry(startupCtx, cfg)
 	cancelStartup()
@@ -59,7 +54,6 @@ func main() {
 	}
 	appLogger.Info("OpenTelemetry initialized successfully.")
 
-	
 	defer func() {
 		appLogger.Info("Shutting down OpenTelemetry...")
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
@@ -71,11 +65,9 @@ func main() {
 		}
 	}()
 
-	
 	appCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	
 	appLogger.Info("Initializing application dependencies...")
 	repo, err := NewProductRepository(cfg.DataFilePath)
 	if err != nil {
@@ -84,7 +76,6 @@ func main() {
 	productService := NewProductService(repo)
 	productHandler := NewProductHandler(productService)
 
-	
 	appLogger.Info("Setting up Fiber application...")
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.NewErrorHandler(commonlog.L),
@@ -93,14 +84,12 @@ func main() {
 		IdleTimeout:  30 * time.Second,
 	})
 
-	
 	app.Use(recover.New())
 	app.Use(cors.New())
 	app.Use(otelfiber.Middleware())
 	app.Use(middleware.RequestLoggerMiddleware())
 	appLogger.Info("Fiber middleware configured.")
 
-	
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 	v1.Get("/products", productHandler.GetAllProducts)
@@ -108,7 +97,6 @@ func main() {
 	v1.Get("/healthz", productHandler.HealthCheck)
 	appLogger.Info("API routes configured.")
 
-	
 	port := cfg.ProductServicePort
 	addr := ":" + port
 	go func() {
@@ -118,10 +106,8 @@ func main() {
 		}
 	}()
 
-	
 	<-appCtx.Done()
 
-	
 	appLogger.Info("Shutdown signal received, initiating graceful server shutdown...")
 	serverShutdownCtx, cancelServerShutdown := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelServerShutdown()

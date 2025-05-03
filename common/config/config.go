@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-
 type Config struct {
 	ServiceName              string `env:"SERVICE_NAME,required"`
 	ServiceVersion           string `env:"SERVICE_VERSION,required"`
@@ -35,30 +34,23 @@ type Config struct {
 	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
 }
 
-
 func LoadConfig(logger *zap.Logger) (*Config, error) {
-	
-	
-	
-	
-	
-	logger.Warn("LoadConfig returning default config; ensure environment variable parsing is implemented.")
-	return GetDefaultConfig(), nil 
-}
 
+	logger.Warn("LoadConfig returning default config; ensure environment variable parsing is implemented.")
+	return GetDefaultConfig(), nil
+}
 
 func GetDefaultConfig() *Config {
 	return &Config{
 		ProductServicePort:       "8082",
-		ServiceName:              "product-service", 
-		ServiceVersion:           "1.0.0",           
-		DataFilePath:             "/app/data.json",  
+		ServiceName:              "product-service",
+		ServiceVersion:           "1.0.0",
+		DataFilePath:             "/app/data.json",
 		LogLevel:                 "info",
-		Environment:              "development",         
-		OtelExporterOtlpEndpoint: "otel-collector:4317", 
+		Environment:              "development",
+		OtelExporterOtlpEndpoint: "otel-collector:4317",
 	}
 }
-
 
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -66,7 +58,6 @@ func getEnv(key, fallback string) string {
 	}
 	return fallback
 }
-
 
 func getEnvAsBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
@@ -77,7 +68,6 @@ func getEnvAsBool(key string, fallback bool) bool {
 	}
 	return fallback
 }
-
 
 func getEnvAsMap(key string) map[string]string {
 	valueStr := getEnv(key, "")
