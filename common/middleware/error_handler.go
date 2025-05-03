@@ -101,6 +101,8 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 
 		ctx := c.UserContext()
 		span := oteltrace.SpanFromContext(ctx)
+		traceID := ""
+		spanID := ""
 		if span != nil && span.IsRecording() {
 			commonTrace.RecordSpanError(span, err)
 			span.SetAttributes(
@@ -108,6 +110,11 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 				attribute.String("error.type", errorType.String()),
 				attribute.String("error.message", internalMessage),
 			)
+			// Extract IDs if span is valid
+			if span.SpanContext().IsValid() {
+				traceID = span.SpanContext().TraceID().String()
+				spanID = span.SpanContext().SpanID().String()
+			}
 		}
 
 		slogAttrs := []slog.Attr{
@@ -125,6 +132,14 @@ func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 				slog.String("ip", c.IP()),
 				slog.String("route", c.Route().Path),
 			),
+		}
+
+		// Add trace and span IDs if available
+		if traceID != "" {
+			slogAttrs = append(slogAttrs, slog.String("trace_id", traceID))
+		}
+		if spanID != "" {
+			slogAttrs = append(slogAttrs, slog.String("span_id", spanID))
 		}
 
 		logMessage := fmt.Sprintf("HTTP Error Handled: %s %s -> %d", c.Method(), c.Path(), statusCode)

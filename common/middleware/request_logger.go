@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func RequestLogger(logger *slog.Logger) fiber.Handler {
@@ -12,6 +13,16 @@ func RequestLogger(logger *slog.Logger) fiber.Handler {
 		start := time.Now()
 		path := c.Path()
 		method := c.Method()
+
+		// Get trace context before calling Next()
+		ctx := c.UserContext()
+		span := trace.SpanFromContext(ctx)
+		traceID := ""
+		spanID := ""
+		if span != nil && span.SpanContext().IsValid() {
+			traceID = span.SpanContext().TraceID().String()
+			spanID = span.SpanContext().SpanID().String()
+		}
 
 		err := c.Next()
 
@@ -27,19 +38,28 @@ func RequestLogger(logger *slog.Logger) fiber.Handler {
 			slog.String("user_agent", string(c.Request().Header.UserAgent())),
 		}
 
+		// Add trace and span IDs if available
+		if traceID != "" {
+			attrs = append(attrs, slog.String("trace_id", traceID))
+		}
+		if spanID != "" {
+			attrs = append(attrs, slog.String("span_id", spanID))
+		}
+
 		if err != nil {
+			// Ensure error attribute is added *before* logging level decision
 			attrs = append(attrs, slog.Any("error", err))
 		}
 
 		msg := "Request completed"
 		if statusCode >= 500 {
-			logger.LogAttrs(c.UserContext(), slog.LevelError, msg, attrs...)
+			logger.LogAttrs(ctx, slog.LevelError, msg, attrs...) // Use ctx from UserContext
 		} else if statusCode >= 400 {
-			logger.LogAttrs(c.UserContext(), slog.LevelWarn, msg, attrs...)
+			logger.LogAttrs(ctx, slog.LevelWarn, msg, attrs...) // Use ctx from UserContext
 		} else {
-			logger.LogAttrs(c.UserContext(), slog.LevelInfo, msg, attrs...)
+			logger.LogAttrs(ctx, slog.LevelInfo, msg, attrs...) // Use ctx from UserContext
 		}
 
-		return err
+		return err // Return the original error
 	}
 }

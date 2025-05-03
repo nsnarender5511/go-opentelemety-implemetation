@@ -2,13 +2,13 @@ package telemetry
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
-	"strings"
+	"log/slog"
 	"time"
 
 	"github.com/narender/common/config"
+	commonlog "github.com/narender/common/log"
 	"github.com/narender/common/telemetry/resource"
 
 	"go.opentelemetry.io/otel"
@@ -38,46 +38,24 @@ func deltaTemporalitySelector(kind sdkmetric.InstrumentKind) metricdata.Temporal
 		sdkmetric.InstrumentKindObservableUpDownCounter:
 		return metricdata.CumulativeTemporality
 	default:
-
 		return metricdata.CumulativeTemporality
 	}
 }
 
-func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
-	var shutdownFuncs []func(context.Context) error
+func InitTelemetry(cfg *config.Config) (*slog.Logger, error) {
 
-	shutdown = func(ctx context.Context) error {
-		if len(shutdownFuncs) == 0 {
-			log.Println("OpenTelemetry shutdown: No providers initialized (likely non-production environment).")
-			return nil
-		}
-		var shutdownErr error
-		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
-			shutdownErr = errors.Join(shutdownErr, shutdownFuncs[i](ctx))
-		}
-		shutdownFuncs = nil
-		log.Println("OpenTelemetry resources shutdown sequence completed (production).")
-		return shutdownErr
+	if err := commonlog.Init(cfg); err != nil {
+		return nil, fmt.Errorf("failed to initialize application logger: %w", err)
 	}
+	logger := commonlog.L
 
-	defer func() {
-		if err != nil {
-			log.Printf("ERROR: OpenTelemetry SDK initialization failed: %v", err)
-			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
-				log.Printf("ERROR: OTel cleanup after setup failure: %v", shutdownErr)
-			}
-		}
-	}()
-
-	isProduction := strings.ToLower(cfg.Environment) == "production"
-
-	res, err := resource.NewResource(ctx, cfg)
+	res, err := resource.NewResource(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 	log.Println("OTel Resource created.")
 
-	if isProduction {
+	if cfg.Environment == "production" {
 		log.Println("Production environment detected. Initializing OTLP Trace, Metric, and Log providers.")
 
 		connOpts := []grpc.DialOption{
@@ -85,8 +63,10 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 			grpc.WithBlock(),
 		}
 
-		traceExporter, err := otlptracegrpc.New(ctx,
-			otlptracegrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlpEndpoint := cfg.OtelExporterOtlpEndpoint
+
+		traceExporter, err := otlptracegrpc.New(context.Background(),
+			otlptracegrpc.WithEndpoint(otlpEndpoint),
 			otlptracegrpc.WithDialOption(connOpts...),
 		)
 		if err != nil {
@@ -99,11 +79,10 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 		)
 		otel.SetTracerProvider(tp)
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-		shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
 		log.Println("OTel TracerProvider initialized and set globally.")
 
-		metricExporter, err := otlpmetricgrpc.New(ctx,
-			otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		metricExporter, err := otlpmetricgrpc.New(context.Background(),
+			otlpmetricgrpc.WithEndpoint(otlpEndpoint),
 			otlpmetricgrpc.WithDialOption(connOpts...),
 			otlpmetricgrpc.WithTemporalitySelector(deltaTemporalitySelector),
 		)
@@ -116,11 +95,10 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 			sdkmetric.WithReader(reader),
 		)
 		otel.SetMeterProvider(mp)
-		shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 		log.Println("OTel MeterProvider initialized and set globally.")
 
-		logExporter, err := otlploggrpc.New(ctx,
-			otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		logExporter, err := otlploggrpc.New(context.Background(),
+			otlploggrpc.WithEndpoint(otlpEndpoint),
 			otlploggrpc.WithDialOption(connOpts...),
 		)
 		if err != nil {
@@ -132,7 +110,6 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 			sdklog.WithProcessor(logProcessor),
 		)
 		otelgloballog.SetLoggerProvider(loggerProvider)
-		shutdownFuncs = append(shutdownFuncs, loggerProvider.Shutdown)
 		log.Println("OTel LoggerProvider initialized and set globally.")
 
 	} else {
@@ -140,7 +117,7 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 	}
 
 	log.Println("OpenTelemetry SDK initialization sequence complete.")
-	return shutdown, nil
+	return logger, nil
 }
 
 func GetTracer(instrumentationName string) oteltrace.Tracer {
