@@ -9,7 +9,7 @@ import (
 	logExporter "github.com/narender/common/telemetry/log"
 	// metricExporter "github.com/narender/common/telemetry/metric"
 	otelemetryResource "github.com/narender/common/telemetry/resource"
-	// traceExporter "github.com/narender/common/telemetry/trace"
+	traceExporter "github.com/narender/common/telemetry/trace"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -33,10 +33,10 @@ func InitTelemetry(cfg *config.Config) error {
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		}
 
-		// if err := traceExporter.SetupOtlpTraceExporter(ctx, cfg.OTEL_ENDPOINT, connOpts, res); err != nil {
-		// 	log.Printf("ERROR: OTLP Trace exporter setup failed: %v\n", err)
-		// 	return fmt.Errorf("trace exporter setup failed: %w", err)
-		// }
+		if err := traceExporter.SetupOtlpTraceExporter(ctx, cfg.OTEL_ENDPOINT, connOpts, res); err != nil {
+			log.Printf("ERROR: OTLP Trace exporter setup failed: %v\n", err)
+			return fmt.Errorf("trace exporter setup failed: %w", err)
+		}
 
 		// if err := metricExporter.SetupOtlpMetricExporter(ctx, cfg, connOpts, res); err != nil {
 		// 	log.Printf("ERROR: OTLP Metric exporter setup failed: %v\n", err)

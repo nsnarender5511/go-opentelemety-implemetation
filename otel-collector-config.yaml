@@ -45,10 +45,10 @@ service:
       encoding: "json"
   # extensions: [health_check, pprof, zpages]
   pipelines:
-    # traces:
-    #   receivers: [otlp]
-    #   processors: [resourcedetection, resource, batch]
-    #   exporters: [otlp]
+    traces:
+      receivers: [otlp]
+      processors: []
+      exporters: [otlp, debug]
     # metrics:
     #   receivers: [otlp, docker_stats]
     #   processors: [resourcedetection, resource, batch]
@@ -56,7 +56,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch, resourcedetection, resource]
-      exporters: [otlp, debug]
+      exporters: [otlp]
 
 
 

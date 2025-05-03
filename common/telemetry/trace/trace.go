@@ -3,14 +3,15 @@ package trace
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	commonerrors "github.com/narender/common/errors"
+	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
-	"github.com/narender/common/utils"
 )
 
 func DefaultStatusMapper(err error) codes.Code {
@@ -31,6 +32,14 @@ func StartSpan(ctx context.Context, initialAttrs ...attribute.KeyValue) (context
 	operationName := utils.GetCallerFunctionName(3)
 	tracerName := "static-tracer-for-now"
 	tracer := otel.Tracer(tracerName)
+
+	parentSpanContext := trace.SpanContextFromContext(ctx)
+	fmt.Printf("[DEBUG] StartSpan called | operation: %s | hasParent: %t | parentTraceID: %s | parentSpanID: %s\n",
+		operationName,
+		parentSpanContext.IsValid(),
+		parentSpanContext.TraceID().String(),
+		parentSpanContext.SpanID().String(),
+	)
 
 	opts := []trace.SpanStartOption{
 		trace.WithSpanKind(trace.SpanKindInternal),
