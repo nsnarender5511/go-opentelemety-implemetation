@@ -56,7 +56,7 @@ func main() {
 	logger.Info("Routes registered")
 
 	// --- Server Startup ---
-	addr := fmt.Sprintf(":%s", globals.Cfg().ProductServicePort)
+	addr := fmt.Sprintf(":%s", globals.Cfg().PRODUCT_SERVICE_PORT)
 	logger.Info("Server starting to listen", slog.String("address", addr))
 
 	if err := app.Listen(addr); err != nil {

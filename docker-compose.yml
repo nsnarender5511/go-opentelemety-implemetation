@@ -15,6 +15,7 @@ services:
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     environment:
+      - ENVIRONMENT=production
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DATA_FILE_PATH=/app/data.json
       - OTEL_SERVICE_NAME=product-service
@@ -58,6 +59,7 @@ services:
       - "55679:55679"
     networks:
       - signoz-network
+      - otel_internal-network
 
 
 

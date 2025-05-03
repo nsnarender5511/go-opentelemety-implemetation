@@ -3,11 +3,11 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
-  docker_stats:
-    endpoint: "unix:///var/run/docker.sock"
-    collection_interval: 10s
-    timeout: 100s
-    api_version: "1.47"
+  # docker_stats:
+  #   endpoint: "unix:///var/run/docker.sock"
+  #   collection_interval: 10s
+  #   timeout: 100s
+  #   api_version: "1.47"
 
 
 processors:
@@ -46,19 +46,19 @@ service:
     logs:
       level: "debug"
       encoding: "json"
-  extensions: [health_check, pprof, zpages]
+  # extensions: [health_check, pprof, zpages]
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [resourcedetection, resource, batch]
-      exporters: [otlp, debug]
-    metrics:
-      receivers: [otlp, docker_stats]
-      processors: [resourcedetection, resource, batch]
-      exporters: [otlp, debug]
+    # traces:
+    #   receivers: [otlp]
+    #   processors: [resourcedetection, resource, batch]
+    #   exporters: [otlp]
+    # metrics:
+    #   receivers: [otlp, docker_stats]
+    #   processors: [resourcedetection, resource, batch]
+    #   exporters: [otlp]
     logs:
       receivers: [otlp]
-      processors: [resourcedetection, resource, batch]
+      processors: [batch]
       exporters: [otlp, debug]
 
 

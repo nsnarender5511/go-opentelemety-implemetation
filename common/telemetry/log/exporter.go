@@ -15,7 +15,7 @@ import (
 
 func SetupOtlpLogExporter(ctx context.Context, cfg *config.Config, connOpts []grpc.DialOption, res *sdkresource.Resource) error {
 	logExporter, err := otlploggrpc.New(ctx,
-		otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlploggrpc.WithEndpoint(cfg.OTEL_ENDPOINT),
 		otlploggrpc.WithDialOption(connOpts...),
 	)
 	if err != nil {

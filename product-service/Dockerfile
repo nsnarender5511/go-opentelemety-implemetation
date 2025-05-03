@@ -23,6 +23,7 @@ COPY product-service/data.json /app/data.json
 WORKDIR /app
 
 # Run directly from builder stage for debugging
+RUN apk add --no-cache curl 
 EXPOSE 8082
 ENTRYPOINT ["/app/product-service"]
 

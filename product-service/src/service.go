@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	commonconst "github.com/narender/common/constants"
 	"github.com/narender/common/debugutils"
 	commonerrors "github.com/narender/common/errors"
 	"github.com/narender/common/globals"
@@ -17,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
-
 
 type ProductService interface {
 	GetAll(ctx context.Context) ([]Product, error)
@@ -38,6 +36,7 @@ func NewProductService(repo ProductRepository) ProductService {
 }
 
 func (s *productService) GetAll(ctx context.Context) (products []Product, opErr error) {
+	operationName := utils.GetCallerFunctionName(2)
 
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr)
@@ -47,22 +46,38 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 
 	debugutils.Simulate(ctx)
 
-	defer func() {
-		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %v", rec)
-			s.logger.Error("Panic recovered", slog.Any("panic", rec))
-		}
-	}()
-
-	s.logger.InfoContext(ctx, "Service: GetAll called")
+	s.logger.InfoContext(ctx, "Service: GetAll called", slog.String("operation", operationName))
 
 	debugutils.Simulate(ctx)
 	spanner.AddEvent("Calling repository GetAll")
 	products, repoErr := s.repo.GetAll(ctx)
 	if repoErr != nil {
 		opErr = repoErr
-		commonerrors.HandleLayerError(ctx, s.logger, spanner, opErr, commonconst.ServiceLayer, "operationName")
-		spanner.AddEvent("Repository GetAll failed")
+		logLevel := slog.LevelError
+		eventName := "error"
+		if errors.Is(opErr, commonerrors.ErrNotFound) {
+			logLevel = slog.LevelWarn
+			eventName = "resource_not_found"
+		}
+		s.logger.Log(ctx, logLevel, "Repository GetAll failed",
+			slog.String("layer", "service"),
+			slog.String("operation", operationName),
+			slog.String("error", opErr.Error()),
+		)
+		if spanner != nil {
+			spanAttrs := []attribute.KeyValue{
+				attribute.String("layer", "service"),
+				attribute.String("operation", operationName),
+				attribute.String("error.message", opErr.Error()),
+			}
+			if errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanAttrs = append(spanAttrs, attribute.Bool("error.expected", true))
+			}
+			spanner.AddEvent(eventName, trace.WithAttributes(spanAttrs...))
+			if !errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanner.SetStatus(codes.Error, opErr.Error())
+			}
+		}
 		return nil, opErr
 	}
 	productCount := len(products)
@@ -94,13 +109,6 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 
 	debugutils.Simulate(ctx)
 
-	defer func() {
-		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operationName, rec)
-			s.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operationName), slog.String("layer", commonconst.ServiceLayer), productIdAttr)
-		}
-	}()
-
 	s.logger.InfoContext(ctx, "Service: GetByID called", slog.String("product_id", productID), slog.String("operation", operationName))
 
 	debugutils.Simulate(ctx)
@@ -108,8 +116,33 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	product, repoErr := s.repo.GetByID(ctx, productID)
 	if repoErr != nil {
 		opErr = repoErr
-		commonerrors.HandleLayerError(ctx, s.logger, spanner, opErr, commonconst.ServiceLayer, operationName, productIdAttr)
-		spanner.AddEvent("Repository GetByID failed", trace.WithAttributes(attribute.String("error.message", opErr.Error())))
+		logLevel := slog.LevelError
+		eventName := "error"
+		if errors.Is(opErr, commonerrors.ErrNotFound) {
+			logLevel = slog.LevelWarn
+			eventName = "resource_not_found"
+		}
+		s.logger.Log(ctx, logLevel, "Repository GetByID failed",
+			slog.String("layer", "service"),
+			slog.String("operation", operationName),
+			slog.String("error", opErr.Error()),
+			slog.String("product_id", productID),
+		)
+		if spanner != nil {
+			spanAttrs := []attribute.KeyValue{
+				attribute.String("layer", "service"),
+				attribute.String("operation", operationName),
+				attribute.String("error.message", opErr.Error()),
+				productIdAttr,
+			}
+			if errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanAttrs = append(spanAttrs, attribute.Bool("error.expected", true))
+			}
+			spanner.AddEvent(eventName, trace.WithAttributes(spanAttrs...))
+			if !errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanner.SetStatus(codes.Error, opErr.Error())
+			}
+		}
 		return Product{}, opErr
 	}
 	spanner.AddEvent("Repository GetByID successful")
@@ -120,6 +153,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 }
 
 func (s *productService) UpdateStock(ctx context.Context, productID string, newStock int) (opErr error) {
+	operationName := utils.GetCallerFunctionName(2)
 	productIdAttr := attribute.String("product.id", productID)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productIdAttr, newStockAttr}
@@ -132,18 +166,34 @@ func (s *productService) UpdateStock(ctx context.Context, productID string, newS
 
 	debugutils.Simulate(ctx)
 
-	defer func() {
-		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %v", rec)
-			s.logger.Error("Panic recovered", slog.Any("panic", rec), attrs)
-		}
-	}()
-
-	s.logger.InfoContext(ctx, "Service: UpdateStock called", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	s.logger.InfoContext(ctx, "Service: UpdateStock called", slog.String("product_id", productID), slog.Int("new_stock", newStock), slog.String("operation", operationName))
 
 	if newStock < 0 {
-		opErr = fmt.Errorf("invalid stock value %d: %w", newStock, commonerrors.ErrValidation)
-		commonerrors.HandleLayerError(ctx, s.logger, spanner, opErr, commonconst.ServiceLayer, "operationName", attrs...)
+		opErr = commonerrors.NewValidationError(
+			map[string]string{
+				"userMessage":   "Invalid stock value provided",
+				"product_id":    productID,
+				"invalid_stock": fmt.Sprintf("%d", newStock),
+			},
+			commonerrors.ErrValidation,
+		)
+		logLevel := slog.LevelWarn
+		eventName := "validation_error"
+		s.logger.Log(ctx, logLevel, "Validation failed",
+			slog.String("layer", "service"),
+			slog.String("operation", operationName),
+			slog.String("error", opErr.Error()),
+		)
+		if spanner != nil {
+			spanAttrs := []attribute.KeyValue{
+				attribute.String("layer", "service"),
+				attribute.String("operation", operationName),
+				attribute.String("error.message", opErr.Error()),
+				attribute.Bool("error.expected", true),
+			}
+			spanAttrs = append(spanAttrs, attrs...)
+			spanner.AddEvent(eventName, trace.WithAttributes(spanAttrs...))
+		}
 		return opErr
 	}
 
@@ -152,13 +202,39 @@ func (s *productService) UpdateStock(ctx context.Context, productID string, newS
 	repoErr := s.repo.UpdateStock(ctx, productID, newStock)
 	if repoErr != nil {
 		opErr = repoErr
-		commonerrors.HandleLayerError(ctx, s.logger, spanner, opErr, commonconst.ServiceLayer, "operationName", attrs...)
-		spanner.AddEvent("Repository UpdateStock failed", trace.WithAttributes(attribute.String("error.message", opErr.Error())))
+		logLevel := slog.LevelError
+		eventName := "error"
+		if errors.Is(opErr, commonerrors.ErrNotFound) {
+			logLevel = slog.LevelWarn
+			eventName = "resource_not_found"
+		}
+		s.logger.Log(ctx, logLevel, "Repository UpdateStock failed",
+			slog.String("layer", "service"),
+			slog.String("operation", operationName),
+			slog.String("error", opErr.Error()),
+			slog.String("product_id", productID),
+			slog.Int("new_stock", newStock),
+		)
+		if spanner != nil {
+			spanAttrs := []attribute.KeyValue{
+				attribute.String("layer", "service"),
+				attribute.String("operation", operationName),
+				attribute.String("error.message", opErr.Error()),
+			}
+			spanAttrs = append(spanAttrs, attrs...)
+			if errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanAttrs = append(spanAttrs, attribute.Bool("error.expected", true))
+			}
+			spanner.AddEvent(eventName, trace.WithAttributes(spanAttrs...))
+			if !errors.Is(opErr, commonerrors.ErrNotFound) {
+				spanner.SetStatus(codes.Error, opErr.Error())
+			}
+		}
 		return opErr
 	}
 	spanner.AddEvent("Repository UpdateStock successful")
 
 	debugutils.Simulate(ctx)
-	s.logger.InfoContext(ctx, "Service: UpdateStock completed successfully", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	s.logger.InfoContext(ctx, "Service: UpdateStock completed successfully", slog.String("product_id", productID), slog.Int("new_stock", newStock), slog.String("operation", operationName))
 	return nil
 }

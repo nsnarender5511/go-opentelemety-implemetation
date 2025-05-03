@@ -16,7 +16,7 @@ import (
 
 func SetupOtlpMetricExporter(ctx context.Context, cfg *config.Config, connOpts []grpc.DialOption, res *sdkresource.Resource) error {
 	metricExporter, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlpmetricgrpc.WithEndpoint(cfg.OTEL_ENDPOINT),
 		otlpmetricgrpc.WithDialOption(connOpts...),
 	)
 	if err != nil {

@@ -17,11 +17,10 @@ var (
 	err    error
 )
 
-
 func Init() error {
 	once.Do(func() {
-		
-		cfg, err = config.LoadConfig()
+
+		cfg, err = config.LoadConfig("production")
 		if err != nil {
 			err = fmt.Errorf("failed to load config during init: %w", err)
 			return
@@ -31,38 +30,32 @@ func Init() error {
 			return
 		}
 
-		
-		if initErr := log.Init(cfg.LogLevel, cfg.Environment); initErr != nil {
-			
+		if initErr := log.Init(cfg.LOG_LEVEL, cfg.ENVIRONMENT); initErr != nil {
+
 			err = fmt.Errorf("failed to initialize logger during init: %w", initErr)
-			
+
 			fmt.Printf("CRITICAL: Logger initialization failed: %v\n", err)
-			
-			return 
+
+			return
 		}
-		logger = log.L 
+		logger = log.L
 		if logger == nil {
 			err = fmt.Errorf("log.Init() succeeded but log.L is nil")
 			return
 		}
 
-		
-		
 		if err = telemetry.InitTelemetry(cfg); err != nil {
 			err = fmt.Errorf("failed to initialize telemetry setup during init: %w", err)
-			
+
 			logger.Error("Telemetry initialization failed", slog.Any("error", err))
-			
-			
-			
-			return 
+
+			return
 		}
 
 	})
 
-	return err 
+	return err
 }
-
 
 func Cfg() *config.Config {
 	if cfg == nil {
@@ -71,7 +64,6 @@ func Cfg() *config.Config {
 	return cfg
 }
 
-
 func Logger() *slog.Logger {
 	if logger == nil {
 		panic("logger not initialized: call globals.Init() first and check error")
@@ -79,11 +71,9 @@ func Logger() *slog.Logger {
 	return logger
 }
 
-
 func GetCfg() *config.Config {
 	return cfg
 }
-
 
 func GetLogger() *slog.Logger {
 	return logger
