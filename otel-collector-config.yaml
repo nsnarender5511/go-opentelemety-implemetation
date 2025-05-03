@@ -10,12 +10,12 @@ processors:
   batch: {}
 
 exporters:
-  # otlp: # Temporarily removed
-  #   endpoint: "ingest.in.signoz.cloud:443"
-  #   tls:
-  #     insecure: false
-  #   headers:
-  #     signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+  otlp: 
+    endpoint: "ingest.in.signoz.cloud:443"
+    tls:
+      insecure: false
+    headers:
+      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
   debug:
     verbosity: detailed
 
@@ -35,15 +35,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug] # Only debug exporter
+      exporters: [otlp] # Only debug exporter
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug] # Only debug exporter
+      exporters: [otlp] # Only debug exporter
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug] # Only debug exporter 
+      exporters: [otlp] # Only debug exporter 
 
 
 
