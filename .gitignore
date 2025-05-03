@@ -4,8 +4,6 @@
 /user-service
 /notification-service
 
-# Go module sum file (generally recommended to commit)
-# go.sum
 
 # Signoz deployment directory
 .signoz
@@ -20,8 +18,6 @@ product-service/src/src
 product-service/product-service
 bin/
 
-#plans
-*.sum
 
 
 

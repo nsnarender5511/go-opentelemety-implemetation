@@ -1,14 +1,14 @@
 package middleware
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	commonlog "github.com/narender/common/log"
-	"go.uber.org/zap"
 )
 
-func RequestLoggerMiddleware() fiber.Handler {
+// RequestLogger accepts an slog.Logger and returns a Fiber handler
+func RequestLogger(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 		path := c.Path()
@@ -19,28 +19,26 @@ func RequestLoggerMiddleware() fiber.Handler {
 		duration := time.Since(start)
 		statusCode := c.Response().StatusCode()
 
-		logger := commonlog.L.Ctx(c.UserContext())
-
-		zapFields := []zap.Field{
-			zap.String("method", method),
-			zap.String("path", path),
-			zap.Int("status_code", statusCode),
-			zap.Duration("duration", duration),
-			zap.String("ip", c.IP()),
-			zap.String("user_agent", string(c.Request().Header.UserAgent())),
+		attrs := []slog.Attr{
+			slog.String("method", method),
+			slog.String("path", path),
+			slog.Int("status_code", statusCode),
+			slog.Duration("duration", duration),
+			slog.String("ip", c.IP()),
+			slog.String("user_agent", string(c.Request().Header.UserAgent())),
 		}
 
 		if err != nil {
-			zapFields = append(zapFields, zap.Error(err))
+			attrs = append(attrs, slog.Any("error", err))
 		}
 
 		msg := "Request completed"
 		if statusCode >= 500 {
-			logger.Error(msg, zapFields...)
+			logger.LogAttrs(c.UserContext(), slog.LevelError, msg, attrs...)
 		} else if statusCode >= 400 {
-			logger.Warn(msg, zapFields...)
+			logger.LogAttrs(c.UserContext(), slog.LevelWarn, msg, attrs...)
 		} else {
-			logger.Info(msg, zapFields...)
+			logger.LogAttrs(c.UserContext(), slog.LevelInfo, msg, attrs...)
 		}
 
 		return err

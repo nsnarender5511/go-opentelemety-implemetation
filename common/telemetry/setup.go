@@ -4,110 +4,152 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/narender/common/config"
 	"github.com/narender/common/telemetry/resource"
-	"go.uber.org/zap"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	otelgloballog "go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	metricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
-	tempLogger := zap.NewNop()
+// deltaTemporalitySelector selects Delta temporality for Counter, Histogram, and ObservableCounter
+// and Cumulative for UpDownCounter and ObservableUpDownCounter.
+func deltaTemporalitySelector(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+	switch kind {
+	case sdkmetric.InstrumentKindCounter,
+		sdkmetric.InstrumentKindHistogram,
+		sdkmetric.InstrumentKindObservableCounter:
+		return metricdata.DeltaTemporality
+	case sdkmetric.InstrumentKindUpDownCounter,
+		sdkmetric.InstrumentKindObservableUpDownCounter:
+		return metricdata.CumulativeTemporality
+	default:
+		// Default to Cumulative for any other types (e.g., Gauge, ObservableGauge)
+		// Or potentially panic if an unexpected kind is encountered.
+		return metricdata.CumulativeTemporality
+	}
+}
 
+func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
 	shutdown = func(ctx context.Context) error {
+		if len(shutdownFuncs) == 0 {
+			log.Println("OpenTelemetry shutdown: No providers initialized (likely non-production environment).")
+			return nil
+		}
 		var shutdownErr error
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
 			shutdownErr = errors.Join(shutdownErr, shutdownFuncs[i](ctx))
 		}
 		shutdownFuncs = nil
-		tempLogger.Debug("OpenTelemetry resources shutdown sequence completed.")
+		log.Println("OpenTelemetry resources shutdown sequence completed (production).")
 		return shutdownErr
 	}
 
 	defer func() {
 		if err != nil {
-			tempLogger.Error("OpenTelemetry SDK initialization failed", zap.Error(err))
+			log.Printf("ERROR: OpenTelemetry SDK initialization failed: %v", err)
 			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
-				tempLogger.Error("Error during OTel cleanup after setup failure", zap.Error(shutdownErr))
+				log.Printf("ERROR: OTel cleanup after setup failure: %v", shutdownErr)
 			}
 		}
 	}()
 
+	isProduction := strings.ToLower(cfg.Environment) == "production"
+
 	res, err := resource.NewResource(ctx, cfg)
 	if err != nil {
-		return shutdown, fmt.Errorf("failed to create resource: %w", err)
+		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
-	tempLogger.Debug("Resource created", zap.Any("attributes", res.Attributes()))
+	log.Println("OTel Resource created.")
 
-	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
-	)
-	if err != nil {
-		return shutdown, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
+	if isProduction {
+		log.Println("Production environment detected. Initializing OTLP Trace, Metric, and Log providers.")
+
+		connOpts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock(),
+		}
+
+		traceExporter, err := otlptracegrpc.New(ctx,
+			otlptracegrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+			otlptracegrpc.WithDialOption(connOpts...),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
+		}
+		ssp := sdktrace.NewSimpleSpanProcessor(traceExporter)
+		tp := sdktrace.NewTracerProvider(
+			sdktrace.WithResource(res),
+			sdktrace.WithSpanProcessor(ssp),
+		)
+		otel.SetTracerProvider(tp)
+		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+		shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
+		log.Println("OTel TracerProvider initialized and set globally.")
+
+		metricExporter, err := otlpmetricgrpc.New(ctx,
+			otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+			otlpmetricgrpc.WithDialOption(connOpts...),
+			otlpmetricgrpc.WithTemporalitySelector(deltaTemporalitySelector),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
+		}
+		reader := sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(15*time.Second))
+		mp := sdkmetric.NewMeterProvider(
+			sdkmetric.WithResource(res),
+			sdkmetric.WithReader(reader),
+		)
+		otel.SetMeterProvider(mp)
+		shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
+		log.Println("OTel MeterProvider initialized and set globally.")
+
+		logExporter, err := otlploggrpc.New(ctx,
+			otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+			otlploggrpc.WithDialOption(connOpts...),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create OTLP log exporter: %w", err)
+		}
+		logProcessor := sdklog.NewBatchProcessor(logExporter)
+		loggerProvider := sdklog.NewLoggerProvider(
+			sdklog.WithResource(res),
+			sdklog.WithProcessor(logProcessor),
+		)
+		otelgloballog.SetLoggerProvider(loggerProvider)
+		shutdownFuncs = append(shutdownFuncs, loggerProvider.Shutdown)
+		log.Println("OTel LoggerProvider initialized and set globally.")
+
+	} else {
+		log.Printf("Non-production environment (%s) detected. Skipping OTLP exporter setup. Using No-Op providers.", cfg.Environment)
 	}
 
-	ssp := sdktrace.NewSimpleSpanProcessor(traceExporter)
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.AlwaysSample())),
-		sdktrace.WithSpanProcessor(ssp),
-	)
-	otel.SetTracerProvider(tp)
-	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
-	tempLogger.Debug("TracerProvider initialized and set globally.")
-
-	tempLogger.Debug("Setting up OTLP Metric Exporter", zap.String("endpoint", cfg.OtelExporterOtlpEndpoint))
-	metricExporter, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
-		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithTemporalitySelector(func(kind sdkmetric.InstrumentKind) metricdata.Temporality {
-			if kind == sdkmetric.InstrumentKindCounter || kind == sdkmetric.InstrumentKindHistogram {
-				return metricdata.DeltaTemporality
-			}
-			return metricdata.CumulativeTemporality
-		}),
-		otlpmetricgrpc.WithTimeout(5*time.Second),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
-	)
-	if err != nil {
-		return shutdown, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
-	}
-
-	reader := sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(15*time.Second))
-	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(reader),
-	)
-	otel.SetMeterProvider(mp)
-	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
-	tempLogger.Debug("MeterProvider initialized and set globally.")
-
-	tempLogger.Info("OpenTelemetry SDK initialized successfully (Traces and Metrics).")
-
+	log.Println("OpenTelemetry SDK initialization sequence complete.")
 	return shutdown, nil
 }
 
 func GetTracer(instrumentationName string) oteltrace.Tracer {
-
 	return otel.Tracer(instrumentationName)
 }
 
 func GetMeter(instrumentationName string) metric.Meter {
-
 	return otel.Meter(instrumentationName)
 }

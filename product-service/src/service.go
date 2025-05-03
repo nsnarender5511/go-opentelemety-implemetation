@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	oteMetric "go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 const serviceScopeName = "github.com/narender/product-service/service"
@@ -40,7 +40,7 @@ func initServiceMetrics() {
 			oteMetric.WithUnit("{operation}"),
 		)
 		if err != nil {
-			logger.Error("Failed to create product.service.operations.count counter", zap.Error(err))
+			logger.Error("Failed to create product.service.operations.count counter", slog.Any("error", err))
 		}
 
 		productServiceDurationHist, err = meter.Float64Histogram(
@@ -49,7 +49,7 @@ func initServiceMetrics() {
 			oteMetric.WithUnit("s"),
 		)
 		if err != nil {
-			logger.Error("Failed to create product.service.duration histogram", zap.Error(err))
+			logger.Error("Failed to create product.service.duration histogram", slog.Any("error", err))
 		}
 
 		productErrorsCounter, err = meter.Int64Counter(
@@ -58,7 +58,7 @@ func initServiceMetrics() {
 			oteMetric.WithUnit("{error}"),
 		)
 		if err != nil {
-			logger.Warn("Attempted to re-initialize product.errors.count counter from service layer", zap.Error(err))
+			logger.Warn("Attempted to re-initialize product.errors.count counter from service layer", slog.Any("error", err))
 		}
 	})
 }
@@ -103,7 +103,7 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(serviceScopeName)
 	ctx, span := tracer.Start(ctx, "ProductService.GetAll")
@@ -121,7 +121,7 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 	products, repoErr := s.repo.GetAll(ctx)
 	if repoErr != nil {
 		opErr = repoErr
-		logger.Error("Service: Repository error during GetAllProducts", zap.Error(opErr))
+		logger.Error("Service: Repository error during GetAllProducts", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "repository error")
 		span.AddEvent("Repository GetAll failed")
@@ -131,7 +131,7 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 
 	simulateDelayIfEnabled()
 	span.SetAttributes(attribute.Int("products.count", len(products)))
-	logger.Info("Service: GetAll completed successfully", zap.Int("count", len(products)))
+	logger.Info("Service: GetAll completed successfully", slog.Int("count", len(products)))
 	span.SetStatus(codes.Ok, "")
 	return products, nil
 }
@@ -145,7 +145,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(serviceScopeName)
 	ctx, span := tracer.Start(ctx, "ProductService.GetProductByID", oteltrace.WithAttributes(productIdAttr))
@@ -156,7 +156,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 		span.End()
 	}()
 
-	logger.Info("Service: GetByID called", zap.String("product_id", productID))
+	logger.Info("Service: GetByID called", slog.String("product_id", productID))
 
 	simulateDelayIfEnabled()
 	span.AddEvent("Calling repository GetByID", oteltrace.WithAttributes(productIdAttr))
@@ -166,13 +166,13 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 		span.RecordError(opErr)
 		span.AddEvent("Repository GetByID failed", oteltrace.WithAttributes(attribute.String("error", opErr.Error())))
 		if errors.Is(opErr, ErrNotFound) {
-			logger.Warn("Service: Product not found in repository", zap.String("product_id", productID))
+			logger.Warn("Service: Product not found in repository", slog.String("product_id", productID))
 			span.SetStatus(codes.Error, opErr.Error())
 
 		} else {
 			logger.Error("Service: Repository error during GetProductByID",
-				zap.String("product_id", productID),
-				zap.Error(opErr),
+				slog.String("product_id", productID),
+				slog.Any("error", opErr),
 			)
 			span.SetStatus(codes.Error, "repository error")
 		}
@@ -181,7 +181,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	span.AddEvent("Repository GetByID successful")
 
 	simulateDelayIfEnabled()
-	logger.Info("Service: GetByID completed successfully", zap.String("product_id", productID))
+	logger.Info("Service: GetByID completed successfully", slog.String("product_id", productID))
 	span.SetStatus(codes.Ok, "")
 	return product, nil
 }

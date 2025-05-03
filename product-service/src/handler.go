@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 const handlerScopeName = "github.com/narender/product-service/handler"
@@ -53,7 +53,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 	tracer := telemetry.GetTracer(handlerScopeName)
 	ctx, span := tracer.Start(ctx, "ProductHandler.GetAllProducts", oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
@@ -65,7 +65,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	if err != nil {
 		opErr = err
 		simulateDelayIfEnabled()
-		logger.Error("Handler: Failed to get all products from service", zap.Error(opErr))
+		logger.Error("Handler: Failed to get all products from service", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "service layer error")
 		return opErr
@@ -88,12 +88,12 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 	tracer := telemetry.GetTracer(handlerScopeName)
 	ctx, span := tracer.Start(ctx, "ProductHandler.GetProductByID", oteltrace.WithAttributes(productIdAttr), oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
 
-	logger.Info("Handler: Received request for GetProductByID", zap.String("product_id", productID))
+	logger.Info("Handler: Received request for GetProductByID", slog.String("product_id", productID))
 
 	meter := telemetry.GetMeter(handlerScopeName)
 	requestCounter, _ := meter.Int64Counter("product_service.requests", otelmetric.WithDescription("Counts requests to product service endpoints"))
@@ -111,12 +111,12 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		simulateDelayIfEnabled()
 		span.RecordError(opErr)
 		if errors.Is(opErr, ErrNotFound) {
-			logger.Warn("Handler: Product not found", zap.String("product_id", productID))
+			logger.Warn("Handler: Product not found", slog.String("product_id", productID))
 			span.SetStatus(codes.Error, opErr.Error())
 		} else {
 			logger.Error("Handler: Failed to get product by ID from service",
-				zap.String("product_id", productID),
-				zap.Error(opErr),
+				slog.String("product_id", productID),
+				slog.Any("error", opErr),
 			)
 			span.SetStatus(codes.Error, "service layer error")
 		}
@@ -124,7 +124,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	}
 
 	simulateDelayIfEnabled()
-	logger.Info("Handler: Successfully retrieved product by ID", zap.String("product_id", productID))
+	logger.Info("Handler: Successfully retrieved product by ID", slog.String("product_id", productID))
 	span.SetStatus(codes.Ok, "")
 	return c.Status(http.StatusOK).JSON(product)
 }
@@ -138,7 +138,7 @@ func (h *ProductHandler) HealthCheck(c *fiber.Ctx) (opErr error) {
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 	logger.Info("Handler: Health check requested")
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status": "ok",

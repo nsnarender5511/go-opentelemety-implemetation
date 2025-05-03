@@ -3,17 +3,15 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	_ "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	commonErrors "github.com/narender/common/errors"
 	"github.com/narender/common/telemetry/trace"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type ErrorResponse struct {
@@ -22,14 +20,14 @@ type ErrorResponse struct {
 	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
-func NewErrorHandler(otelLogger *otelzap.Logger) fiber.ErrorHandler {
+func ErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		statusCode := http.StatusInternalServerError
 		userMessage := "An unexpected error occurred. Please try again later."
 		internalMessage := err.Error()
 		var details map[string]interface{}
 		errorType := commonErrors.TypeUnknown
-		logLevel := zapcore.ErrorLevel
+		logLevel := slog.LevelError
 		var appErr *commonErrors.AppError
 		var fiberErr *fiber.Error
 		var validationErr *commonErrors.ValidationError
@@ -76,9 +74,11 @@ func NewErrorHandler(otelLogger *otelzap.Logger) fiber.ErrorHandler {
 		}
 
 		if statusCode >= 400 && statusCode < 500 {
-			logLevel = zapcore.WarnLevel
+			logLevel = slog.LevelWarn
 		} else if statusCode >= 500 {
-			logLevel = zapcore.ErrorLevel
+			logLevel = slog.LevelError
+		} else {
+			logLevel = slog.LevelInfo
 		}
 
 		ctx := c.UserContext()
@@ -91,29 +91,22 @@ func NewErrorHandler(otelLogger *otelzap.Logger) fiber.ErrorHandler {
 			)
 		}
 
-		zapFields := []zap.Field{
-			zap.Error(err),
-			zap.String("internal_message", internalMessage),
-			zap.Int("error_type", int(errorType)),
-			zap.Int("status_code", statusCode),
-			zap.String("user_message", userMessage),
-			zap.String("method", c.Method()),
-			zap.String("path", c.Path()),
-			zap.String("ip", c.IP()),
-			zap.String("route", c.Route().Path),
-			zap.Any("request_details", details),
+		slogAttrs := []slog.Attr{
+			slog.Any("original_error", err),
+			slog.String("internal_message", internalMessage),
+			slog.Int("error_type", int(errorType)),
+			slog.Int("status_code", statusCode),
+			slog.String("user_message", userMessage),
+			slog.String("method", c.Method()),
+			slog.String("path", c.Path()),
+			slog.String("ip", c.IP()),
+			slog.String("route", c.Route().Path),
+			slog.Any("request_details", details),
 		}
 
 		logMessage := fmt.Sprintf("HTTP Error: %s %s -> %d", c.Method(), c.Path(), statusCode)
 
-		switch logLevel {
-		case zapcore.ErrorLevel:
-			otelLogger.Ctx(ctx).Error(logMessage, zapFields...)
-		case zapcore.WarnLevel:
-			otelLogger.Ctx(ctx).Warn(logMessage, zapFields...)
-		default:
-			otelLogger.Ctx(ctx).Info(logMessage, zapFields...)
-		}
+		logger.LogAttrs(ctx, logLevel, logMessage, slogAttrs...)
 
 		resp := ErrorResponse{
 			StatusCode: statusCode,

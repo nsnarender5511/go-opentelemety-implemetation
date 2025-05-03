@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"sync"
@@ -21,7 +22,6 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	commontrace "github.com/narender/common/telemetry/trace"
-	"go.uber.org/zap"
 )
 
 const repositoryScopeName = "github.com/narender/product-service/repository"
@@ -43,7 +43,7 @@ type productRepository struct {
 
 func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 	logger := commonlog.L
-	logger.Info("Repository: Initializing", zap.String("file_path", dataFilePath))
+	logger.Info("Repository: Initializing", slog.String("file_path", dataFilePath))
 
 	repo := &productRepository{
 		products: make(map[string]Product),
@@ -65,29 +65,29 @@ func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 		oteMetric.WithUnit("{products}"),
 	)
 	if err != nil {
-		logger.Error("Failed to create product.repository.count observable gauge", zap.Error(err))
+		logger.Error("Failed to create product.repository.count observable gauge", slog.Any("error", err))
 	}
 
 	initCtx := context.Background()
 	if _, statErr := os.Stat(repo.filePath); statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
-			logger.Warn("Repository: Data file not found, starting empty", zap.String("file_path", dataFilePath))
+			logger.Warn("Repository: Data file not found, starting empty", slog.String("file_path", dataFilePath))
 		} else {
 			loadErr := fmt.Errorf("repository: failed to stat data file %s: %w", dataFilePath, statErr)
-			logger.Error("Repository: Failed to stat data file", zap.Error(loadErr))
+			logger.Error("Repository: Failed to stat data file", slog.Any("error", loadErr))
 
 			return nil, loadErr
 		}
 	} else {
 		if loadErr := repo.loadData(initCtx); loadErr != nil {
 			logger.Error("Repository: Failed to initialize from file",
-				zap.String("file_path", dataFilePath),
-				zap.Error(loadErr),
+				slog.String("file_path", dataFilePath),
+				slog.Any("error", loadErr),
 			)
 			return nil, fmt.Errorf("failed to initialize product repository from %s: %w", dataFilePath, loadErr)
 		}
 	}
-	logger.Info("Repository: Initialized successfully", zap.Int("loaded_count", len(repo.products)))
+	logger.Info("Repository: Initialized successfully", slog.Int("loaded_count", len(repo.products)))
 	return repo, nil
 }
 
@@ -101,7 +101,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.loadData", oteltrace.WithAttributes(
@@ -134,7 +134,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Warn("WARN: Data file not found during load, initializing empty map", zap.String("file_path", r.filePath))
+			logger.Warn("WARN: Data file not found during load, initializing empty map", slog.String("file_path", r.filePath))
 			r.products = make(map[string]Product)
 			span.SetStatus(codes.Ok, "File not found, initialized empty map")
 
@@ -142,14 +142,14 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 			return opErr
 		}
 		opErr = fmt.Errorf("failed to read data file '%s': %w", r.filePath, err)
-		logger.Error("Repository: Failed to read data file", zap.Error(opErr))
+		logger.Error("Repository: Failed to read data file", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "failed to read file")
 		return opErr
 	}
 
 	if len(data) == 0 {
-		logger.Warn("WARN: Data file is empty, initializing empty product map", zap.String("file_path", r.filePath))
+		logger.Warn("WARN: Data file is empty, initializing empty product map", slog.String("file_path", r.filePath))
 		r.products = make(map[string]Product)
 		span.SetStatus(codes.Ok, "File empty, initialized empty map")
 		opErr = nil
@@ -160,7 +160,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	var productsMap map[string]Product
 	if err := json.Unmarshal(data, &productsMap); err != nil {
 		opErr = fmt.Errorf("failed to unmarshal product data from '%s': %w", r.filePath, err)
-		logger.Error("Repository: Failed to unmarshal JSON data", zap.Error(opErr))
+		logger.Error("Repository: Failed to unmarshal JSON data", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "failed to unmarshal JSON")
 		span.AddEvent("JSON unmarshal failed")
@@ -174,7 +174,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	}
 
 	productCount := len(r.products)
-	logger.Debug("Repository: Successfully loaded products", zap.Int("count", productCount))
+	logger.Debug("Repository: Successfully loaded products", slog.Int("count", productCount))
 	span.SetAttributes(attribute.Int("products.loaded.count", productCount))
 	span.SetStatus(codes.Ok, "")
 	return nil
@@ -188,7 +188,7 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.GetAll", oteltrace.WithAttributes(
@@ -223,7 +223,7 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 	}
 	span.SetAttributes(attribute.Int("products.returned.count", len(products)))
 	span.SetStatus(codes.Ok, "")
-	logger.Info("Repository: GetAll returning products", zap.Int("count", len(products)))
+	logger.Info("Repository: GetAll returning products", slog.Int("count", len(products)))
 	return products, nil
 }
 
@@ -236,7 +236,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.GetByID", oteltrace.WithAttributes(
@@ -255,7 +255,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 		span.End()
 	}()
 
-	logger.Info("Repository: GetByID called", zap.String("product.id", id))
+	logger.Info("Repository: GetByID called", slog.String("product.id", id))
 
 	span.AddEvent("Acquiring read lock for GetByID")
 	r.mu.RLock()
@@ -265,14 +265,14 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	product, exists := r.products[id]
 	if !exists {
 		opErr = ErrNotFound
-		logger.Warn("Repository: Product not found", zap.String("product.id", id))
+		logger.Warn("Repository: Product not found", slog.String("product.id", id))
 		span.AddEvent("Product not found in map", oteltrace.WithAttributes(productIdAttr))
 		span.RecordError(opErr, oteltrace.WithAttributes(attribute.String("product.lookup.id", id)))
 		span.SetStatus(codes.Error, opErr.Error())
 		return Product{}, opErr
 	}
 
-	logger.Info("Repository: Product found", zap.String("product.id", id))
+	logger.Info("Repository: Product found", slog.String("product.id", id))
 	span.SetStatus(codes.Ok, "")
 	return product, nil
 }
@@ -287,7 +287,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.UpdateStock", oteltrace.WithAttributes(
@@ -307,7 +307,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		span.End()
 	}()
 
-	logger.Info("Repository: UpdateStock called", zap.String("product.id", productID), zap.Int("product.stock.new", newStock))
+	logger.Info("Repository: UpdateStock called", slog.String("product.id", productID), slog.Int("product.stock.new", newStock))
 
 	span.AddEvent("Acquiring write lock for UpdateStock")
 	r.mu.Lock()
@@ -317,7 +317,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	product, exists := r.products[productID]
 	if !exists {
 		opErr = ErrNotFound
-		logger.Error("Repository: Product not found for update", zap.String("product.id", productID), zap.Error(opErr))
+		logger.Error("Repository: Product not found for update", slog.String("product.id", productID), slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, opErr.Error())
 		return opErr
@@ -336,7 +336,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		return opErr
 	}
 
-	logger.Info("Repository: Stock updated and data saved successfully", zap.String("product.id", productID), zap.Int("old_stock", oldStock), zap.Int("new_stock", newStock))
+	logger.Info("Repository: Stock updated and data saved successfully", slog.String("product.id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock))
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
@@ -352,7 +352,7 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 	}()
 
 	simulateDelayIfEnabled()
-	logger := commonlog.L.Ctx(ctx)
+	logger := commonlog.L
 
 	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.saveData", oteltrace.WithAttributes(
@@ -372,13 +372,13 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 		span.End()
 	}()
 
-	logger.Info("Repository: Saving data", zap.String("file_path", r.filePath))
+	logger.Info("Repository: Saving data", slog.String("file_path", r.filePath))
 
 	span.AddEvent("Starting JSON marshal")
 	data, err := json.MarshalIndent(r.products, "", "  ")
 	if err != nil {
 		opErr = fmt.Errorf("failed to marshal product data: %w", err)
-		logger.Error("Repository: Failed to marshal data for saving", zap.Error(opErr))
+		logger.Error("Repository: Failed to marshal data for saving", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "failed to marshal JSON")
 		span.AddEvent("JSON marshal failed")
@@ -395,13 +395,13 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 
 	if err != nil {
 		opErr = fmt.Errorf("failed to write data file '%s': %w", r.filePath, err)
-		logger.Error("Repository: Failed to write data file", zap.Error(opErr))
+		logger.Error("Repository: Failed to write data file", slog.Any("error", opErr))
 		span.RecordError(opErr)
 		span.SetStatus(codes.Error, "failed to write file")
 		return opErr
 	}
 
-	logger.Debug("Repository: Data saved successfully", zap.String("file_path", r.filePath))
+	logger.Debug("Repository: Data saved successfully", slog.String("file_path", r.filePath))
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
