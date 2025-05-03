@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,6 +14,7 @@ import (
 	commonerrors "github.com/narender/common/errors"
 	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
+	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -52,26 +52,27 @@ func NewProductRepository(dataFilePath string) ProductRepository {
 }
 
 func (r *productRepository) GetAll(ctx context.Context) (products []Product, opErr error) {
-	const operation = "GetAllProducts"
-	mc := commonmetric.StartMetricsTimer(commonconst.RepositoryLayer, operation)
+	operationName := utils.GetCallerFunctionName(2)
+
+	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr)
 
-	ctx, spanner := commontrace.StartSpan(ctx, repositoryScopeName, operation, commonconst.RepositoryLayer,
+	ctx, spanner := commontrace.StartSpan(ctx,	
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ_ALL"),
 	)
-	defer spanner.End(&opErr, nil)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer))
+			opErr = fmt.Errorf("panic recovered in %s: %v", operationName, rec)
+			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operationName), slog.String("layer", commonconst.RepositoryLayer))
 		}
 	}()
 
-	r.logger.Info("Repository: GetAll called")
+	r.logger.InfoContext(ctx, "Repository: GetAll called", slog.String("operation", operationName))
 
 	spanner.AddEvent("Acquiring read lock for GetAll")
 	r.mu.RLock()
@@ -85,43 +86,34 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 	}
 
 	spanner.SetAttributes(attribute.Int("products.returned.count", len(products)))
-	r.logger.Info("Repository: GetAll returning products from cache", slog.Int("count", len(products)))
+	r.logger.InfoContext(ctx, "Repository: GetAll returning products from cache", slog.Int("count", len(products)), slog.String("operation", operationName))
 	return products, nil
 }
 
 func (r *productRepository) GetByID(ctx context.Context, id string) (product Product, opErr error) {
-	const operation = "GetProductByID"
+	operationName := utils.GetCallerFunctionName(2)
 	productIdAttr := attribute.String("product.id", id)
 
-	mc := commonmetric.StartMetricsTimer(commonconst.RepositoryLayer, operation)
+	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, productIdAttr)
 
-	ctx, spanner := commontrace.StartSpan(ctx, repositoryScopeName, operation, commonconst.RepositoryLayer,
+	ctx, spanner := commontrace.StartSpan(ctx,
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ"),
 		productIdAttr,
 	)
-	notFoundMapper := func(err error) codes.Code {
-		if err == nil {
-			return codes.Ok
-		}
-		if errors.Is(err, commonerrors.ErrNotFound) {
-			return codes.Ok
-		}
-		return codes.Error
-	}
-	defer spanner.End(&opErr, notFoundMapper)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer), productIdAttr)
+			opErr = fmt.Errorf("panic recovered in %s: %v", operationName, rec)
+			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operationName), slog.String("layer", commonconst.RepositoryLayer), productIdAttr)
 		}
 	}()
 
-	r.logger.Info("Repository: GetByID called", slog.String("product_id", id))
+	r.logger.InfoContext(ctx, "Repository: GetByID called", slog.String("product_id", id), slog.String("operation", operationName))
 
 	spanner.AddEvent("Acquiring read lock for GetByID")
 	r.mu.RLock()
@@ -140,17 +132,17 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 
 	spanner.AddEvent("Product found in map")
 	spanner.SetAttributes(attribute.String("product.name", product.Name))
-	r.logger.Info("Repository: GetByID found product in cache", slog.String("product_id", id))
+	r.logger.InfoContext(ctx, "Repository: GetByID found product in cache", slog.String("product_id", id), slog.String("operation", operationName))
 	return product, nil
 }
 
 func (r *productRepository) UpdateStock(ctx context.Context, productID string, newStock int) (opErr error) {
-	const operation = "UpdateStock"
+	operationName := utils.GetCallerFunctionName(2)
 	productIdAttr := attribute.String("product.id", productID)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productIdAttr, newStockAttr}
 
-	mc := commonmetric.StartMetricsTimer(commonconst.RepositoryLayer, operation)
+	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, attrs...)
 
 	initialSpanAttrs := []attribute.KeyValue{
@@ -158,23 +150,23 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		semconv.DBOperationKey.String("UPDATE"),
 	}
 	initialSpanAttrs = append(initialSpanAttrs, attrs...)
-	ctx, spanner := commontrace.StartSpan(ctx, repositoryScopeName, operation, commonconst.RepositoryLayer, initialSpanAttrs...)
-	defer spanner.End(&opErr, nil)
+	ctx, spanner := commontrace.StartSpan(ctx, initialSpanAttrs...)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer), productIdAttr, newStockAttr)
+			opErr = fmt.Errorf("panic recovered in %s: %v", operationName, rec)
+			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operationName), slog.String("layer", commonconst.RepositoryLayer), productIdAttr, newStockAttr)
 		}
 	}()
 
-	r.logger.Info("Repository: UpdateStock called", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	r.logger.InfoContext(ctx, "Repository: UpdateStock called", slog.String("product_id", productID), slog.Int("new_stock", newStock), slog.String("operation", operationName))
 
 	if newStock < 0 {
 		opErr = fmt.Errorf("invalid stock value %d: %w", newStock, commonerrors.ErrValidation)
-		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, attrs...)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operationName, attrs...)
 		return opErr
 	}
 
@@ -187,7 +179,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		r.mu.Unlock()
 		spanner.AddEvent("Write lock released (product not found)")
 		opErr = fmt.Errorf("product with id '%s' not found for update: %w", productID, commonerrors.ErrNotFound)
-		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, attrs...)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operationName, attrs...)
 		return opErr
 	}
 
@@ -210,12 +202,12 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		errMsg := "product found in map but not in slice during UpdateStock"
 		r.logger.Error("Repository internal inconsistency", slog.String("error", errMsg), slog.String("product_id", productID))
 		opErr = fmt.Errorf("%s: %w", errMsg, commonerrors.ErrInternal)
-		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, attrs...)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operationName, attrs...)
 		return opErr
 	}
 
 	spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
-	r.logger.Info("Repository: Product stock updated in memory", slog.String("product_id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock))
+	r.logger.InfoContext(ctx, "Repository: Product stock updated in memory", slog.String("product_id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock), slog.String("operation", operationName))
 
 	spanner.AddEvent("Calling saveData to persist changes")
 	if saveErr := r.saveData(ctx); saveErr != nil {
@@ -229,25 +221,25 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 }
 
 func (r *productRepository) saveData(ctx context.Context) (opErr error) {
-	const operation = "saveData"
+	operationName := utils.GetCallerFunctionName(2)
 	fileAttr := attribute.String("file.path", r.filePath)
 
-	mc := commonmetric.StartMetricsTimer(commonconst.RepositoryLayer, operation)
+	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, fileAttr)
 
-	ctx, spanner := commontrace.StartSpan(ctx, repositoryScopeName, operation, commonconst.RepositoryLayer,
+	ctx, spanner := commontrace.StartSpan(ctx,
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("WRITE"),
 		fileAttr,
 	)
-	defer spanner.End(&opErr, nil)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer), fileAttr)
+			opErr = fmt.Errorf("panic recovered in %s: %v", operationName, rec)
+			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operationName), slog.String("layer", commonconst.RepositoryLayer), fileAttr)
 		}
 	}()
 
@@ -260,7 +252,7 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 
 	if err != nil {
 		opErr = fmt.Errorf("failed to marshal product data for saving: %w", err)
-		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operationName, fileAttr)
 		return opErr
 	}
 
@@ -276,10 +268,10 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 
 	if err != nil {
 		opErr = fmt.Errorf("failed to write data file '%s': %w", r.filePath, err)
-		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operationName, fileAttr)
 		return opErr
 	}
 
-	r.logger.Info("Product data saved successfully", slog.String("file_path", r.filePath))
+	r.logger.InfoContext(ctx, "Product data saved successfully", slog.String("file_path", r.filePath), slog.String("operation", operationName))
 	return nil
 }

@@ -69,11 +69,9 @@ type metricsControllerImpl struct {
 }
 
 
-func StartMetricsTimer(layer, operation string) MetricsController {
+func StartMetricsTimer() MetricsController {
 	return &metricsControllerImpl{
 		startTime: time.Now(),
-		layer:     layer,
-		operation: operation,
 	}
 }
 

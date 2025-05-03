@@ -7,26 +7,19 @@ import (
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
-	commonconst "github.com/narender/common/constants"
 	"github.com/narender/common/debugutils"
 	commonerrors "github.com/narender/common/errors"
 	"github.com/narender/common/globals"
-	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 )
-
-const handlerScopeName = "github.com/narender/product-service/handler"
 
 type ProductHandler struct {
 	service ProductService
 	logger  *slog.Logger
-}
-
-type ErrorResponse struct {
-	Message string `json:"message"`
 }
 
 func NewProductHandler(svc ProductService) *ProductHandler {
@@ -37,53 +30,47 @@ func NewProductHandler(svc ProductService) *ProductHandler {
 }
 
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
-	const operation = "GetAllProducts"
 	ctx := c.UserContext()
 
-	mc := commonmetric.StartMetricsTimer(commonconst.HandlerLayer, operation)
-	defer mc.End(ctx, &opErr)
-
-	ctx, spanner := commontrace.StartSpan(ctx, handlerScopeName, operation, commonconst.HandlerLayer)
-	defer spanner.End(&opErr, nil)
+	ctx, span := commontrace.StartSpan(ctx)
+	span.SetAttributes(semconv.HTTPRouteKey.String(c.Route().Path))
+	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			h.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.HandlerLayer))
+			opErr = fmt.Errorf("panic recovered in %v", rec)
+			h.logger.Error("Panic recovered", slog.Any("panic", rec))
 		}
 	}()
 
-	h.logger.InfoContext(ctx, "Handler: Received request for GetAllProducts", slog.String("operation", operation))
+	h.logger.InfoContext(ctx, "Handler: Received request for GetAllProducts")
 
 	debugutils.Simulate(ctx)
-	h.logger.InfoContext(ctx, "Handler: Calling service GetAll", slog.String("operation", operation))
-	spanner.AddEvent("Calling service GetAll")
+	h.logger.InfoContext(ctx, "Handler: Calling service GetAll")
+	span.AddEvent("Calling service GetAll")
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
 		opErr = err
-		spanner.AddEvent("Service GetAll failed")
-		h.logger.WarnContext(ctx, "Service GetAll failed", slog.Any("error", opErr), slog.String("operation", operation))
+		span.AddEvent("Service GetAll failed")
+		h.logger.WarnContext(ctx, "Service GetAll failed", slog.Any("error", opErr))
 		return opErr
 	}
 	productCount := len(products)
-	spanner.AddEvent("Service GetAll successful", trace.WithAttributes(attribute.Int("products.count", productCount)))
+	span.AddEvent("Service GetAll successful", trace.WithAttributes(attribute.Int("products.count", productCount)))
 	h.logger.InfoContext(ctx, "Successfully retrieved all products", slog.Int("productCount", productCount))
-	spanner.SetAttributes(attribute.Int("products.count", productCount))
+	span.SetAttributes(attribute.Int("products.count", productCount))
 	return c.Status(http.StatusOK).JSON(products)
 }
 
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
-	const operation = "GetProductByID"
 	ctx := c.UserContext()
 	productID := c.Params("productId")
 	productIdAttr := attribute.String("product.id", productID)
 
-	mc := commonmetric.StartMetricsTimer(commonconst.HandlerLayer, operation)
-	defer mc.End(ctx, &opErr, productIdAttr)
-
-	ctx, spanner := commontrace.StartSpan(ctx, handlerScopeName, operation, commonconst.HandlerLayer, productIdAttr)
+	ctx, span := commontrace.StartSpan(ctx, productIdAttr)
+	span.SetAttributes(semconv.HTTPRouteKey.String(c.Route().Path))
 	notFoundMapper := func(err error) codes.Code {
 		if err == nil {
 			return codes.Ok
@@ -93,26 +80,26 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		}
 		return codes.Error
 	}
-	defer spanner.End(&opErr, notFoundMapper)
+	defer commontrace.EndSpan(span, &opErr, notFoundMapper)
 
 	debugutils.Simulate(ctx)
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			h.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.HandlerLayer), productIdAttr)
+			opErr = fmt.Errorf("panic recovered in %v", rec)
+			h.logger.Error("Panic recovered", slog.Any("panic", rec), productIdAttr)
 		}
 	}()
 
-	h.logger.InfoContext(ctx, "Handler: Received request for GetProductByID", slog.String("product_id", productID), slog.String("operation", operation))
+	h.logger.InfoContext(ctx, "Handler: Received request for GetProductByID", slog.String("product_id", productID))
 
 	debugutils.Simulate(ctx)
-	h.logger.InfoContext(ctx, "Handler: Calling service GetByID", slog.String("product_id", productID), slog.String("operation", operation))
-	spanner.AddEvent("Calling service GetByID", trace.WithAttributes(productIdAttr))
+	h.logger.InfoContext(ctx, "Handler: Calling service GetByID", slog.String("product_id", productID))
+	span.AddEvent("Calling service GetByID", trace.WithAttributes(productIdAttr))
 	product, err := h.service.GetByID(ctx, productID)
 	if err != nil {
 		opErr = err
-		spanner.AddEvent("Service GetByID failed", trace.WithAttributes(attribute.String("error.message", opErr.Error())))
+		span.AddEvent("Service GetByID failed", trace.WithAttributes(attribute.String("error.message", opErr.Error())))
 		logLevel := slog.LevelWarn
 		if errors.Is(opErr, commonerrors.ErrNotFound) {
 			logLevel = slog.LevelInfo
@@ -120,7 +107,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		h.logger.Log(ctx, logLevel, "Service GetByID failed", slog.Any("error", opErr), slog.String("product_id", productID))
 		return opErr
 	}
-	spanner.AddEvent("Service GetByID successful")
+	span.AddEvent("Service GetByID successful")
 	h.logger.InfoContext(ctx, "Successfully retrieved product by ID", slog.String("product_id", productID))
 	return c.Status(http.StatusOK).JSON(product)
 }

@@ -10,9 +10,6 @@ import (
 )
 
 
-
-
-
 func HandleLayerError(ctx context.Context, logger *slog.Logger, spanner interface {
 	AddEvent(string, ...trace.EventOption)
 }, opErr error, layer, operation string, attrs ...attribute.KeyValue) {
