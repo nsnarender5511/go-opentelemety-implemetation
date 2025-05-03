@@ -30,17 +30,15 @@ func NewProductHandler(svc ProductService) *ProductHandler {
 
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	ctx := c.UserContext()
-	const operation = "GetAllProductsHandler"
 
 	ctx, span := commontrace.StartSpan(ctx)
 	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
-	h.logger.Info("Handler: Received request for GetAllProducts", slog.String("operation", operation))
+	h.logger.Info("Handler: Received request for GetAllProducts")
 
-	debugutils.Simulate(ctx)
-	h.logger.Info( "Handler: Calling service GetAll", slog.String("operation", operation))
+	h.logger.Info( "Handler: Calling service GetAll")
 	span.AddEvent("Calling service GetAll")
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
@@ -52,14 +50,10 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 			eventName = "resource_not_found"
 		}
 		h.logger.Log(ctx, logLevel, "Service GetAll failed",
-			slog.String("layer", "handler"),
-			slog.String("operation", operation),
 			slog.String("error", opErr.Error()),
 		)
 		if span != nil {
 			spanAttrs := []attribute.KeyValue{
-				attribute.String("layer", "handler"),
-				attribute.String("operation", operation),
 				attribute.String("error.message", opErr.Error()),
 			}
 			if errors.Is(opErr, commonerrors.ErrNotFound) {
@@ -74,7 +68,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	}
 	productCount := len(products)
 	span.AddEvent("Service GetAll successful", trace.WithAttributes(attribute.Int("products.count", productCount)))
-	h.logger.Info( "Successfully retrieved all products", slog.Int("productCount", productCount), slog.String("operation", operation))
+	h.logger.Info( "Successfully retrieved all products", slog.Int("productCount", productCount))
 	span.SetAttributes(attribute.Int("products.count", productCount))
 	return c.Status(http.StatusOK).JSON(products)
 }

@@ -28,7 +28,7 @@ services:
       context: ./tests
       dockerfile: Dockerfile
     environment:
-      - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
+      - PRODUCT_SERVICE_URL=http://product-service:8082
     networks:
       - otel_internal-network
 

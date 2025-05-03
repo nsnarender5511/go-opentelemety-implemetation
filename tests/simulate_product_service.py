@@ -118,7 +118,8 @@ def worker(worker_id):
                 hit_health_endpoint()
 
             # Random delay between requests for a single worker
-            time.sleep(random.uniform(0.2, 1.5))
+            # Increase sleep time significantly for ~3-4 req/min/worker
+            time.sleep(random.uniform(10.0, 25.0)) 
 
         except Exception as e:
             print(f"Worker {worker_id} encountered an error: {e}")

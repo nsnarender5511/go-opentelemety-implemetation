@@ -23,7 +23,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const repositoryScopeName = "github.com/narender/product-service/repository"
 
 // ProductRepository defines the interface for accessing product data.
 type ProductRepository interface {
@@ -42,7 +41,6 @@ type productRepository struct {
 
 // NewProductRepository creates a new repository instance loading data from a JSON file.
 func NewProductRepository(dataFilePath string) ProductRepository {
-	const operation = "NewProductRepository"
 	repo := &productRepository{
 		products: make(map[string]Product),
 		filePath: dataFilePath,

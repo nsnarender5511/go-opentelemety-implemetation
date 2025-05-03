@@ -49,9 +49,9 @@ func commonConfig() *Config {
 	return &Config{
 		PRODUCT_SERVICE_PORT: "8082",
 		LOG_LEVEL:            "debug",
-		SimulateDelayEnabled: false,
+		SimulateDelayEnabled: true,
 		SimulateDelayMinMs:   10,
-		SimulateDelayMaxMs:   100,
+		SimulateDelayMaxMs:   10000,
 		// Set a default environment maybe? Or let LoadConfig handle it.
 			// ENVIRONMENT: "development",
 	}

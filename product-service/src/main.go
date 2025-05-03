@@ -43,7 +43,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 	app.Use(recover.New())
-	app.Use(otelfiber.Middleware())
+	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
 
 	// --- Route Definitions ---
 	app.Get("/health", func(c *fiber.Ctx) error {
