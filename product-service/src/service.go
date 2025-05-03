@@ -53,13 +53,11 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 	products, repoErr := s.repo.GetAll(ctx)
 	if repoErr != nil {
 		opErr = repoErr
-		logLevel := slog.LevelError
 		eventName := "error"
 		if errors.Is(opErr, commonerrors.ErrNotFound) {
-			logLevel = slog.LevelWarn
 			eventName = "resource_not_found"
 		}
-		s.logger.Log(ctx, logLevel, "Repository GetAll failed",
+		s.logger.InfoContext(ctx, "Repository GetAll failed",
 			slog.String("layer", "service"),
 			slog.String("operation", operationName),
 			slog.String("error", opErr.Error()),
@@ -116,13 +114,11 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	product, repoErr := s.repo.GetByID(ctx, productID)
 	if repoErr != nil {
 		opErr = repoErr
-		logLevel := slog.LevelError
 		eventName := "error"
 		if errors.Is(opErr, commonerrors.ErrNotFound) {
-			logLevel = slog.LevelWarn
 			eventName = "resource_not_found"
 		}
-		s.logger.Log(ctx, logLevel, "Repository GetByID failed",
+		s.logger.Log(ctx, slog.LevelError, "Repository GetByID failed",
 			slog.String("layer", "service"),
 			slog.String("operation", operationName),
 			slog.String("error", opErr.Error()),
@@ -202,13 +198,11 @@ func (s *productService) UpdateStock(ctx context.Context, productID string, newS
 	repoErr := s.repo.UpdateStock(ctx, productID, newStock)
 	if repoErr != nil {
 		opErr = repoErr
-		logLevel := slog.LevelError
 		eventName := "error"
 		if errors.Is(opErr, commonerrors.ErrNotFound) {
-			logLevel = slog.LevelWarn
 			eventName = "resource_not_found"
 		}
-		s.logger.Log(ctx, logLevel, "Repository UpdateStock failed",
+		s.logger.Log(ctx, slog.LevelError, "Repository UpdateStock failed",
 			slog.String("layer", "service"),
 			slog.String("operation", operationName),
 			slog.String("error", opErr.Error()),

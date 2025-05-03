@@ -36,9 +36,9 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 
 	debugutils.Simulate(ctx)
 
-	h.logger.Info("Handler: Received request for GetAllProducts")
+	h.logger.InfoContext(ctx, "Handler: Received request for GetAllProducts")
 
-	h.logger.Info( "Handler: Calling service GetAll")
+	h.logger.InfoContext(ctx, "Handler: Calling service GetAll")
 	span.AddEvent("Calling service GetAll")
 	products, err := h.service.GetAll(ctx)
 	if err != nil {
@@ -67,8 +67,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 		return opErr
 	}
 	productCount := len(products)
-	span.AddEvent("Service GetAll successful", trace.WithAttributes(attribute.Int("products.count", productCount)))
-	h.logger.Info( "Successfully retrieved all products", slog.Int("productCount", productCount))
+	h.logger.InfoContext(ctx, "Successfully retrieved all products", slog.Int("productCount", productCount))
 	span.SetAttributes(attribute.Int("products.count", productCount))
 	return c.Status(http.StatusOK).JSON(products)
 }
@@ -95,10 +94,10 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 
 	debugutils.Simulate(ctx)
 
-	h.logger.Info( "Handler: Received request for GetProductByID", slog.String("product_id", productID), slog.String("operation", operation))
+	h.logger.InfoContext(ctx, "Handler: Received request for GetProductByID", slog.String("product_id", productID), slog.String("operation", operation))
 
 	debugutils.Simulate(ctx)
-	h.logger.Info( "Handler: Calling service GetByID", slog.String("product_id", productID), slog.String("operation", operation))
+	h.logger.InfoContext(ctx, "Handler: Calling service GetByID", slog.String("product_id", productID), slog.String("operation", operation))
 	span.AddEvent("Calling service GetByID", trace.WithAttributes(productIdAttr))
 	product, err := h.service.GetByID(ctx, productID)
 	if err != nil {
@@ -133,13 +132,13 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 		return opErr
 	}
 	span.AddEvent("Service GetByID successful")
-	h.logger.Info( "Successfully retrieved product by ID", slog.String("product_id", productID), slog.String("operation", operation))
+	h.logger.InfoContext(ctx, "Successfully retrieved product by ID", slog.String("product_id", productID), slog.String("operation", operation))
 	return c.Status(http.StatusOK).JSON(product)
 }
 
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	const operation = "HealthCheckHandler"
-	h.logger.Info( "Health check requested", slog.String("operation", operation))
+	h.logger.InfoContext(c.UserContext(), "Health check requested", slog.String("operation", operation))
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"status": "ok",
 	})

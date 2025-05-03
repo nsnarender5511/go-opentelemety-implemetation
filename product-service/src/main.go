@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -32,7 +33,7 @@ func main() {
 	handler := NewProductHandler(service)
 
 	// --- Service Information Logging ---
-	logger.Info("Starting product-service")
+	logger.InfoContext(context.Background(), "Starting product-service")
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler(logger),
 	})
@@ -53,11 +54,11 @@ func main() {
 	app.Get("/products", handler.GetAllProducts)
 	app.Get("/products/:productId", handler.GetProductByID)
 	app.Get("/status", handler.HealthCheck)
-	logger.Info("Routes registered")
+	logger.InfoContext(context.Background(), "Routes registered")
 
 	// --- Server Startup ---
 	addr := fmt.Sprintf(":%s", globals.Cfg().PRODUCT_SERVICE_PORT)
-	logger.Info("Server starting to listen", slog.String("address", addr))
+	logger.InfoContext(context.Background(), "Server starting to listen", slog.String("address", addr))
 
 	if err := app.Listen(addr); err != nil {
 		logger.Error("Server listener failed", slog.Any("error", err))
