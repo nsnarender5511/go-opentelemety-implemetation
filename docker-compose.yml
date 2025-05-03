@@ -15,8 +15,6 @@ services:
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     environment:
-      - OTEL_SERVICE_NAME=product-service
-      - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=product-service-container,host_name=product-service-container
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]

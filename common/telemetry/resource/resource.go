@@ -12,14 +12,13 @@ import (
 
 func NewResource(ctx context.Context, cfg *config.Config) (*resource.Resource, error) {
 	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(cfg.ServiceName),
-			semconv.ServiceVersionKey.String(cfg.ServiceVersion),
-		),
 		resource.WithFromEnv(),
 		resource.WithProcess(),
 		resource.WithHost(),
 		resource.WithOS(),
+		resource.WithAttributes(
+			semconv.ServiceVersionKey.String(cfg.ServiceVersion),
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTel resource: %w", err)

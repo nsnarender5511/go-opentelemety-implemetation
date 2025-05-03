@@ -27,12 +27,31 @@ receivers:
 
 processors:
   batch: {}
+  # Add resourcedetection processor
+  resourcedetection:
+    detectors: [env, system, docker]
+    override: false # Keep existing attributes if they conflict
   resource:
     attributes:
-      # Add environment-wide tags if desired, use 'insert' to avoid overwriting
+      # Statically set service.name and host.name for all telemetry
+      - key: service.name
+        value: "my-static-service"
+        action: upsert # Use upsert to ensure it's set
+      - key: host.name
+        value: "my-static-host"
+        action: upsert # Use upsert to ensure it's set
+      # Keep existing environment attribute
       - key: deployment.environment
         value: "development"
         action: insert
+  # Add filter processor to include only product-service metrics
+  filter/include_product_service:
+    metrics:
+      include:
+        match_type: strict
+        resource_attributes:
+          - key: container.name
+            value: product-service
 
 exporters:
   otlp: 
@@ -59,15 +78,15 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resource, batch]
+      processors: [resourcedetection, resource, batch] # Add resourcedetection
       exporters: [otlp]
     metrics:
       receivers: [otlp, docker_stats] # Receive OTLP metrics AND docker stats
-      processors: [resource, batch] # Apply resource attributes (like deployment.environment) and batch
-      exporters: [otlp] # Remove debug exporter
+      processors: [resourcedetection, resource, filter/include_product_service, batch]
+      exporters: [otlp]
     logs:
       receivers: [otlp]
-      processors: [resource, batch] # Add resource processor if you want common attributes on logs too
+      processors: [resourcedetection, resource, batch] # Add resourcedetection
       exporters: [otlp] # Send logs to SigNoz
 
 

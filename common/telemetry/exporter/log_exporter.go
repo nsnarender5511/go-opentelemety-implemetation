@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewLogExporter creates and configures an OTLP gRPC log exporter.
+
 func NewLogExporter(ctx context.Context, cfg *config.Config, logger *zap.Logger) (sdklog.Exporter, error) {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -26,7 +26,7 @@ func NewLogExporter(ctx context.Context, cfg *config.Config, logger *zap.Logger)
 		logger.Warn("Using insecure gRPC connection for OTLP log exporter")
 	} else {
 		logger.Info("Using secure gRPC connection for OTLP log exporter")
-		// Add TLS config here if needed in the future
+		
 	}
 
 	if len(cfg.OtelExporterOtlpHeaders) > 0 {
