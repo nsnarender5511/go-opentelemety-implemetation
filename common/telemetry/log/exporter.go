@@ -1,0 +1,33 @@
+package log
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/narender/common/config"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	otelgloballog "go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkresource "go.opentelemetry.io/otel/sdk/resource"
+	"google.golang.org/grpc"
+)
+
+func SetupOtlpLogExporter(ctx context.Context, cfg *config.Config, connOpts []grpc.DialOption, res *sdkresource.Resource) error {
+	logExporter, err := otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlploggrpc.WithDialOption(connOpts...),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create OTLP log exporter: %w", err)
+	}
+
+	logProcessor := sdklog.NewBatchProcessor(logExporter)
+	loggerProvider := sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(logProcessor),
+	)
+	otelgloballog.SetLoggerProvider(loggerProvider)
+	log.Println("OTel LoggerProvider initialized and set globally.")
+	return nil
+}

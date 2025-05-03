@@ -9,12 +9,12 @@ import (
 	commonconst "github.com/narender/common/constants"
 	"github.com/narender/common/debugutils"
 	commonerrors "github.com/narender/common/errors"
+	"github.com/narender/common/globals"
 	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"github.com/narender/common/globals"
 )
 
 const serviceScopeName = "github.com/narender/product-service/service"
@@ -26,7 +26,7 @@ type ProductService interface {
 }
 
 type productService struct {
-	repo ProductRepository
+	repo   ProductRepository
 	logger *slog.Logger
 }
 
