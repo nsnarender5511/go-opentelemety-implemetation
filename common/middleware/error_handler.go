@@ -4,13 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	_ "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	commonErrors "github.com/narender/common/errors"
-	"github.com/narender/common/telemetry/attributes"
-	"github.com/narender/common/telemetry/metric"
 	"github.com/narender/common/telemetry/trace"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,7 +22,7 @@ type ErrorResponse struct {
 	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
-func NewErrorHandler(otelLogger *otelzap.Logger, metrics *metric.HTTPMetrics) fiber.ErrorHandler {
+func NewErrorHandler(otelLogger *otelzap.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		statusCode := http.StatusInternalServerError
 		userMessage := "An unexpected error occurred. Please try again later."
@@ -92,16 +89,6 @@ func NewErrorHandler(otelLogger *otelzap.Logger, metrics *metric.HTTPMetrics) fi
 				attribute.String("error.message", internalMessage),
 				attribute.Int("error.type", int(errorType)),
 			)
-		}
-
-		if metrics != nil {
-			attrs := []attribute.KeyValue{
-				attributes.HTTPMethodKey.String(c.Method()),
-				attributes.HTTPRouteKey.String(c.Route().Path),
-				attributes.HTTPStatusCodeKey.Int(statusCode),
-			}
-
-			metrics.RecordHTTPRequestDuration(ctx, 0*time.Second, attrs...)
 		}
 
 		zapFields := []zap.Field{

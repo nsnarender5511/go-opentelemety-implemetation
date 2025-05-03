@@ -8,32 +8,27 @@ services:
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
-    container_name: product-service
-    ports:
-      - 8082:8082
+    expose:
+      - "8082"
     volumes:
       - ./product-service/data.json:/app/data.json:ro
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATA_FILE_PATH=/app/data.json
+      - OTEL_SERVICE_NAME=product-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 15s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
     networks:
       - otel_internal-network
     depends_on:
-      otel-collector:
-        condition: service_started
+      - otel-collector
+    
   product-simulator:
     build:
       context: ./tests

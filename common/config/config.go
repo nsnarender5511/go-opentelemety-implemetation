@@ -1,25 +1,31 @@
 package config
 
 import (
+	"os"
+	"strconv"
+	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
-type Config struct {
-	ProductServicePort string
-	ServiceName        string
-	ServiceVersion     string
-	DataFilePath       string
-	LogLevel           string
-	Environment        string
 
-	OtelExporterOtlpEndpoint string
-	OtelExporterInsecure     bool
-	OtelSampleRatio          float64
-	OtelSamplerType          string
-	OtelBatchTimeout         time.Duration
-	OtelExporterOtlpTimeout  time.Duration
-	OtelExporterOtlpHeaders  map[string]string
-	OtelEnableExemplars      bool
+type Config struct {
+	ServiceName              string `env:"SERVICE_NAME,required"`
+	ServiceVersion           string `env:"SERVICE_VERSION,required"`
+	Environment              string `env:"ENVIRONMENT,default=development"`
+	ProductServicePort       string `env:"PRODUCT_SERVICE_PORT,default=8082"`
+	LogLevel                 string `env:"LOG_LEVEL,default=info"`
+	DataFilePath             string `env:"DATA_FILE_PATH,default=./data.json"`
+	OtelExporterOtlpEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,default=otel-collector:4317"`
+
+	OtelExporterInsecure    bool
+	OtelSampleRatio         float64
+	OtelSamplerType         string
+	OtelBatchTimeout        time.Duration
+	OtelExporterOtlpTimeout time.Duration
+	OtelExporterOtlpHeaders map[string]string
+	OtelEnableExemplars     bool
 
 	ShutdownTimeout       time.Duration
 	ServerShutdownTimeout time.Duration
@@ -29,29 +35,65 @@ type Config struct {
 	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
 }
 
-func GetHardcodedConfig() *Config {
+
+func LoadConfig(logger *zap.Logger) (*Config, error) {
+	
+	
+	
+	
+	
+	logger.Warn("LoadConfig returning default config; ensure environment variable parsing is implemented.")
+	return GetDefaultConfig(), nil 
+}
+
+
+func GetDefaultConfig() *Config {
 	return &Config{
-		ProductServicePort: "8082",
-		ServiceName:        "product-service",
-		ServiceVersion:     "1.0.0",
-		DataFilePath:       "data.json",
-		LogLevel:           "info",
-		Environment:        "development",
-
-		OtelExporterOtlpEndpoint: "otel-collector:4317",
-		OtelExporterInsecure:     true,
-		OtelSampleRatio:          1.0,
-		OtelSamplerType:          "parentbased_traceidratio",
-		OtelBatchTimeout:         5 * time.Second,
-		OtelExporterOtlpTimeout:  10 * time.Second,
-		OtelExporterOtlpHeaders:  make(map[string]string),
-		OtelEnableExemplars:      false,
-
-		ShutdownTimeout:       15 * time.Second,
-		ServerShutdownTimeout: 10 * time.Second,
-
-		SimulateDelayEnabled: true,
-		SimulateDelayMinMs:   10,
-		SimulateDelayMaxMs:   10000,
+		ProductServicePort:       "8082",
+		ServiceName:              "product-service", 
+		ServiceVersion:           "1.0.0",           
+		DataFilePath:             "/app/data.json",  
+		LogLevel:                 "info",
+		Environment:              "development",         
+		OtelExporterOtlpEndpoint: "otel-collector:4317", 
 	}
+}
+
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
+
+func getEnvAsBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		b, err := strconv.ParseBool(value)
+		if err == nil {
+			return b
+		}
+	}
+	return fallback
+}
+
+
+func getEnvAsMap(key string) map[string]string {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return nil
+	}
+	pairs := strings.Split(valueStr, ",")
+	headers := make(map[string]string)
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	if len(headers) == 0 {
+		return nil
+	}
+	return headers
 }

@@ -4,55 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/narender/common/config"
-	"github.com/narender/common/telemetry/exporter"
-	"github.com/narender/common/telemetry/manager"
-	"github.com/narender/common/telemetry/metric"
-	"github.com/narender/common/telemetry/propagator"
 	"github.com/narender/common/telemetry/resource"
-	"github.com/narender/common/telemetry/trace"
 	"go.uber.org/zap"
 
 	"go.opentelemetry.io/otel"
-	logglobal "go.opentelemetry.io/otel/log/global"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 )
 
 func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
-
-	tempLogger := zap.NewExample()
-	defer tempLogger.Sync()
+	tempLogger := zap.NewNop()
 
 	var shutdownFuncs []func(context.Context) error
-	var tp *sdktrace.TracerProvider = nil
-	var mp *sdkmetric.MeterProvider = nil
-	var lp *sdklog.LoggerProvider = nil
 
 	shutdown = func(ctx context.Context) error {
 		var shutdownErr error
-
-		if lp != nil {
-			tempLogger.Debug("Shutting down LoggerProvider...")
-			shutdownErr = errors.Join(shutdownErr, lp.Shutdown(ctx))
-		}
-		if mp != nil {
-			tempLogger.Debug("Shutting down MeterProvider...")
-			shutdownErr = errors.Join(shutdownErr, mp.Shutdown(ctx))
-		}
-		if tp != nil {
-			tempLogger.Debug("Shutting down TracerProvider...")
-			shutdownErr = errors.Join(shutdownErr, tp.Shutdown(ctx))
-		}
-
-		tempLogger.Debug("Executing additional shutdown functions", zap.Int("count", len(shutdownFuncs)))
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
 			shutdownErr = errors.Join(shutdownErr, shutdownFuncs[i](ctx))
 		}
 		shutdownFuncs = nil
-		tempLogger.Info("OpenTelemetry resources shut down sequence completed.")
+		tempLogger.Debug("OpenTelemetry resources shutdown sequence completed.")
 		return shutdownErr
 	}
 
@@ -62,7 +42,6 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 			if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
 				tempLogger.Error("Error during OTel cleanup after setup failure", zap.Error(shutdownErr))
 			}
-			manager.InitializeGlobalManager(nil, nil, nil, cfg.ServiceName, cfg.ServiceVersion)
 		}
 	}()
 
@@ -70,45 +49,71 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 	if err != nil {
 		return shutdown, fmt.Errorf("failed to create resource: %w", err)
 	}
+	tempLogger.Debug("Resource created", zap.Any("attributes", res.Attributes()))
 
-	propagator.SetupPropagators()
-
-	traceExporter, err := exporter.NewTraceExporter(ctx, cfg, tempLogger)
-	if err != nil {
-		return shutdown, fmt.Errorf("failed to create trace exporter: %w", err)
-	}
-	sampler := trace.NewSampler(cfg)
-	var bspShutdown func(context.Context) error
-	tp, bspShutdown = trace.NewTraceProvider(res, traceExporter, sampler)
-	if bspShutdown != nil {
-		shutdownFuncs = append(shutdownFuncs, bspShutdown)
-	}
-	otel.SetTracerProvider(tp)
-	tempLogger.Debug("Standard TracerProvider initialized and set globally.")
-
-	metricExporter, err := exporter.NewMetricExporter(ctx, cfg, tempLogger)
-	if err != nil {
-		return shutdown, fmt.Errorf("failed to create metric exporter: %w", err)
-	}
-	mp = metric.NewMeterProvider(cfg, res, metricExporter)
-	otel.SetMeterProvider(mp)
-	tempLogger.Debug("Standard MeterProvider initialized and set globally.")
-
-	logExporter, err := exporter.NewLogExporter(ctx, cfg, tempLogger)
-	if err != nil {
-		return shutdown, fmt.Errorf("failed to create log exporter: %w", err)
-	}
-	logProcessor := sdklog.NewBatchProcessor(logExporter)
-	lp = sdklog.NewLoggerProvider(
-		sdklog.WithResource(res),
-		sdklog.WithProcessor(logProcessor),
+	traceExporter, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithDialOption(grpc.WithBlock()),
 	)
-	logglobal.SetLoggerProvider(lp)
-	tempLogger.Debug("Standard LoggerProvider created and set globally.")
-	shutdownFuncs = append(shutdownFuncs, logProcessor.Shutdown)
+	if err != nil {
+		return shutdown, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
+	}
 
-	manager.InitializeGlobalManager(tp, mp, nil, cfg.ServiceName, cfg.ServiceVersion)
-	tempLogger.Info("Global TelemetryManager initialized successfully (without logger).")
+	ssp := sdktrace.NewSimpleSpanProcessor(traceExporter)
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.AlwaysSample())),
+		sdktrace.WithSpanProcessor(ssp),
+	)
+	otel.SetTracerProvider(tp)
+	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
+	tempLogger.Debug("TracerProvider initialized and set globally.")
+
+	tempLogger.Debug("Setting up OTLP Metric Exporter", zap.String("endpoint", cfg.OtelExporterOtlpEndpoint))
+	metricExporter, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint(cfg.OtelExporterOtlpEndpoint),
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithTemporalitySelector(func(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+			if kind == sdkmetric.InstrumentKindCounter || kind == sdkmetric.InstrumentKindHistogram {
+				return metricdata.DeltaTemporality
+			}
+			return metricdata.CumulativeTemporality
+		}),
+		otlpmetricgrpc.WithTimeout(5*time.Second),
+		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
+	)
+	if err != nil {
+		return shutdown, fmt.Errorf("failed to create OTLP metric exporter: %w", err)
+	}
+
+	reader := sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(15*time.Second))
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(reader),
+	)
+	otel.SetMeterProvider(mp)
+	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
+	tempLogger.Debug("MeterProvider initialized and set globally.")
+
+	tempLogger.Info("OpenTelemetry SDK initialized successfully (Traces and Metrics).")
 
 	return shutdown, nil
+}
+
+
+
+func GetTracer(instrumentationName string) oteltrace.Tracer {
+	
+	
+	return otel.Tracer(instrumentationName)
+}
+
+
+
+func GetMeter(instrumentationName string) metric.Meter {
+	
+	
+	return otel.Meter(instrumentationName)
 }

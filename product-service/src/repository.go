@@ -11,7 +11,7 @@ import (
 	"time"
 
 	commonlog "github.com/narender/common/log"
-	"github.com/narender/common/telemetry/manager"
+	"github.com/narender/common/telemetry"
 	"github.com/narender/common/telemetry/metric"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -21,11 +21,10 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	commontrace "github.com/narender/common/telemetry/trace"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
-const repositoryScopeName = "product.repository"
+const repositoryScopeName = "github.com/narender/product-service/repository"
 const repoLayerName = "repository"
 
 var ErrNotFound = errors.New("product not found")
@@ -51,7 +50,7 @@ func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 		filePath: dataFilePath,
 	}
 
-	meter := manager.GetMeter(repositoryScopeName)
+	meter := telemetry.GetMeter(repositoryScopeName)
 	productCountGaugeCallback := func(ctx context.Context, observer oteMetric.Int64Observer) error {
 		repo.mu.RLock()
 		count := len(repo.products)
@@ -104,7 +103,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(repositoryScopeName)
+	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.loadData", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("READ"),
@@ -191,7 +190,7 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(repositoryScopeName)
+	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.GetAll", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ_ALL"),
@@ -239,7 +238,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(repositoryScopeName)
+	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.GetByID", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("READ"),
@@ -290,7 +289,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(repositoryScopeName)
+	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.UpdateStock", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("memory"),
 		semconv.DBOperationKey.String("UPDATE"),
@@ -355,7 +354,7 @@ func (r *productRepository) saveData(ctx context.Context) (opErr error) {
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(repositoryScopeName)
+	tracer := telemetry.GetTracer(repositoryScopeName)
 	ctx, span := tracer.Start(ctx, "ProductRepository.saveData", oteltrace.WithAttributes(
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("WRITE"),

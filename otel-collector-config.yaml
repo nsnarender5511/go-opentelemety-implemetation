@@ -5,21 +5,10 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-
-
-
-
-
-
-
-
-
-
-
   docker_stats:
     endpoint: "unix:///var/run/docker.sock"
     collection_interval: 10s
-    timeout: 10s
+    timeout: 100s
     api_version: "1.47"
 
 
@@ -31,14 +20,6 @@ processors:
     override: false
   resource:
     attributes:
-
-      - key: service.name
-        value: "my-static-service"
-        action: upsert
-      - key: host.name
-        value: "my-static-host"
-        action: upsert
-
       - key: deployment.environment
         value: "development"
         action: insert
@@ -73,10 +54,6 @@ service:
       exporters: [otlp]
     metrics:
       receivers: [otlp, docker_stats]
-      processors: [resourcedetection, resource, batch]
-      exporters: [otlp]
-    logs:
-      receivers: [otlp]
       processors: [resourcedetection, resource, batch]
       exporters: [otlp]
 

@@ -2,14 +2,14 @@ package main
 
 import (
 	"errors"
+	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	commonlog "github.com/narender/common/log"
-	"github.com/narender/common/telemetry/manager"
+	"github.com/narender/common/telemetry"
 	commonmetric "github.com/narender/common/telemetry/metric"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	otelmetric "go.opentelemetry.io/otel/metric"
@@ -28,6 +28,22 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
+func NewProductHandler(svc ProductService) *ProductHandler {
+	return &ProductHandler{
+		service: svc,
+	}
+}
+
+func simulateDelayIfEnabled() {
+	if appConfig != nil && appConfig.SimulateDelayEnabled {
+		if appConfig.SimulateDelayMinMs > 0 && appConfig.SimulateDelayMaxMs >= appConfig.SimulateDelayMinMs {
+			delayRange := appConfig.SimulateDelayMaxMs - appConfig.SimulateDelayMinMs
+			delay := rand.Intn(delayRange+1) + appConfig.SimulateDelayMinMs
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+		}
+	}
+}
+
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	const operation = "GetAllProducts"
 	startTime := time.Now()
@@ -38,7 +54,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
-	tracer := otel.Tracer(handlerScopeName)
+	tracer := telemetry.GetTracer(handlerScopeName)
 	ctx, span := tracer.Start(ctx, "ProductHandler.GetAllProducts", oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
 
@@ -73,18 +89,20 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
-	tracer := otel.Tracer(handlerScopeName)
+	tracer := telemetry.GetTracer(handlerScopeName)
 	ctx, span := tracer.Start(ctx, "ProductHandler.GetProductByID", oteltrace.WithAttributes(productIdAttr), oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 	defer span.End()
 
 	logger.Info("Handler: Received request for GetProductByID", zap.String("product_id", productID))
 
-	meter := manager.GetMeter(ServiceName)
+	meter := telemetry.GetMeter(handlerScopeName)
 	requestCounter, _ := meter.Int64Counter("product_service.requests", otelmetric.WithDescription("Counts requests to product service endpoints"))
-	requestCounter.Add(c.UserContext(), 1, otelmetric.WithAttributes(
-		attribute.String("http.route", c.Path()),
-		attribute.String("product.id.param", productID),
-	))
+	if requestCounter != nil {
+		requestCounter.Add(ctx, 1, otelmetric.WithAttributes(
+			attribute.String("http.route", c.Path()),
+			attribute.String("product.id.param", productID),
+		))
+	}
 
 	simulateDelayIfEnabled()
 	product, err := h.service.GetByID(ctx, productID)

@@ -4,53 +4,37 @@ import (
 	"context"
 
 	"github.com/narender/common/config"
-	"github.com/narender/common/telemetry/manager"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.uber.org/zap"
 )
 
 func NewSampler(cfg *config.Config) sdktrace.Sampler {
-	log := manager.GetLogger()
-	samplerType := cfg.OtelSamplerType
-	ratio := cfg.OtelSampleRatio
-
-	log.Info("Configuring OTel sampler", zap.String("type", samplerType), zap.Float64("ratio", ratio))
-
-	switch samplerType {
+	switch cfg.OtelSamplerType {
 	case "always_on":
-		log.Info("Using AlwaysSample sampler.")
 		return sdktrace.AlwaysSample()
 	case "always_off":
-		log.Info("Using NeverSample sampler.")
 		return sdktrace.NeverSample()
 	case "traceidratio":
-		log.Info("Using TraceIDRatioBased sampler", zap.Float64("ratio", ratio))
-		return sdktrace.TraceIDRatioBased(ratio)
+		return sdktrace.TraceIDRatioBased(cfg.OtelSampleRatio)
+	case "parentbased_always_on":
+		return sdktrace.ParentBased(sdktrace.AlwaysSample())
+	case "parentbased_always_off":
+		return sdktrace.ParentBased(sdktrace.NeverSample())
 	case "parentbased_traceidratio":
-		log.Info("Using ParentBased(TraceIDRatioBased) sampler", zap.Float64("ratio", ratio))
-		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
+		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.OtelSampleRatio))
 	default:
-		log.Warn("Invalid sampler type received, defaulting",
-			zap.String("invalid_type", samplerType),
-			zap.String("default_type", "parentbased_traceidratio"),
-			zap.Float64("ratio", ratio),
-		)
-		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
+		return sdktrace.ParentBased(sdktrace.AlwaysSample())
 	}
 }
 
 func NewTraceProvider(res *resource.Resource, exporter sdktrace.SpanExporter, sampler sdktrace.Sampler) (*sdktrace.TracerProvider, func(context.Context) error) {
-
-	bspOpts := []sdktrace.BatchSpanProcessorOption{}
-	bsp := sdktrace.NewBatchSpanProcessor(exporter, bspOpts...)
+	ssp := sdktrace.NewSimpleSpanProcessor(exporter)
 
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sampler),
 		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithSpanProcessor(ssp),
 	)
-	manager.GetLogger().Info("Tracer provider configured.")
 
-	return tp, bsp.Shutdown
+	return tp, tp.Shutdown
 }

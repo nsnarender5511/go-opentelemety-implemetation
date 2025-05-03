@@ -7,10 +7,9 @@ import (
 	"time"
 
 	commonlog "github.com/narender/common/log"
-	"github.com/narender/common/telemetry/manager"
+	"github.com/narender/common/telemetry"
 	"github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	oteMetric "go.opentelemetry.io/otel/metric"
@@ -31,8 +30,8 @@ var (
 
 func initServiceMetrics() {
 	serviceMetricsOnce.Do(func() {
-		logger := manager.GetLogger()
-		meter := manager.GetMeter(serviceScopeName)
+		logger := commonlog.L
+		meter := telemetry.GetMeter(serviceScopeName)
 		var err error
 
 		productServiceOpsCounter, err = meter.Int64Counter(
@@ -53,14 +52,13 @@ func initServiceMetrics() {
 			logger.Error("Failed to create product.service.duration histogram", zap.Error(err))
 		}
 
-		var initErr error
-		productErrorsCounter, initErr = meter.Int64Counter(
+		productErrorsCounter, err = meter.Int64Counter(
 			"product.errors.count",
 			oteMetric.WithDescription("Counts errors encountered, categorized by type and layer"),
 			oteMetric.WithUnit("{error}"),
 		)
-		if initErr != nil {
-			logger.Warn("Attempted to re-initialize product.errors.count counter from service layer", zap.Error(initErr))
+		if err != nil {
+			logger.Warn("Attempted to re-initialize product.errors.count counter from service layer", zap.Error(err))
 		}
 	})
 }
@@ -91,7 +89,7 @@ type productService struct {
 }
 
 func NewProductService(repo ProductRepository) ProductService {
-
+	initServiceMetrics()
 	return &productService{
 		repo: repo,
 	}
@@ -107,7 +105,7 @@ func (s *productService) GetAll(ctx context.Context) (products []Product, opErr 
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(serviceScopeName)
+	tracer := telemetry.GetTracer(serviceScopeName)
 	ctx, span := tracer.Start(ctx, "ProductService.GetAll")
 	defer func() {
 		if opErr != nil {
@@ -149,7 +147,7 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	simulateDelayIfEnabled()
 	logger := commonlog.L.Ctx(ctx)
 
-	tracer := otel.Tracer(serviceScopeName)
+	tracer := telemetry.GetTracer(serviceScopeName)
 	ctx, span := tracer.Start(ctx, "ProductService.GetProductByID", oteltrace.WithAttributes(productIdAttr))
 	defer func() {
 		if opErr != nil {

@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
-	"math/rand"
+	"errors"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -18,129 +17,120 @@ import (
 	commonlog "github.com/narender/common/log"
 	"github.com/narender/common/middleware"
 	"github.com/narender/common/telemetry"
-	"github.com/narender/common/telemetry/manager"
-	"github.com/narender/common/telemetry/metric"
 
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
-const (
-	ServiceName = "product-service"
-)
 
-func simulateDelayIfEnabled() {
-
-	cfg := config.GetHardcodedConfig()
-	if !cfg.SimulateDelayEnabled || cfg.SimulateDelayMaxMs <= 0 || cfg.SimulateDelayMinMs < 0 || cfg.SimulateDelayMinMs > cfg.SimulateDelayMaxMs {
-		return
-	}
-	minMs := cfg.SimulateDelayMinMs
-	maxMs := cfg.SimulateDelayMaxMs
-
-	delayMs := rand.Intn(maxMs-minMs+1) + minMs
-	time.Sleep(time.Duration(delayMs) * time.Millisecond)
-}
+var appConfig *config.Config
 
 func main() {
-
-	rand.Seed(time.Now().UnixNano())
-
-	cfg := config.GetHardcodedConfig()
-	cfg.ServiceName = ServiceName
-
-	if err := commonlog.Init(cfg); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+	
+	tempLogger := zap.NewExample()
+	cfg, err := config.LoadConfig(tempLogger)
+	if err != nil {
+		tempLogger.Fatal("Failed to load configuration", zap.Error(err))
 	}
+	
+	appConfig = cfg
+	
 
+	
+	if err := commonlog.Init(cfg); err != nil {
+		tempLogger.Fatal("Failed to initialize application logger", zap.Error(err))
+	}
 	defer commonlog.Cleanup()
 
 	
-	startupCtx, startupSpan := otel.Tracer(ServiceName).Start(context.Background(), "startup")
-	defer startupSpan.End()
+	appLogger := commonlog.L
 
-	shutdownTelemetry, err := telemetry.InitTelemetry(startupCtx, cfg)
+	appLogger.Info("Starting service",
+		zap.String("service.name", cfg.ServiceName),
+		zap.String("service.version", cfg.ServiceVersion),
+		zap.String("environment", cfg.Environment),
+	)
+
+	
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
+	otelShutdown, err := telemetry.InitTelemetry(startupCtx, cfg)
+	cancelStartup()
 	if err != nil {
-		commonlog.L.Ctx(startupCtx).Fatal("Failed to initialize telemetry", zap.Error(err))
+		appLogger.Fatal("Failed to initialize OpenTelemetry", zap.Error(err))
 	}
+	appLogger.Info("OpenTelemetry initialized successfully.")
 
-	meter := manager.GetMeter(ServiceName)
-	if err := metric.InitializeCommonMetrics(meter); err != nil {
-		commonlog.L.Ctx(startupCtx).Error("Failed to initialize common metrics", zap.Error(err))
-	}
-
+	
 	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
-		defer shutdownCancel()
-		if err := shutdownTelemetry(shutdownCtx); err != nil {
-			commonlog.L.Ctx(startupCtx).Error("Error shutting down telemetry", zap.Error(err))
+		appLogger.Info("Shutting down OpenTelemetry...")
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelShutdown()
+		if err := otelShutdown(shutdownCtx); err != nil {
+			appLogger.Error("Error during OpenTelemetry shutdown", zap.Error(err))
+		} else {
+			appLogger.Info("OpenTelemetry shutdown complete.")
 		}
 	}()
 
-	commonlog.L.Ctx(startupCtx).Info("Logger, Telemetry, and Common Metrics initialized.")
+	
+	appCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	appCtx, cancelApp := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancelApp()
-
-	commonlog.L.Ctx(startupCtx).Info("Initializing application dependencies...")
-
+	
+	appLogger.Info("Initializing application dependencies...")
 	repo, err := NewProductRepository(cfg.DataFilePath)
 	if err != nil {
-		commonlog.L.Ctx(startupCtx).Fatal("Failed to initialize product repository", zap.Error(err))
+		appLogger.Fatal("Failed to initialize product repository", zap.Error(err))
 	}
 	productService := NewProductService(repo)
-	productHandler := &ProductHandler{service: productService}
+	productHandler := NewProductHandler(productService)
 
-	commonlog.L.Ctx(startupCtx).Info("Setting up Fiber application...")
-
+	
+	appLogger.Info("Setting up Fiber application...")
 	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.NewErrorHandler(commonlog.L, nil),
+		ErrorHandler: middleware.NewErrorHandler(commonlog.L),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,
 	})
 
+	
 	app.Use(recover.New())
 	app.Use(cors.New())
-
-	propagator := otel.GetTextMapPropagator()
-	app.Use(otelfiber.Middleware(
-		otelfiber.WithPropagators(propagator),
-	))
-
+	app.Use(otelfiber.Middleware())
 	app.Use(middleware.RequestLoggerMiddleware())
+	appLogger.Info("Fiber middleware configured.")
 
-	commonlog.L.Ctx(startupCtx).Info("Middleware configured.")
-
+	
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 	v1.Get("/products", productHandler.GetAllProducts)
 	v1.Get("/products/:productId", productHandler.GetProductByID)
 	v1.Get("/healthz", productHandler.HealthCheck)
-	commonlog.L.Ctx(startupCtx).Info("API routes configured.")
+	appLogger.Info("API routes configured.")
 
+	
 	port := cfg.ProductServicePort
 	addr := ":" + port
-	go func(ctx context.Context) {
-		commonlog.L.Ctx(ctx).Info("Server starting", zap.String("address", addr))
-		if err := app.Listen(addr); err != nil && err != http.ErrServerClosed {
-			commonlog.L.Ctx(ctx).Fatal("Server failed to start listening", zap.Error(err))
+	go func() {
+		appLogger.Info("Server starting to listen", zap.String("address", addr))
+		if err := app.Listen(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			appLogger.Fatal("Server listener failed", zap.Error(err))
 		}
-	}(startupCtx)
+	}()
 
+	
 	<-appCtx.Done()
-	commonlog.L.Ctx(startupCtx).Info("Shutdown signal received, initiating graceful shutdown...")
 
-	shutdownTimeout := cfg.ServerShutdownTimeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer shutdownCancel()
+	
+	appLogger.Info("Shutdown signal received, initiating graceful server shutdown...")
+	serverShutdownCtx, cancelServerShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelServerShutdown()
 
-	commonlog.L.Ctx(startupCtx).Info("Attempting to shut down Fiber server", zap.Duration("timeout", shutdownTimeout))
-	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
-		commonlog.L.Ctx(startupCtx).Error("Error during Fiber server shutdown", zap.Error(err))
+	if err := app.ShutdownWithContext(serverShutdownCtx); err != nil {
+		appLogger.Error("Fiber server graceful shutdown failed", zap.Error(err))
 	} else {
-		commonlog.L.Ctx(startupCtx).Info("Fiber server shut down successfully.")
+		appLogger.Info("Fiber server shutdown complete.")
 	}
 
-	commonlog.L.Ctx(startupCtx).Info("Application exiting gracefully.")
+	appLogger.Info("Application exiting.")
 }

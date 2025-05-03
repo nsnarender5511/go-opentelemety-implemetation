@@ -7,11 +7,9 @@ import (
 	"time"
 
 	commonerrors "github.com/narender/common/errors"
-	
-	"github.com/narender/common/telemetry/manager"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.uber.org/zap"
 )
 
 const (
@@ -63,11 +61,6 @@ func RecordOperationMetrics(
 ) {
 
 	if durationHist == nil && opsCounter == nil && errorCounter == nil {
-
-		manager.GetLogger().Warn("Common metric instruments not initialized, skipping RecordOperationMetrics",
-			zap.String("layer", layer),
-			zap.String("operation", operation),
-		)
 		return
 	}
 
