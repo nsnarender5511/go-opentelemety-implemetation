@@ -15,23 +15,29 @@ import (
 	"go.uber.org/zap"
 
 	"go.opentelemetry.io/otel"
+	logglobal "go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 
-	
-	tempLogger := zap.NewExample() 
+	tempLogger := zap.NewExample()
 	defer tempLogger.Sync()
 
 	var shutdownFuncs []func(context.Context) error
 	var tp *sdktrace.TracerProvider = nil
 	var mp *sdkmetric.MeterProvider = nil
+	var lp *sdklog.LoggerProvider = nil
 
 	shutdown = func(ctx context.Context) error {
 		var shutdownErr error
 
+		if lp != nil {
+			tempLogger.Debug("Shutting down LoggerProvider...")
+			shutdownErr = errors.Join(shutdownErr, lp.Shutdown(ctx))
+		}
 		if mp != nil {
 			tempLogger.Debug("Shutting down MeterProvider...")
 			shutdownErr = errors.Join(shutdownErr, mp.Shutdown(ctx))
@@ -87,6 +93,19 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(conte
 	mp = metric.NewMeterProvider(cfg, res, metricExporter)
 	otel.SetMeterProvider(mp)
 	tempLogger.Debug("Standard MeterProvider initialized and set globally.")
+
+	logExporter, err := exporter.NewLogExporter(ctx, cfg, tempLogger)
+	if err != nil {
+		return shutdown, fmt.Errorf("failed to create log exporter: %w", err)
+	}
+	logProcessor := sdklog.NewBatchProcessor(logExporter)
+	lp = sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(logProcessor),
+	)
+	logglobal.SetLoggerProvider(lp)
+	tempLogger.Debug("Standard LoggerProvider created and set globally.")
+	shutdownFuncs = append(shutdownFuncs, logProcessor.Shutdown)
 
 	manager.InitializeGlobalManager(tp, mp, nil, cfg.ServiceName, cfg.ServiceVersion)
 	tempLogger.Info("Global TelemetryManager initialized successfully (without logger).")

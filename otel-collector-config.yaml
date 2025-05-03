@@ -5,9 +5,28 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      disk:
+      load:
+      memory:
+      network:
+      filesystem:
+      paging:
+      process:
+      processes:
 
 processors:
   batch: {}
+  # Add resource processor to explicitly add hostname
+  resource:
+    attributes:
+      # Set a static hostname
+      - key: host.name
+        value: "my-static-collector-hostname" # <-- CHANGE THIS TO YOUR DESIRED STATIC NAME
+        action: upsert # Insert or update the attribute
 
 exporters:
   otlp: 
@@ -34,16 +53,17 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp] # Only debug exporter
+      processors: [resource, batch]
+      exporters: [otlp]
     metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp] # Only debug exporter
+      receivers: [otlp, hostmetrics]
+      # Add resource processor before batching
+      processors: [resource, batch]
+      exporters: [otlp]
     logs:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp] # Only debug exporter 
+      processors: [resource, batch]
+      exporters: [otlp, debug] # Only debug exporter 
 
 
 

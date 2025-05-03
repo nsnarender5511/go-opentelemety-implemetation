@@ -34,21 +34,20 @@ services:
       - otel-collector
 
   # --- Product Simulator Service (Load Generator) ---
-  # product-simulator:
-  #   build:
-  #     context: ./tests
-  #     dockerfile: Dockerfile
-  #   depends_on:
-  #     product-service:
-  #       condition: service_healthy # Wait for product-service to be healthy
-  #   # Removed env_file, setting URL directly via environment
-  #   environment:
-  #     - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
-  #   networks:
-  #     - signoz-net
-  #   # Removed deploy replicas block - use `docker-compose up --scale product-simulator=N` instead
-  #   # deploy:
-  #   #   replicas: 5
+  product-simulator:
+    build:
+      context: ./tests
+      dockerfile: Dockerfile
+    depends_on:
+      product-service:
+        condition: service_healthy # Wait for product-service to be healthy
+    # Set the URL for the product-service within the Docker network
+    environment:
+      - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
+    networks:
+      - otel_internal-network
+    # deploy:
+    #   replicas: 5
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
