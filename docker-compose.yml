@@ -4,7 +4,6 @@ networks:
 
 
 services:
-  # --- Product Service (Your Application) ---
   product-service:
     build:
       context: .
@@ -35,22 +34,20 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-
-  # --- Product Simulator Service (Load Generator) ---
   product-simulator:
     build:
       context: ./tests
       dockerfile: Dockerfile
     depends_on:
       product-service:
-        condition: service_healthy # Wait for product-service to be healthy
-    # Set the URL for the product-service within the Docker network
+        condition: service_healthy
+
     environment:
       - PRODUCT_SERVICE_URL=http://product-service:8082/api/v1
     networks:
       - otel_internal-network
-    # deploy:
-    #   replicas: 5
+
+
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
@@ -62,40 +59,40 @@ services:
     ports:
       - 4317:4317
       - 4318:4318
-      # Expose zPages for healthcheck if needed, often on 55679
-      # - 55679:55679 
+
+
     networks:
       - otel_internal-network
 
-  # --- Example: Hypothetical Service A ---
-  # service-A:
-  #   build: ./service-A
-  #   container_name: service-A
-  #   environment:
-  #     - OTEL_SERVICE_NAME=service-A
-  #     - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=${HOSTNAME}
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-  #   networks:
-  #     - otel_internal-network
-  #   depends_on:
-  #     otel-collector:
-  #       condition: service_started
 
-  # --- Example: Hypothetical Service B ---
-  # service-B:
-  #   build: ./service-B
-  #   container_name: service-B
-  #   environment:
-  #     - OTEL_SERVICE_NAME=service-B
-  #     - OTEL_RESOURCE_ATTRIBUTES=service.instance.id=${HOSTNAME}
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-  #   networks:
-  #     - otel_internal-network
-  #   depends_on:
-  #     otel-collector:
-  #       condition: service_started
 
-  # ... Add similar blocks for service-C, service-D, service-E ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   

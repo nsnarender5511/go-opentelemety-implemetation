@@ -55,7 +55,7 @@ func main() {
 
 	defer commonlog.Cleanup()
 
-	// Create a startup span for initialization logs
+	
 	startupCtx, startupSpan := otel.Tracer(ServiceName).Start(context.Background(), "startup")
 	defer startupSpan.End()
 
