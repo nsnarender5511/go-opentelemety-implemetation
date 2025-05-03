@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"sync"
 
 	commonconst "github.com/narender/common/constants"
 	"github.com/narender/common/debugutils"
@@ -21,7 +24,13 @@ const serviceScopeName = "github.com/narender/product-service/service"
 
 type ProductService interface {
 	GetAll(ctx context.Context) ([]Product, error)
-	GetByID(ctx context.Context, productID string) (Product, error)
+	GetByID(ctx context.Context, id string) (Product, error)
+}
+
+type JsonProductService struct {
+	products map[string]Product
+	logger   *slog.Logger
+	mu       sync.RWMutex // Added for potential future updates
 }
 
 type productService struct {
@@ -117,5 +126,53 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 
 	debugutils.Simulate(ctx)
 	logger.Info("Service: GetByID completed successfully", slog.String("product_id", productID))
+	return product, nil
+}
+
+func NewJsonProductService(dataPath string, logger *slog.Logger) (*JsonProductService, error) {
+	const operation = "NewJsonProductService"
+	logger.Info("Initializing JsonProductService", slog.String("dataPath", dataPath))
+
+	dataBytes, err := os.ReadFile(dataPath)
+	if err != nil {
+		logger.Error("Failed to read product data file", slog.String("path", dataPath), slog.Any("error", err), slog.String("operation", operation))
+		return nil, fmt.Errorf("failed to read data file '%s': %w", dataPath, err)
+	}
+
+	var products map[string]Product
+	err = json.Unmarshal(dataBytes, &products)
+	if err != nil {
+		logger.Error("Failed to unmarshal product data JSON", slog.String("path", dataPath), slog.Any("error", err), slog.String("operation", operation))
+		return nil, fmt.Errorf("failed to parse product data from '%s': %w", dataPath, err)
+	}
+
+	logger.Info("Successfully loaded product data", slog.Int("productCount", len(products)), slog.String("operation", operation))
+
+	return &JsonProductService{
+		products: products,
+		logger:   logger,
+	}, nil
+}
+
+func (s *JsonProductService) GetAll(ctx context.Context) ([]Product, error) {
+	s.mu.RLock() // Use RLock for read operations
+	defer s.mu.RUnlock()
+
+	productList := make([]Product, 0, len(s.products))
+	for _, product := range s.products {
+		productList = append(productList, product)
+	}
+	return productList, nil
+}
+
+func (s *JsonProductService) GetByID(ctx context.Context, id string) (Product, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	product, found := s.products[id]
+	if !found {
+		s.logger.WarnContext(ctx, "Product not found in service", slog.String("product_id", id))
+		return Product{}, commonerrors.ErrNotFound // Use the imported common error
+	}
 	return product, nil
 }

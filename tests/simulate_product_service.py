@@ -10,10 +10,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082/api/v1") # Updated default port to 8082
+# Update BASE_URL to remove /api/v1
+BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
 PRODUCTS_ENDPOINT = f"{BASE_URL}/products"
-CONCURRENT_USERS = 20 # Increased concurrent users
-DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json") # Relative path to data.json
+CONCURRENT_USERS = 20
+# Keep DATA_FILE_PATH as is, assuming script is run from tests/ directory
+DATA_FILE_PATH = os.getenv("DATA_FILE_PATH", "../product-service/data.json")
 
 try:
     with open(DATA_FILE_PATH, 'r') as f:
@@ -76,6 +78,15 @@ def hit_invalid_path():
     """Hits a deliberately non-existent path."""
     make_request(f"some/invalid/path/{uuid.uuid4()}")
 
+# Add functions for status and health endpoints
+def hit_status_endpoint():
+    """Hits the /status health check endpoint."""
+    make_request("status")
+
+def hit_health_endpoint():
+    """Hits the /health minimal health check endpoint."""
+    make_request("health")
+
 
 stop_event = threading.Event()
 
@@ -83,10 +94,10 @@ def worker(worker_id):
     """Simulates a single user making various requests."""
     print(f"Worker {worker_id} started.")
     while not stop_event.is_set():
-        # Removed stock-related actions, adjusted weights
+        # Add status and health checks to actions, adjust weights
         action_type = random.choices(
-            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 'bad_path'],
-            weights=   [0.2,       0.4,          0.2,           0.1,            0.1], # Weights sum to 1.0
+            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 'bad_path', 'status_check', 'health_check'],
+            weights=   [0.15,       0.35,         0.15,          0.1,             0.1,        0.075,          0.075], # Weights sum to 1.0
             k=1
         )[0]
 
@@ -94,16 +105,17 @@ def worker(worker_id):
             if action_type == 'get_all':
                 get_all_products()
             elif action_type == 'get_one_ok':
-                # Use IDs loaded from data.json
                 get_product_by_id(random.choice(known_product_ids))
             elif action_type == 'get_one_404':
                 get_product_by_id(NON_EXISTING_PRODUCT_ID)
             elif action_type == 'get_one_invalid':
-                # Expected 404 based on Fiber routing for invalid path param format
                 get_product_by_id(INVALID_FORMAT_PRODUCT_ID)
-            # Removed elif blocks for get_stock actions
             elif action_type == 'bad_path':
                 hit_invalid_path()
+            elif action_type == 'status_check': # Add call to status endpoint
+                hit_status_endpoint()
+            elif action_type == 'health_check': # Add call to health endpoint
+                hit_health_endpoint()
 
             # Random delay between requests for a single worker
             time.sleep(random.uniform(0.2, 1.5))
