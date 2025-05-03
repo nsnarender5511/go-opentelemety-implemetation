@@ -7,24 +7,23 @@ import (
 	"time"
 
 	"github.com/lmittmann/tint"
-	"github.com/narender/common/config"
 	slogmulti "github.com/samber/slog-multi"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
 var L *slog.Logger
 
-func Init() error {
+func Init(logLevelStr, environment string) error {
 	if L != nil {
 		slog.Warn("Logger already initialized")
 		return nil
 	}
 
-	// Determine log level from config, default to Info
+	// Determine log level from parameter, default to Info
 	var level slog.Level = slog.LevelInfo // Default level
-	logLevelStr := strings.ToLower(config.Get().LogLevel)
-	if err := level.UnmarshalText([]byte(logLevelStr)); err != nil {
-		slog.Warn("Invalid log level configured, defaulting to INFO", slog.String("configuredLevel", logLevelStr), slog.Any("error", err))
+	logLevelLower := strings.ToLower(logLevelStr)
+	if err := level.UnmarshalText([]byte(logLevelLower)); err != nil {
+		slog.Warn("Invalid log level provided, defaulting to INFO", slog.String("providedLevel", logLevelStr), slog.Any("error", err))
 		level = slog.LevelInfo // Ensure default on error
 	}
 
@@ -34,13 +33,12 @@ func Init() error {
 	}
 
 	var handler slog.Handler
-	cfg := config.Get()
-	isProduction := strings.ToLower(cfg.Environment) == "production"
+	isProduction := strings.ToLower(environment) == "production"
 
 	if isProduction {
 		slog.Info("Production environment: Configuring OTLP and Console (Tint) slog handlers.")
 
-		otlpHandler := otelslog.NewHandler("default_logger")
+		otlpHandler := otelslog.NewHandler("otlp_logger_placeholder")
 
 		consoleHandler := tint.NewHandler(os.Stdout, &tint.Options{
 			AddSource:  handlerOpts.AddSource,
@@ -51,7 +49,7 @@ func Init() error {
 		handler = slogmulti.Fanout(otlpHandler, consoleHandler)
 
 	} else {
-		slog.Info("Non-production environment: Configuring Console slog handler (Tint).")
+		slog.Info("Non-production environment: Configuring Console slog handler (Tint).", slog.String("environment", environment))
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
 			AddSource:  handlerOpts.AddSource,
 			Level:      handlerOpts.Level,
@@ -63,6 +61,6 @@ func Init() error {
 
 	slog.SetDefault(L)
 
-	L.Info("Logger initialized, enriched with common attributes, and set as default", slog.String("level", level.String()))
+	L.Info("Logger initialized and set as default", slog.String("level", level.String()), slog.String("environment", environment))
 	return nil
 }

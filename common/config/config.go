@@ -1,9 +1,12 @@
 package config
 
-import (
-	"log"
-	"sync"
+// Remove package-level cfg and configOnce as globals package handles singleton logic.
+/*
+var (
+	cfg *Config
+	configOnce   sync.Once
 )
+*/
 
 type Config struct {
 	ServiceName              string `env:"SERVICE_NAME,required"`
@@ -18,45 +21,15 @@ type Config struct {
 	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
 }
 
-var (
-	globalConfig *Config
-	configOnce   sync.Once
-	configMutex  sync.RWMutex
-)
-
+// LoadConfig now directly returns the default configuration.
+// The responsibility of ensuring it's loaded once is moved to the globals package.
 func LoadConfig() (*Config, error) {
-	var loadErr error
-	configOnce.Do(func() {
-		
-		log.Println("WARN: LoadConfig returning default config; ensure environment variable parsing is implemented.")
-		cfg := GetDefaultConfig()
-
-		configMutex.Lock()
-		globalConfig = cfg
-		configMutex.Unlock()
-		
-	})
-
-	configMutex.RLock()
-	defer configMutex.RUnlock()
-	if loadErr != nil {
-		return nil, loadErr 
-	}
-	return globalConfig, nil 
-}
-
-
-func Get() *Config {
-	configMutex.RLock()
-	defer configMutex.RUnlock()
-	
-	
-	if globalConfig == nil {
-		log.Println("WARN: config.Get() called before LoadConfig() or LoadConfig() failed, returning default config.")
-		
-		return GetDefaultConfig()
-	}
-	return globalConfig
+	// configOnce.Do(func() { // Remove sync.Once
+	// 	cfg = GetDefaultConfig()
+	//
+	// })
+	// return cfg, nil // Return directly
+	return GetDefaultConfig(), nil
 }
 
 func GetDefaultConfig() *Config {
@@ -65,12 +38,11 @@ func GetDefaultConfig() *Config {
 		ServiceName:              "product-service",
 		ServiceVersion:           "1.0.0",
 		LogLevel:                 "debug",
-		Environment:              "development", 
+		Environment:              "development",
 		OtelExporterOtlpEndpoint: "otel-collector:4317",
-		
+
 		SimulateDelayEnabled: false,
 		SimulateDelayMinMs:   10,
 		SimulateDelayMaxMs:   100,
-		
 	}
 }
