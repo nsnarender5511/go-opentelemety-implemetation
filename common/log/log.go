@@ -4,21 +4,23 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/lmittmann/tint"
 	"github.com/narender/common/config"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
 var L *slog.Logger
 
-func Init(cfg *config.Config) error {
+func Init() error {
 	if L != nil {
 		slog.Warn("Logger already initialized")
 		return nil
 	}
 
 	var level slog.Level
-	switch strings.ToLower(cfg.LogLevel) {
+	switch strings.ToLower(config.Get().LogLevel) {
 	case "debug":
 		level = slog.LevelDebug
 	case "warn":
@@ -35,28 +37,24 @@ func Init(cfg *config.Config) error {
 	}
 
 	var handler slog.Handler
-	isProduction := strings.ToLower(cfg.Environment) == "production"
+	isProduction := strings.ToLower(config.Get().Environment) == "production"
 
 	if isProduction {
-		slog.Info("Production environment: Configuring OTel slog handler.", slog.String("service.name", cfg.ServiceName))
-		handler = otelslog.NewHandler(cfg.ServiceName)
+		slog.Info("Production environment: Configuring OTel slog handler.", slog.String("service.name", config.Get().ServiceName))
+		handler = otelslog.NewHandler(config.Get().ServiceName)
 	} else {
-		slog.Info("Non-production environment: Configuring Console slog handler (JSON).")
-		handler = slog.NewJSONHandler(os.Stdout, handlerOpts)
+		slog.Info("Non-production environment: Configuring Console slog handler (Tint).")
+		handler = tint.NewHandler(os.Stdout, &tint.Options{
+			AddSource:  handlerOpts.AddSource,
+			Level:      handlerOpts.Level,
+			TimeFormat: time.Kitchen,
+		})
 	}
 
 	L = slog.New(handler)
 
 	slog.SetDefault(L)
 
-	L.Info("Logger initialized and set as default", slog.String("environment", cfg.Environment), slog.String("level", level.String()))
+	L.Info("Logger initialized and set as default", slog.String("environment", config.Get().Environment), slog.String("level", level.String()))
 	return nil
-}
-
-func Cleanup() {
-	if L != nil {
-		L.Debug("Logger cleanup called (noop).")
-	} else {
-		slog.Debug("Logger cleanup called (noop, logger not initialized).")
-	}
 }

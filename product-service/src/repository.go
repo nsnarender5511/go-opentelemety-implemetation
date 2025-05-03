@@ -14,13 +14,11 @@ import (
 	"github.com/narender/common/debugutils"
 	commonerrors "github.com/narender/common/errors"
 	commonlog "github.com/narender/common/log"
-	"github.com/narender/common/telemetry"
 	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
-	oteMetric "go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -47,24 +45,6 @@ func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 	repo := &productRepository{
 		products: make(map[string]Product),
 		filePath: dataFilePath,
-	}
-
-	meter := telemetry.GetMeter(repositoryScopeName)
-	productCountGaugeCallback := func(ctx context.Context, observer oteMetric.Int64Observer) error {
-		repo.mu.RLock()
-		count := len(repo.products)
-		repo.mu.RUnlock()
-		observer.Observe(int64(count))
-		return nil
-	}
-	_, err := meter.Int64ObservableGauge(
-		"product.repository.count",
-		oteMetric.WithInt64Callback(productCountGaugeCallback),
-		oteMetric.WithDescription("Measures the number of products currently loaded in the repository"),
-		oteMetric.WithUnit("{products}"),
-	)
-	if err != nil {
-		logger.Error("Failed to create product.repository.count observable gauge", slog.Any("error", err))
 	}
 
 	initCtx := context.Background()
