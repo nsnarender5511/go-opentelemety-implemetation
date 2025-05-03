@@ -28,8 +28,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// deltaTemporalitySelector selects Delta temporality for Counter, Histogram, and ObservableCounter
-// and Cumulative for UpDownCounter and ObservableUpDownCounter.
 func deltaTemporalitySelector(kind sdkmetric.InstrumentKind) metricdata.Temporality {
 	switch kind {
 	case sdkmetric.InstrumentKindCounter,
@@ -40,8 +38,7 @@ func deltaTemporalitySelector(kind sdkmetric.InstrumentKind) metricdata.Temporal
 		sdkmetric.InstrumentKindObservableUpDownCounter:
 		return metricdata.CumulativeTemporality
 	default:
-		// Default to Cumulative for any other types (e.g., Gauge, ObservableGauge)
-		// Or potentially panic if an unexpected kind is encountered.
+
 		return metricdata.CumulativeTemporality
 	}
 }

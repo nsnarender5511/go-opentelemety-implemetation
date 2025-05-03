@@ -5,17 +5,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/narender/common/config" // Assuming this path is correct
+	"github.com/narender/common/config"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
-// Global slog logger instance
 var L *slog.Logger
-
 
 func Init(cfg *config.Config) error {
 	if L != nil {
-		slog.Warn("Logger already initialized") // Use default slog before L is set
+		slog.Warn("Logger already initialized")
 		return nil
 	}
 
@@ -27,12 +25,12 @@ func Init(cfg *config.Config) error {
 		level = slog.LevelWarn
 	case "error":
 		level = slog.LevelError
-	default: // "info" or anything else
+	default:
 		level = slog.LevelInfo
 	}
 
 	handlerOpts := &slog.HandlerOptions{
-		AddSource: true, // Include source file/line number
+		AddSource: true,
 		Level:     level,
 	}
 
@@ -40,14 +38,13 @@ func Init(cfg *config.Config) error {
 	isProduction := strings.ToLower(cfg.Environment) == "production"
 
 	if isProduction {
-		slog.Info("Production environment: Configuring OTel slog handler.", slog.String("service.name", cfg.ServiceName)) // Log this before L is set
+		slog.Info("Production environment: Configuring OTel slog handler.", slog.String("service.name", cfg.ServiceName))
 		handler = otelslog.NewHandler(cfg.ServiceName)
 	} else {
-		slog.Info("Non-production environment: Configuring Console slog handler (JSON).") // Log this before L is set
+		slog.Info("Non-production environment: Configuring Console slog handler (JSON).")
 		handler = slog.NewJSONHandler(os.Stdout, handlerOpts)
 	}
 
-	// Create the logger instance with the selected handler
 	L = slog.New(handler)
 
 	slog.SetDefault(L)

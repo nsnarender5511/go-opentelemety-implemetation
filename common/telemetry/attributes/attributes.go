@@ -6,17 +6,6 @@ import (
 )
 
 var (
-	DBSystemKey         = semconv.DBSystemKey
-	DBOperationKey      = semconv.DBOperationKey
-	DBStatementKey      = semconv.DBStatementKey
-	NetPeerNameKey      = semconv.NetPeerNameKey
-	HTTPMethodKey       = semconv.HTTPMethodKey
-	HTTPRouteKey        = semconv.HTTPRouteKey
-	HTTPStatusCodeKey   = semconv.HTTPStatusCodeKey
-	NetHostNameKey      = semconv.NetHostNameKey
-	NetHostPortKey      = semconv.NetHostPortKey
-	URLPathKey          = semconv.URLPathKey
-	URLSchemeKey        = semconv.URLSchemeKey
 	ExceptionMessageKey = semconv.ExceptionMessageKey
 	ExceptionTypeKey    = semconv.ExceptionTypeKey
 

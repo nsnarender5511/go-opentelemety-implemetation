@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -44,73 +44,65 @@ func main() {
 	}
 	defer commonlog.Cleanup()
 
-	appLogger := commonlog.L
+	logger := commonlog.L
 
-	appLogger.Info("Starting service",
+	logger.Info("Starting service",
 		slog.String("service.name", cfg.ServiceName),
 		slog.String("service.version", cfg.ServiceVersion),
 		slog.String("environment", cfg.Environment),
 	)
 
-	repo, err := NewProductRepository(cfg.DataFilePath)
-	if err != nil {
-		appLogger.Error("Failed to initialize product repository", slog.Any("error", err))
-		os.Exit(1)
-	}
-	productService := NewProductService(repo)
-	productHandler := NewProductHandler(productService)
-
 	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.ErrorHandler(appLogger),
+		ErrorHandler: middleware.ErrorHandler(logger),
 	})
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
-
 	app.Use(recover.New())
 	app.Use(otelfiber.Middleware())
-	app.Use(middleware.RequestLogger(appLogger))
+	app.Use(middleware.RequestLogger(logger))
 
-	api := app.Group("/api")
-	v1 := api.Group("/v1")
-	v1.Get("/products", productHandler.GetAllProducts)
-	v1.Get("/products/:productId", productHandler.GetProductByID)
-	v1.Get("/healthz", productHandler.HealthCheck)
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		logger.Debug("Minimal health check endpoint hit")
+		return c.Status(http.StatusOK).JSON(fiber.Map{"status": "ok (minimal)"})
+	})
 
-	port := cfg.ProductServicePort
-	addr := ":" + port
+	addr := fmt.Sprintf(":%s", cfg.ProductServicePort)
+	logger.Info("Server starting to listen", slog.String("address", addr))
+
 	go func() {
-		appLogger.Info("Server starting to listen", slog.String("address", addr))
-		if err := app.Listen(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			appLogger.Error("Server listener failed", slog.Any("error", err))
-			os.Exit(1)
+		if err := app.Listen(addr); err != nil && err != http.ErrServerClosed {
+			logger.Error("Fiber listener failed", slog.Any("error", err))
+			os.Exit(1) // Exit if the listener fails
 		}
 	}()
 
+	// Wait for interrupt signal to gracefully shutdown the server with a timeout.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	appLogger.Info("Shutdown signal received, initiating graceful server shutdown...")
+	logger.Info("Shutdown signal received, initiating graceful server shutdown...")
 	serverShutdownCtx, serverCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer serverCancel()
 
 	if err := app.ShutdownWithContext(serverShutdownCtx); err != nil {
-		appLogger.Error("Fiber server graceful shutdown failed", slog.Any("error", err))
+		logger.Error("Fiber server graceful shutdown failed", slog.Any("error", err))
 	} else {
-		appLogger.Info("Fiber server shutdown complete.")
+		logger.Info("Fiber server shutdown complete.")
 	}
 
+	// Shutdown OpenTelemetry
 	shutdownCtx, otelCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer otelCancel()
 
 	if err := otelShutdown(shutdownCtx); err != nil {
-		appLogger.Error("Error during OpenTelemetry shutdown", slog.Any("error", err))
+		logger.Error("Error during OpenTelemetry shutdown", slog.Any("error", err))
 	} else {
-		appLogger.Info("OpenTelemetry shutdown complete.")
+		logger.Info("OpenTelemetry shutdown complete.")
 	}
 
-	appLogger.Info("Application exiting.")
+	logger.Info("Application exiting.")
 }

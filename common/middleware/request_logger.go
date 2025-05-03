@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// RequestLogger accepts an slog.Logger and returns a Fiber handler
 func RequestLogger(logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
