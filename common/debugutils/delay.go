@@ -17,11 +17,6 @@ func Simulate(ctx context.Context) {
 	cfg := config.Get() 
 
 	
-	
-	if cfg.ServiceName == "" { 
-		log.Println("WARN: Simulate called with potentially uninitialized config. Delay simulation might use defaults or be disabled.")
-	}
-
 	if cfg.SimulateDelayEnabled {
 		if cfg.SimulateDelayMinMs < 0 || cfg.SimulateDelayMaxMs <= 0 || cfg.SimulateDelayMinMs >= cfg.SimulateDelayMaxMs {
 			log.Printf("WARN: Invalid delay configuration: Min=%dms, Max=%dms. Skipping delay.", cfg.SimulateDelayMinMs, cfg.SimulateDelayMaxMs)

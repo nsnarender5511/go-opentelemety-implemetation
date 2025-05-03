@@ -25,6 +25,7 @@ import (
 
 const repositoryScopeName = "github.com/narender/product-service/repository"
 
+// ProductRepository defines the interface for accessing product data.
 type ProductRepository interface {
 	GetAll(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, id string) (Product, error)
@@ -36,15 +37,23 @@ type productRepository struct {
 	productsSlice []Product
 	mu            sync.RWMutex
 	filePath      string
+	logger        *slog.Logger
 }
 
+// NewProductRepository creates a new repository instance loading data from a JSON file.
 func NewProductRepository(dataFilePath string) (ProductRepository, error) {
+	const operation = "NewProductRepository"
 	logger := commonlog.L
-	logger.Info("Repository: Initializing", slog.String("file_path", dataFilePath))
+
+	if logger == nil {
+		logger = commonlog.L // Use default logger if none provided
+	}
+	logger.Info("Initializing ProductRepository", slog.String("dataFilePath", dataFilePath), slog.String("operation", operation))
 
 	repo := &productRepository{
 		products: make(map[string]Product),
 		filePath: dataFilePath,
+		logger:   logger,
 	}
 
 	initCtx := context.Background()
@@ -72,7 +81,7 @@ func NewProductRepository(dataFilePath string) (ProductRepository, error) {
 
 func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	const operation = "loadData"
-	logger := commonlog.L
+	
 
 	mc := commonmetric.StartMetricsTimer(commonconst.RepositoryLayer, operation)
 	fileAttr := attribute.String("file.path", r.filePath)
@@ -99,7 +108,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
-			logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer))
+			r.logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.RepositoryLayer))
 		}
 	}()
 
@@ -120,17 +129,17 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Warn("WARN: Data file not found during load, initializing empty map", slog.String("file_path", r.filePath))
+			r.logger.Warn("WARN: Data file not found during load, initializing empty map", slog.String("file_path", r.filePath))
 			r.products = make(map[string]Product)
 			return nil
 		}
 		opErr = fmt.Errorf("failed to read data file '%s': %w", r.filePath, err)
-		commonerrors.HandleLayerError(ctx, logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr)
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr)
 		return opErr
 	}
 
 	if len(data) == 0 {
-		logger.Warn("WARN: Data file is empty, initializing empty product map", slog.String("file_path", r.filePath))
+		r.logger.Warn("WARN: Data file is empty, initializing empty product map", slog.String("file_path", r.filePath))
 		r.products = make(map[string]Product)
 		return nil
 	}
@@ -139,7 +148,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	var productsMap map[string]Product
 	if err := json.Unmarshal(data, &productsMap); err != nil {
 		opErr = fmt.Errorf("failed to unmarshal product data from '%s': %w", r.filePath, err)
-		commonerrors.HandleLayerError(ctx, logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr, attribute.Int("data.size", len(data)))
+		commonerrors.HandleLayerError(ctx, r.logger, spanner, opErr, commonconst.RepositoryLayer, operation, fileAttr, attribute.Int("data.size", len(data)))
 		spanner.AddEvent("JSON unmarshal failed")
 		return opErr
 	}
@@ -155,7 +164,7 @@ func (r *productRepository) loadData(ctx context.Context) (opErr error) {
 	r.productsSlice = newProductsSlice
 
 	productCount := len(r.products)
-	logger.Debug("Repository: Successfully loaded products", slog.Int("count", productCount))
+	r.logger.Debug("Repository: Successfully loaded products", slog.Int("count", productCount))
 	spanner.SetAttributes(attribute.Int("products.loaded.count", productCount))
 	return nil
 }

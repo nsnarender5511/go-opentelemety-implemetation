@@ -8,6 +8,7 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/narender/common/config"
+	slogmulti "github.com/samber/slog-multi"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
@@ -19,16 +20,12 @@ func Init() error {
 		return nil
 	}
 
-	var level slog.Level
-	switch strings.ToLower(config.Get().LogLevel) {
-	case "debug":
-		level = slog.LevelDebug
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
+	// Determine log level from config, default to Info
+	var level slog.Level = slog.LevelInfo // Default level
+	logLevelStr := strings.ToLower(config.Get().LogLevel)
+	if err := level.UnmarshalText([]byte(logLevelStr)); err != nil {
+		slog.Warn("Invalid log level configured, defaulting to INFO", slog.String("configuredLevel", logLevelStr), slog.Any("error", err))
+		level = slog.LevelInfo // Ensure default on error
 	}
 
 	handlerOpts := &slog.HandlerOptions{
@@ -37,11 +34,22 @@ func Init() error {
 	}
 
 	var handler slog.Handler
-	isProduction := strings.ToLower(config.Get().Environment) == "production"
+	cfg := config.Get()
+	isProduction := strings.ToLower(cfg.Environment) == "production"
 
 	if isProduction {
-		slog.Info("Production environment: Configuring OTel slog handler.", slog.String("service.name", config.Get().ServiceName))
-		handler = otelslog.NewHandler(config.Get().ServiceName)
+		slog.Info("Production environment: Configuring OTLP and Console (Tint) slog handlers.")
+
+		otlpHandler := otelslog.NewHandler("default_logger")
+
+		consoleHandler := tint.NewHandler(os.Stdout, &tint.Options{
+			AddSource:  handlerOpts.AddSource,
+			Level:      handlerOpts.Level,
+			TimeFormat: time.RFC3339,
+		})
+
+		handler = slogmulti.Fanout(otlpHandler, consoleHandler)
+
 	} else {
 		slog.Info("Non-production environment: Configuring Console slog handler (Tint).")
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
@@ -52,14 +60,6 @@ func Init() error {
 	}
 
 	L = slog.New(handler)
-
-	// Enrich the logger with common application attributes
-	cfg := config.Get()
-	L = L.With(
-		slog.String("service.name", cfg.ServiceName),
-		slog.String("service.version", cfg.ServiceVersion),
-		slog.String("deployment.environment", cfg.Environment),
-	)
 
 	slog.SetDefault(L)
 

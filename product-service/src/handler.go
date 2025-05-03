@@ -140,3 +140,72 @@ func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 		"status": "ok",
 	})
 }
+
+type UpdateStockRequest struct {
+	NewStock int `json:"new_stock"`
+}
+
+func (h *ProductHandler) UpdateStock(c *fiber.Ctx) (opErr error) {
+	const operation = "UpdateStockHandler"
+	ctx := c.UserContext()
+	logger := commonlog.L
+	productID := c.Params("productId")
+	productIdAttr := attribute.String("product.id", productID)
+	logger.DebugContext(ctx, "Entering UpdateStock handler", slog.String("operation", operation), productIdAttr)
+
+	mc := commonmetric.StartMetricsTimer(commonconst.HandlerLayer, operation)
+	defer mc.End(ctx, &opErr, productIdAttr)
+
+	ctx, spanner := commontrace.StartSpan(ctx, handlerScopeName, operation, commonconst.HandlerLayer, productIdAttr)
+	// Custom mapper to treat validation/not found as OK for span status, but still return error to client
+	updateStockSpanMapper := func(err error) codes.Code {
+		if err == nil {
+			return codes.Ok
+		}
+		if errors.Is(err, commonerrors.ErrNotFound) || errors.Is(err, commonerrors.ErrValidation) {
+			return codes.Ok
+		}
+		return codes.Error
+	}
+	defer spanner.End(&opErr, updateStockSpanMapper)
+
+	debugutils.Simulate(ctx)
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			opErr = fmt.Errorf("panic recovered in %s: %v", operation, rec)
+			logger.Error("Panic recovered", slog.Any("panic", rec), slog.String("operation", operation), slog.String("layer", commonconst.HandlerLayer), productIdAttr)
+		}
+	}()
+
+	logger.InfoContext(ctx, "Handler: Received request for UpdateStock", slog.String("product_id", productID))
+
+	// Parse request body
+	var req UpdateStockRequest
+	if err := c.BodyParser(&req); err != nil {
+		// Use ErrValidation for bad request body
+		opErr = fmt.Errorf("%w: failed to parse request body: %v", commonerrors.ErrValidation, err)
+		logger.WarnContext(ctx, "Failed to parse update stock request body", slog.Any("error", err), productIdAttr)
+		spanner.SetAttributes(attribute.Bool("request.body.parse.error", true))
+		return opErr // Return validation error
+	}
+	spanner.SetAttributes(attribute.Int("request.new_stock", req.NewStock))
+	newStockAttr := attribute.Int("product.new_stock", req.NewStock)
+
+	logger.InfoContext(ctx, "Handler: Calling service UpdateStock", slog.String("product_id", productID), slog.Int("new_stock", req.NewStock))
+	spanner.AddEvent("Calling service UpdateStock", trace.WithAttributes(productIdAttr, newStockAttr))
+	err := h.service.UpdateStock(ctx, productID, req.NewStock)
+	if err != nil {
+		opErr = err // Assign service error to opErr to be handled by middleware
+		spanner.AddEvent("Service UpdateStock failed", trace.WithAttributes(attribute.String("error.message", opErr.Error())))
+		logger.WarnContext(ctx, "Service UpdateStock failed", slog.Any("error", err), productIdAttr, newStockAttr)
+		return opErr // Return the specific error (NotFound, Validation, Internal)
+	}
+	spanner.AddEvent("Service UpdateStock successful")
+	logger.InfoContext(ctx, "Handler: Service UpdateStock completed successfully", slog.String("product_id", productID), slog.Int("new_stock", req.NewStock))
+
+	debugutils.Simulate(ctx)
+	logger.InfoContext(ctx, "Handler: Successfully updated product stock", slog.String("product_id", productID), slog.Int("new_stock", req.NewStock))
+	logger.DebugContext(ctx, "Handler: Preparing successful empty response", slog.String("operation", operation), productIdAttr)
+	return c.SendStatus(http.StatusOK)
+}

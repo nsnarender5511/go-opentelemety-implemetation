@@ -3,7 +3,6 @@ package config
 import (
 	"log"
 	"sync"
-	"time"
 )
 
 type Config struct {
@@ -12,19 +11,7 @@ type Config struct {
 	Environment              string `env:"ENVIRONMENT,default=development"`
 	ProductServicePort       string `env:"PRODUCT_SERVICE_PORT,default=8082"`
 	LogLevel                 string `env:"LOG_LEVEL,default=info"`
-	DataFilePath             string `env:"DATA_FILE_PATH,default=./data.json"`
 	OtelExporterOtlpEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,default=otel-collector:4317"`
-
-	OtelExporterInsecure    bool
-	OtelSampleRatio         float64
-	OtelSamplerType         string
-	OtelBatchTimeout        time.Duration
-	OtelExporterOtlpTimeout time.Duration
-	OtelExporterOtlpHeaders map[string]string
-	OtelEnableExemplars     bool
-
-	ShutdownTimeout       time.Duration
-	ServerShutdownTimeout time.Duration
 
 	SimulateDelayEnabled bool `mapstructure:"SIMULATE_DELAY_ENABLED"`
 	SimulateDelayMinMs   int  `mapstructure:"SIMULATE_DELAY_MIN_MS"`
@@ -48,7 +35,6 @@ func LoadConfig() (*Config, error) {
 		globalConfig = cfg
 		configMutex.Unlock()
 		
-		
 	})
 
 	configMutex.RLock()
@@ -58,7 +44,6 @@ func LoadConfig() (*Config, error) {
 	}
 	return globalConfig, nil 
 }
-
 
 
 func Get() *Config {
@@ -79,7 +64,6 @@ func GetDefaultConfig() *Config {
 		ProductServicePort:       "8082",
 		ServiceName:              "product-service",
 		ServiceVersion:           "1.0.0",
-		DataFilePath:             "/app/data.json", 
 		LogLevel:                 "debug",
 		Environment:              "development", 
 		OtelExporterOtlpEndpoint: "otel-collector:4317",
@@ -88,7 +72,5 @@ func GetDefaultConfig() *Config {
 		SimulateDelayMinMs:   10,
 		SimulateDelayMaxMs:   100,
 		
-		ShutdownTimeout:       5 * time.Second,
-		ServerShutdownTimeout: 10 * time.Second,
 	}
 }
