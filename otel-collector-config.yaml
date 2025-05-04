@@ -26,7 +26,7 @@ exporters:
     tls:
       insecure: false
     headers:
-      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+      signoz-ingestion-key: <signoz-ingestion-key>
   debug:
     verbosity: detailed
 
