@@ -163,6 +163,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	}
 
 	r.logger.InfoContext(ctx, "Repository: Product stock updated and saved via FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	mc.IncrementProductUpdated(ctx)
 
 	return nil
 }
@@ -221,5 +222,6 @@ func (repo *productRepository) Create(ctx context.Context, product Product) (opE
 	}
 
 	repo.logger.InfoContext(ctx, "Repository: Product created successfully", slog.String("productID", product.ProductID))
+	mc.IncrementProductCreated(ctx)
 	return nil // Success
 }
