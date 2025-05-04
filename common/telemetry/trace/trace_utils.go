@@ -3,7 +3,8 @@ package trace
 import (
 	"fmt"
 
-	"github.com/narender/common/telemetry/attributes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
@@ -16,8 +17,8 @@ func RecordSpanError(span oteltrace.Span, err error, attrs ...attribute.KeyValue
 	}
 
 	extraAttrs := []attribute.KeyValue{
-		attributes.ExceptionMessageKey.String(err.Error()),
-		attributes.ExceptionTypeKey.String(fmt.Sprintf("%T", err)),
+		semconv.ExceptionMessageKey.String(err.Error()),
+		semconv.ExceptionTypeKey.String(fmt.Sprintf("%T", err)),
 	}
 
 	allAttrs := append(extraAttrs, attrs...)

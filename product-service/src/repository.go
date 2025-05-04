@@ -73,6 +73,18 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product
 		productsSlice = append(productsSlice, p)
 	}
 
+	// --- BEGIN: Update Product Stock Metric ---
+	// Prepare data for the observable gauge
+	stockLevels := make(map[string]int64, len(productsSlice))
+	for _, p := range productsSlice {
+		// Use ProductID as the key and Stock (converted to int64) as the value
+		stockLevels[p.ProductID] = int64(p.Stock)
+	}
+	// Call the metric update function (from common/telemetry/metric)
+	commonmetric.UpdateProductStockLevels(stockLevels)
+	r.logger.DebugContext(ctx, "Updated product stock levels metric after GetAll")
+	// --- END: Update Product Stock Metric ---
+
 	spanner.SetAttributes(attribute.Int("products.returned.count", len(productsSlice)))
 	r.logger.InfoContext(ctx, "Repository: GetAll returning products read from file", slog.Int("count", len(productsSlice)))
 	return productsSlice, nil
@@ -163,6 +175,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	}
 
 	r.logger.InfoContext(ctx, "Repository: Product stock updated and saved via FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	mc.IncrementProductUpdated(ctx)
 
 	return nil
 }
@@ -221,5 +234,6 @@ func (repo *productRepository) Create(ctx context.Context, product Product) (opE
 	}
 
 	repo.logger.InfoContext(ctx, "Repository: Product created successfully", slog.String("productID", product.ProductID))
+	mc.IncrementProductCreated(ctx)
 	return nil // Success
 }

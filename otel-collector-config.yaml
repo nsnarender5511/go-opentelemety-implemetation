@@ -3,19 +3,16 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
-  # docker_stats:
-  #   endpoint: "unix:///var/run/docker.sock"
-  #   collection_interval: 10s
-  #   timeout: 100s
-  #   api_version: "1.47"
+  docker_stats:
+    endpoint: "unix:///var/run/docker.sock"
+    collection_interval: 10s
+    timeout: 100s
+    api_version: "1.47"
 
 
 processors:
   batch: {}
 
-  resourcedetection:
-    detectors: [system, docker]
-    override: true
   resource:
     attributes:
       - key: host.name
@@ -50,12 +47,12 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, docker_stats]
       processors: [resource]
       exporters: [otlp, debug]
     logs:
       receivers: [otlp]
-      processors: [batch, resourcedetection, resource]
+      processors: [batch, resource]
       exporters: [otlp]
 
 
