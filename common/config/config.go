@@ -9,6 +9,8 @@ type Config struct {
 	SimulateDelayEnabled bool `mapstructure:"SIMULATE_DELAY_ENABLED"`
 	SimulateDelayMinMs   int  `mapstructure:"SIMULATE_DELAY_MIN_MS"`
 	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
+
+	DATA_FILE_PATH string `env:"DATA_FILE_PATH,default=data/products.json"`
 }
 
 func LoadConfig(env string) (*Config, error) {
@@ -18,10 +20,12 @@ func LoadConfig(env string) (*Config, error) {
 		prodCfg := GetProductionConfig()
 		cfg.OTEL_ENDPOINT = prodCfg.OTEL_ENDPOINT
 		cfg.ENVIRONMENT = prodCfg.ENVIRONMENT
+		cfg.DATA_FILE_PATH = prodCfg.DATA_FILE_PATH
 	} else {
 		devCfg := GetDevelopmentConfig()
 		cfg.OTEL_ENDPOINT = devCfg.OTEL_ENDPOINT
 		cfg.ENVIRONMENT = devCfg.ENVIRONMENT
+		cfg.DATA_FILE_PATH = devCfg.DATA_FILE_PATH
 	}
 
 
@@ -33,6 +37,7 @@ func GetProductionConfig() *Config {
 	return &Config{
 		OTEL_ENDPOINT: "otel-collector:4317",
 		ENVIRONMENT:   "production",
+		DATA_FILE_PATH: "data/products.json",
 	}
 }
 
@@ -41,6 +46,7 @@ func GetDevelopmentConfig() *Config {
 	return &Config{
 		OTEL_ENDPOINT: "localhost:4317",
 		ENVIRONMENT:   "development",
+		DATA_FILE_PATH: "data/products.json",
 	}
 }
 

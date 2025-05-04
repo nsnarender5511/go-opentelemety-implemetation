@@ -2,19 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
-	"sync"
-
 	"github.com/narender/common/debugutils"
+	"github.com/narender/common/filedb"
 	commonmetric "github.com/narender/common/telemetry/metric"
-	commontrace "github.com/narender/common/telemetry/trace"
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/narender/common/globals"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // ProductRepository defines the interface for accessing product data.
@@ -24,19 +21,15 @@ type ProductRepository interface {
 }
 
 type productRepository struct {
-	products      map[string]Product
-	productsSlice []Product
-	mu            sync.RWMutex
-	filePath      string
-	logger        *slog.Logger
+	db     *filedb.FileDatabase
+	logger *slog.Logger
 }
 
 // NewProductRepository creates a new repository instance loading data from a JSON file.
-func NewProductRepository(dataFilePath string) ProductRepository {
+func NewProductRepository() ProductRepository {
 	repo := &productRepository{
-		products: make(map[string]Product),
-		filePath: dataFilePath,
-		logger:   globals.Logger(),
+		db:     filedb.NewFileDatabase(globals.Cfg().DATA_FILE_PATH),
+		logger: globals.Logger(),
 	}
 
 	return repo
@@ -48,29 +41,17 @@ func (r *productRepository) GetAll(ctx context.Context) (products []Product, opE
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr)
 
-	ctx, spanner := commontrace.StartSpan(ctx,
-		semconv.DBSystemKey.String("memory"),
-		semconv.DBOperationKey.String("READ_ALL"),
-	)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
-
 	debugutils.Simulate(ctx)
 
 	r.logger.InfoContext(ctx, "Repository: GetAll called", slog.String("operation", operationName))
 
-	spanner.AddEvent("Acquiring read lock for GetAll")
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	spanner.AddEvent("Read lock acquired for GetAll")
-
-	products = r.productsSlice
-	if len(products) == 0 {
-		r.logger.Warn("Repository: GetAll called but no products loaded/cached.")
-		spanner.AddEvent("Product cache is empty")
+	opErr = r.db.Read(ctx, &products)
+	if opErr != nil {
+		r.logger.ErrorContext(ctx, "Repository: Failed to read products from file", slog.Any("error", opErr))
+		return nil, opErr
 	}
 
-	spanner.SetAttributes(attribute.Int("products.returned.count", len(products)))
-	r.logger.InfoContext(ctx, "Repository: GetAll returning products from cache", slog.Int("count", len(products)), slog.String("operation", operationName))
+	r.logger.InfoContext(ctx, "Repository: GetAll returning products", slog.Int("count", len(products)), slog.String("operation", operationName))
 	return products, nil
 }
 
@@ -81,28 +62,32 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, productIdAttr)
 
-	ctx, spanner := commontrace.StartSpan(ctx,
-		semconv.DBSystemKey.String("memory"),
-		semconv.DBOperationKey.String("READ"),
-		productIdAttr,
-	)
-
-	defer commontrace.EndSpan(spanner, &opErr, nil)
-
 	debugutils.Simulate(ctx)
 
 	r.logger.InfoContext(ctx, "Repository: GetByID called", slog.String("product_id", id), slog.String("operation", operationName))
 
-	product, exists := r.products[id]
-	if !exists {
-		r.logger.WarnContext(ctx, "Repository: GetByID product not found",
-			slog.String("product_id", id),
-		)
-		spanner.SetStatus(codes.Error, "PRODUCT_NOT_FOUND")
-		return Product{}, nil
+	var allProducts []Product
+	opErr = r.db.Read(ctx, &allProducts)
+	if opErr != nil {
+		r.logger.ErrorContext(ctx, "Repository: Failed to read products from file for GetByID", slog.Any("error", opErr))
+		return Product{}, opErr
 	}
 
-	spanner.SetAttributes(attribute.String("product.name", product.Name))
-	r.logger.InfoContext(ctx, "Repository: GetByID found product in cache", slog.String("product_id", id), slog.String("operation", operationName))
+	found := false
+	for _, p := range allProducts {
+		if p.ProductID == id {
+			product = p
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		opErr = fmt.Errorf("product with ID '%s' not found", id)
+		r.logger.WarnContext(ctx, "Repository: Product not found", slog.String("product_id", id), slog.Any("error", opErr))
+		return Product{}, opErr
+	}
+
+	r.logger.InfoContext(ctx, "Repository: GetByID found product", slog.String("product_id", id), slog.String("operation", operationName))
 	return product, nil
 }
