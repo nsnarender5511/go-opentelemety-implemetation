@@ -7,7 +7,7 @@ import (
 
 	"github.com/narender/common/config"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	otelgloballog "go.opentelemetry.io/otel/log/global"
+	logger "go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/grpc"
@@ -27,7 +27,7 @@ func SetupOtlpLogExporter(ctx context.Context, cfg *config.Config, connOpts []gr
 		sdklog.WithResource(res),
 		sdklog.WithProcessor(logProcessor),
 	)
-	otelgloballog.SetLoggerProvider(loggerProvider)
+	logger.SetLoggerProvider(loggerProvider)
 	log.Println("OTel LoggerProvider initialized and set globally.")
 	return nil
 }

@@ -26,6 +26,7 @@ func SetupOtlpTraceExporter(ctx context.Context, endpoint string, connOpts []grp
 		trace.WithResource(res),
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
+	// Set the global TracerProvider and Propagator for the application.
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	log.Println("OTel TracerProvider initialized and set globally.")

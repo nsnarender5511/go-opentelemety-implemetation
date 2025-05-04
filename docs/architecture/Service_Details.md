@@ -129,4 +129,4 @@ This is the standard OpenTelemetry Collector.
 
 ---
 
-**Last Updated:** 2024-07-30
+
