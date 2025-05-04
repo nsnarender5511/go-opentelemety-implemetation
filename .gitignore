@@ -18,7 +18,7 @@ product-service/src/src
 product-service/product-service
 bin/
 
-# */data.json
+*/data.json
 
 
 
