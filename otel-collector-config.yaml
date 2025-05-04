@@ -48,11 +48,11 @@ service:
     traces:
       receivers: [otlp]
       processors: []
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: []
       exporters: [otlp, debug]
-    # metrics:
-    #   receivers: [otlp, docker_stats]
-    #   processors: [resourcedetection, resource, batch]
-    #   exporters: [otlp]
     logs:
       receivers: [otlp]
       processors: [batch, resourcedetection, resource]
