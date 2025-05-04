@@ -1,3 +1,4 @@
+# Script for simulating product service interactions
 import requests
 import time
 import random
@@ -71,8 +72,10 @@ def fetch_product_ids_from_api():
         ids = [item['productID'] for item in data if isinstance(item, dict) and 'productID' in item]
         
         if not ids:
-            logging.error("No product IDs found in the response from /products. Exiting.")
-            exit(1)
+            # Don't exit, just warn and return empty list
+            logging.warning("No product IDs found in the response from /products. Starting with empty list.")
+            # exit(1) # REMOVED EXIT
+            return [] # Return empty list
         
         logging.info(f"Successfully fetched {len(ids)} product IDs from API.")
         return ids
@@ -87,13 +90,36 @@ def fetch_product_ids_from_api():
         logging.error(f"An unexpected error occurred processing /products response: {e}. Exiting.", exc_info=True)
         exit(1)
 
-# Fetch known product IDs at startup
+# Fetch known product IDs at startup (can now be empty)
 known_product_ids = fetch_product_ids_from_api()
 
 # --- Action Functions ---
 def get_all_products():
-    """Requests the list of all products."""
-    make_request("products")
+    """Requests the list of all products and updates known_product_ids."""
+    global known_product_ids # Declare intent to modify global
+    response = make_request("products")
+
+    if response is not None:
+        try:
+            data = response.json()
+            if not isinstance(data, list):
+                logging.error(f"Expected a list from GET /products during simulation, got {type(data)}.")
+                return # Don't update if structure is wrong
+
+            # Extract IDs and update global list
+            current_ids = {item['productID'] for item in data if isinstance(item, dict) and 'productID' in item}
+            new_ids = list(current_ids) # Convert set back to list
+
+            if set(known_product_ids) != current_ids: # Avoid logging if no change
+                 logging.info(f"GET_ALL updated known_product_ids. Old count: {len(known_product_ids)}, New count: {len(new_ids)}")
+                 known_product_ids = new_ids # Update the global list
+
+        except json.JSONDecodeError:
+            logging.error("Failed to decode JSON response from GET /products during simulation.")
+        except KeyError:
+             logging.error("Response items from GET /products during simulation missing 'productID' key.")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred processing GET /products response during simulation: {e}", exc_info=True)
 
 def get_product_by_id(product_id):
     """Requests a specific product by its ID."""
@@ -300,8 +326,13 @@ if __name__ == "__main__":
             arg_gen = action_details['arg_generator']
 
             try:
-                # Generate arguments
-                args, kwargs = arg_gen()
+                # Generate arguments - Handle potential IndexError if known_product_ids is empty
+                try:
+                    args, kwargs = arg_gen()
+                except IndexError:
+                    logging.warning(f"Skipping action {action_type} as no known product IDs are available.")
+                    ACTION_CONFIG[action_type]['count'] -= 1 # Decrement count as it wasn't actually run
+                    continue # Skip to next iteration
 
                 # Call the function with generated arguments
                 func_to_call(*args, **kwargs)
