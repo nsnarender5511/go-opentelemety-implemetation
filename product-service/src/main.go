@@ -1,3 +1,4 @@
+// Entry point for product service
 package main
 
 import (
