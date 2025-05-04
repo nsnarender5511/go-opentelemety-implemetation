@@ -17,7 +17,6 @@ func DefaultStatusMapper(err error) codes.Code {
 		return codes.Ok
 	}
 
-
 	return codes.Error
 }
 
