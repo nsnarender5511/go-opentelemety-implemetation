@@ -2,7 +2,7 @@
 
 **Purpose:** Provide links to and explanations for relevant dashboards within the SigNoz UI for monitoring the application.
 **Audience:** Developers, DevOps, SREs, Students
-**Prerequisites:** [Running Locally with Docker Compose](../../development/Running Locally with Docker Compose.md), [Monitoring Overview](./README.md), [Key Metrics](./Key Metrics.md)
+**Prerequisites:** [Running Locally with Docker Compose](../../development/Running%20Locally%20with%20Docker%20Compose.md), [Monitoring Overview](./README.md), [Key Metrics](./Key%20Metrics.md)
 **Related Pages:** SigNoz UI ([http://localhost:3301](http://localhost:3301))
 
 ---
@@ -63,17 +63,4 @@ Here are examples of dashboards that would be valuable for monitoring this appli
     *   Select **Metrics** as the data source.
     *   Use the **Query Builder** or **Clickhouse Query** editor.
     *   Select the desired metric (e.g., `app.operations.duration_milliseconds`).
-    *   Apply filters (e.g., `app.layer = repository`).
-    *   Apply aggregations (e.g., `P95`, `sum`, `rate`).
-    *   Apply groupings (e.g., `app.operation`).
-5.  Save the dashboard.
-
----
-
-## 4. Integration with Logs and Traces
-
-SigNoz automatically links traces and logs where possible (if Trace IDs match). From trace views, you can often pivot to related logs, and dashboards can sometimes link to relevant trace or log queries.
-
----
-
-**Last Updated:** 2024-07-30
+    *   Apply filters (e.g., `

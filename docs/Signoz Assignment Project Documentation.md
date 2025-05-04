@@ -21,25 +21,25 @@ The primary goal is to showcase best practices in setting up and utilizing obser
 
 This documentation is organized into the following main sections:
 
-*   **[Quick Start](./Quick Start.md)**: Minimal steps to get the project running and observe basic telemetry.
-*   **[Glossary](./Glossary.md)**: Definitions of key terms and technologies used.
-*   **[Architecture](./architecture/Architecture Overview.md)**: High-level view of the system components and their interactions.
-    *   [Service Details](./architecture/Service Details.md): Detailed descriptions of individual services (`product-service`, `product-simulator`).
-    *   [Data Model & Persistence](./architecture/Data Model & Persistence.md): Explanation of the file-based data storage.
-*   **[Features](./features/product_service/Product Service Features Overview.md)**: Details about the application's functionality.
-    *   [Product Service Features Overview](./features/product_service/Product Service Features Overview.md): Summary of features provided by the `product-service`.
-    *   [Product Service API Endpoints](./features/product_service/Product Service API Endpoints.md): Specification of the HTTP API.
-*   **[Development](./development/Running Locally with Docker Compose.md)**: Information for developers working on the project.
-    *   [Configuration Management](./development/Configuration Management.md): How application configuration is handled.
-    *   [Building the Services](./development/Building the Services.md): Instructions for building the services.
-    *   [Running Locally with Docker Compose](./development/Running Locally with Docker Compose.md): How to run the application stack using Docker Compose.
-    *   [Testing Procedures](./development/Testing Procedures.md): Information on testing procedures, including the simulator.
-*   **[Monitoring](./monitoring/README.md)**: Overview of the observability setup.
-    *   [Telemetry Setup](./monitoring/Telemetry Setup.md): Detailed configuration of the OpenTelemetry SDK and Collector.
-    *   [Logging Details](./monitoring/Logging Details.md): How logging is implemented and integrated with OTel.
-    *   [Tracing Details](./monitoring/Tracing Details.md): How distributed tracing is implemented.
-    *   [Key Metrics](./monitoring/Key Metrics.md): Description of custom application metrics.
-    *   [SigNoz Dashboards](./monitoring/SigNoz Dashboards.md): Links and explanations for relevant SigNoz dashboards (once configured).
+*   **[Quick Start](./docs/Quick%20Start.md)**: Minimal steps to get the project running and observe basic telemetry.
+*   **[Glossary](./docs/Glossary.md)**: Definitions of key terms and technologies used.
+*   **[Architecture](./docs/architecture/Architecture%20Overview.md)**: High-level view of the system components and their interactions.
+    *   [Service Details](./docs/architecture/Service%20Details.md): Detailed descriptions of individual services (`product-service`, `product-simulator`).
+    *   [Data Model & Persistence](./docs/architecture/Data%20Model%20&%20Persistence.md): Explanation of the file-based data storage.
+*   **[Features](./docs/features/product_service/Product%20Service%20Features%20Overview.md)**: Details about the application's functionality.
+    *   [Product Service Features Overview](./docs/features/product_service/Product%20Service%20Features%20Overview.md): Summary of features provided by the `product-service`.
+    *   [Product Service API Endpoints](./docs/features/product_service/Product%20Service%20API%20Endpoints.md): Specification of the HTTP API.
+*   **[Development](./docs/development/Running%20Locally%20with%20Docker%20Compose.md)**: Information for developers working on the project.
+    *   [Configuration Management](./docs/development/Configuration%20Management.md): How application configuration is handled.
+    *   [Building the Services](./docs/development/Building%20the%20Services.md): Instructions for building the services.
+    *   [Running Locally with Docker Compose](./docs/development/Running%20Locally%20with%20Docker%20Compose.md): How to run the application stack using Docker Compose.
+    *   [Testing Procedures](./docs/development/Testing%20Procedures.md): Information on testing procedures, including the simulator.
+*   **[Monitoring](./docs/monitoring/README.md)**: Overview of the observability setup.
+    *   [Telemetry Setup](./docs/monitoring/Telemetry%20Setup.md): Detailed configuration of the OpenTelemetry SDK and Collector.
+    *   [Logging Details](./docs/monitoring/Logging%20Details.md): How logging is implemented and integrated with OTel.
+    *   [Tracing Details](./docs/monitoring/Tracing%20Details.md): How distributed tracing is implemented.
+    *   [Key Metrics](./docs/monitoring/Key%20Metrics.md): Description of custom application metrics.
+    *   [SigNoz Dashboards](./docs/monitoring/SigNoz%20Dashboards.md): Links and explanations for relevant SigNoz dashboards (once configured).
 
 ---
 

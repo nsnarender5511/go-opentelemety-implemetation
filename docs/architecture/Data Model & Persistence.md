@@ -1,7 +1,7 @@
 **Purpose:** This page describes how application data is structured and persisted.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of JSON.
-**Related Pages:** `common/db/file_database.go`, [Configuration Management](../../development/Configuration Management.md), `product-service/data.json`, [Architecture Overview](./Architecture Overview.md)
+**Related Pages:** `common/db/file_database.go`, [Configuration Management](../../development/Configuration%20Management.md), `product-service/data.json`, [Architecture Overview](./Architecture%20Overview.md)
 
 ---
 
@@ -27,7 +27,7 @@ Persistence is managed by the `db.FileDatabase` type defined in `common/db/file_
 *   `docker-compose.yml`: Mounts `data.json` into the `product-service` container.
 
 **Configuration:**
-*   The path to the JSON data file is determined by the `PRODUCT_DATA_FILE_PATH` configuration value (See [Configuration Management](../../development/Configuration Management.md)). The default value is `/app/data.json`.
+*   The path to the JSON data file is determined by the `PRODUCT_DATA_FILE_PATH` configuration value (See [Configuration Management](../../development/Configuration%20Management.md)). The default value is `/app/data.json`.
 *   The `docker-compose.yml` file mounts the local `./product-service/data.json` to `/app/data.json` inside the `product-service` container.
 
 **Initialization:**

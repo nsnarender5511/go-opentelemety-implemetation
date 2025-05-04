@@ -1,7 +1,6 @@
-
 **Purpose:** Explain the testing strategies and tools used in the project, focusing on the `product-simulator`.
 **Audience:** Developers, Testers
-**Prerequisites:** [Running Locally with Docker Compose](./Running Locally with Docker Compose.md)
+**Prerequisites:** [Running Locally with Docker Compose](./Running%20Locally%20with%20Docker%20Compose.md)
 **Related Pages:** `tests/`, `docker-compose.yml`, `tests/simulate_product_service.py`
 
 ---

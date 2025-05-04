@@ -1,7 +1,7 @@
 **Purpose:** Explain how to run the complete application stack locally using Docker Compose for development and testing.
 **Audience:** Developers, Testers, Students
-**Prerequisites:** Docker and Docker Compose installed, [Quick Start](../Quick Start.md), [Building the Services](./Building the Services.md)
-**Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), [Configuration Management](./Configuration Management.md)
+**Prerequisites:** Docker and Docker Compose installed, [Quick Start](../Quick%20Start.md), [Building the Services](./Building%20the%20Services.md)
+**Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), [Configuration Management](./Configuration%20Management.md)
 
 ---
 
@@ -61,7 +61,7 @@ docker compose logs frontend
 ## 5. Configuration
 
 *   Environment variables for services are primarily set within the `environment:` section of each service definition in `docker-compose.yml`.
-*   These variables control aspects like log levels (`LOG_LEVEL`), application environment (`ENVIRONMENT`), and OTel endpoints (`OTEL_EXPORTER_OTLP_ENDPOINT`). See [Configuration Management](./Configuration Management.md).
+*   These variables control aspects like log levels (`LOG_LEVEL`), application environment (`ENVIRONMENT`), and OTel endpoints (`OTEL_EXPORTER_OTLP_ENDPOINT`). See [Configuration Management](./Configuration%20Management.md).
 *   Secrets like the SigNoz ingestion key (`SIGNOZ_INGESTION_KEY`) are also managed here. **Note:** For production, consider more secure secret management.
 
 ---
