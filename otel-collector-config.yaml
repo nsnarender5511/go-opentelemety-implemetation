@@ -47,8 +47,8 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [docker_stats]
-      processors: [resource]
+      receivers: [otlp,docker_stats]
+      processors: []
       exporters: [otlp, debug]
     logs:
       receivers: [otlp]
