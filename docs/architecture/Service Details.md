@@ -3,7 +3,7 @@
 **Purpose:** This page provides detailed descriptions of the individual services within the system.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** [Architecture Overview](./Architecture Overview.md)
-**Related Pages:** [docker-compose.yml](), [product-service/src/main.go](), [Testing Procedures](../../development/Testing Procedures.md), [Data Model & Persistence](./Data Model & Persistence.md)
+**Related Pages:** `docker-compose.yml`, `product-service/src/main.go`, [Testing Procedures](../../development/Testing Procedures.md), [Data Model & Persistence](./Data Model & Persistence.md)
 
 ---
 

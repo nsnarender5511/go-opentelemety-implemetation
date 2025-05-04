@@ -11,7 +11,7 @@ The system includes:
 *   Docker Compose configuration (`docker-compose.yml`) to run the entire stack locally.
 *   Shared Go modules (`common/`) for configuration, logging, simple file-based persistence, and telemetry setup.
 
-**Important Note:** The current file-based persistence implementation (`common/db/file_database.go` and its usage in `product-service/src/repository.go`) lacks proper locking for concurrent write operations and is **not safe for concurrent use** without modifications. This is intentionally left as is for demonstration purposes related to observability.
+> ⚠️ **Important Note:** The current file-based persistence implementation (`common/db/file_database.go` and its usage in `product-service/src/repository.go`) lacks proper locking for concurrent write operations and is **not safe for concurrent use** without modifications. This is intentionally left as is for demonstration purposes related to observability.
 
 ## Documentation
 

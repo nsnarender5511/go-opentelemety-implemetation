@@ -3,7 +3,7 @@
 **Purpose:** This page details the key application-level metrics defined and collected via OpenTelemetry.
 **Audience:** Developers, DevOps, SREs, Students
 **Prerequisites:** Understanding of OpenTelemetry Metrics concepts (Counter, Histogram). See [Glossary](../Glossary.md).
-**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Monitoring Overview](./README.md), [common/telemetry/metric/metric.go]()
+**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Monitoring Overview](./README.md), `common/telemetry/metric/metric.go`
 
 ---
 

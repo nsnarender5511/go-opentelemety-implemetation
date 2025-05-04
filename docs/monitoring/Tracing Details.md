@@ -3,7 +3,7 @@
 **Purpose:** This page explains how distributed tracing is implemented using OpenTelemetry, including SDK setup, span creation, and context propagation.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Understanding of OpenTelemetry Tracing concepts (Span, Trace Context, Propagation). See [Glossary](../Glossary.md).
-**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Monitoring Overview](./README.md), [common/telemetry/trace/trace.go](), [common/telemetry/trace/exporter.go](), [common/telemetry/trace/trace_utils.go]()
+**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Monitoring Overview](./README.md), `common/telemetry/trace/trace.go`, `common/telemetry/trace/exporter.go`, `common/telemetry/trace/trace_utils.go`
 
 ---
 

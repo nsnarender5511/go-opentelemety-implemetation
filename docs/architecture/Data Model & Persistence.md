@@ -1,8 +1,7 @@
-
 **Purpose:** This page describes how application data is structured and persisted.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of JSON.
-**Related Pages:** [common/db/file_database.go](), [Configuration Management](../../development/Configuration Management.md), [product-service/data.json](), [Architecture Overview](./Architecture Overview.md)
+**Related Pages:** `common/db/file_database.go`, [Configuration Management](../../development/Configuration Management.md), `product-service/data.json`, [Architecture Overview](./Architecture Overview.md)
 
 ---
 

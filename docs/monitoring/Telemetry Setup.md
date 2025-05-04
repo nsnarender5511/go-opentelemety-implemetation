@@ -1,8 +1,7 @@
-
 **Purpose:** This page explains how OpenTelemetry is configured and initialized within the Go services and how the OpenTelemetry Collector is set up to process and export telemetry data.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of OpenTelemetry concepts (Traces, Metrics, Logs, OTLP). See [Glossary](../Glossary.md).
-**Related Pages:** [common/telemetry/setup.go](), [otel-collector-config.yaml](), [Monitoring Overview](./README.md), [SigNoz Dashboards](./SigNoz Dashboards.md)
+**Related Pages:** `common/telemetry/setup.go`, `otel-collector-config.yaml`, [Monitoring Overview](./README.md), [SigNoz Dashboards](./SigNoz Dashboards.md)
 
 ---
 
