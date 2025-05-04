@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Global Configuration & Constants ---
 BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8082")
-TOTAL_REQUESTS = int(os.getenv("TOTAL_REQUESTS", 1000)) # Number of sequential requests
+# TOTAL_REQUESTS = int(os.getenv("TOTAL_REQUESTS", 1000)) # Number of sequential requests # REMOVED TOTAL_REQUESTS
 # Test IDs (Generate non-existing ID dynamically)
 NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}"
 INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
@@ -295,21 +295,23 @@ else:
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    logging.info(f"Starting Product Service Simulation (Sequential)...")
+    logging.info(f"Starting Product Service Simulation (Continuous)...")
     logging.info(f" - Target: {BASE_URL}")
-    logging.info(f" - Total Requests: {TOTAL_REQUESTS}")
+    # logging.info(f" - Total Requests: {TOTAL_REQUESTS}") # REMOVED TOTAL_REQUESTS log
     # Use manually parsed mode and gap_duration
     logging.info(f" - Mode: {mode}")
     if mode == 'slow':
         # Validation already done during parsing
         logging.info(f" - Gap between requests: {gap_duration:.2f}s")
     logging.info(f" - Product IDs: {len(known_product_ids)} IDs fetched from API")
-    print(f"--- Running {TOTAL_REQUESTS} sequential requests ({mode} mode) ---           ")
-    print("--- Press Ctrl+C to stop early ---           ")
+    print("--- Running continuous requests ---") # Updated print message
+    print("--- Press Ctrl+C to stop ---           ")
 
+    request_counter = 0 # Initialize counter
     try:
-        # Main sequential loop
-        for i in range(TOTAL_REQUESTS):
+        # Main continuous loop
+        while True: # Changed from for loop to while True
+            request_counter += 1
             # Select action based on globally defined weights
             action_type = random.choices(
                 population=ACTION_POPULATION,
@@ -337,27 +339,36 @@ if __name__ == "__main__":
                 # Call the function with generated arguments
                 func_to_call(*args, **kwargs)
 
-                # Add delay if in slow mode
+                # --- Delay Logic --- 
                 if mode == 'slow':
+                    # Fixed delay for slow mode
                     time.sleep(gap_duration)
+                elif mode == 'fast':
+                    # Occasional random delay for fast mode (e.g., 15% chance)
+                    if random.random() < 0.15: # 15% probability
+                        random_delay = random.uniform(3.0, 4.0) # Delay between 3.0 and 4.0 seconds
+                        logging.info(f"Injecting random delay (fast mode): {random_delay:.2f}s")
+                        time.sleep(random_delay)
+                # No delay if fast mode and the random check fails
 
             except Exception as e:
                 # Log error but continue the loop
-                logging.error(f"Request {i+1}/{TOTAL_REQUESTS} encountered an error during action {action_type}: {e}", exc_info=True)
+                logging.error(f"Request #{request_counter} encountered an error during action {action_type}: {e}", exc_info=True) # Use counter
 
     except KeyboardInterrupt:
-        print("\\nCtrl+C detected. Stopping sequential execution early...")
-        logging.info("KeyboardInterrupt received. Stopping sequential execution...")
+        print("\\nCtrl+C detected. Stopping continuous execution...")
+        logging.info("KeyboardInterrupt received. Stopping continuous execution...")
     finally:
-        logging.info("Sequential execution finished or stopped.")
+        logging.info("Continuous execution finished or stopped.")
 
-        # Print final action counts (remains the same)
+        # Print final action counts
         print("\\n--- Final Action Counts ---")
         sorted_actions = sorted(ACTION_CONFIG.items())
-        total_actions = 0
         # Calculate total executed actions based on counters
         total_executed = sum(config['count'] for config in ACTION_CONFIG.values())
-        print(f"(Executed {total_executed} actions before stopping)")
+        # print(f"(Executed {total_executed} actions before stopping)") # Removed reference to stopping count
+        print(f"(Total actions executed: {total_executed})") # Updated message
+
 
         for action, config in sorted_actions:
             count = config['count']
