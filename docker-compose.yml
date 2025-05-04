@@ -1,4 +1,3 @@
-# TODO: Review service dependencies
 networks:
   otel_internal-network:
     driver: bridge
