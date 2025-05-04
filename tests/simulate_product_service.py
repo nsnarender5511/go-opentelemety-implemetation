@@ -37,13 +37,14 @@ NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}" # Generate a random non-existin
 INVALID_FORMAT_PRODUCT_ID = "invalid-id-format"
 
 
-def make_request(relative_endpoint, method="GET"):
+def make_request(relative_endpoint, method="GET", json_payload=None):
     """Makes a request to the specified relative endpoint."""
     url = f"{BASE_URL}/{relative_endpoint}"
 
     try:
         start_time = time.time()
-        response = requests.request(method, url, timeout=5) # Added timeout
+        # Pass json_payload if method is PATCH (or POST, PUT etc.)
+        response = requests.request(method, url, json=json_payload, timeout=5)
         duration = time.time() - start_time
 
         if 200 <= response.status_code < 300:
@@ -74,6 +75,11 @@ def get_product_by_id(product_id):
     """Requests a specific product by its ID."""
     make_request(f"products/{product_id}")
 
+def update_product_stock(product_id, new_stock):
+    """Updates the stock for a specific product ID."""
+    payload = {"stock": new_stock}
+    make_request(f"products/{product_id}/stock", method="PATCH", json_payload=payload)
+
 def hit_invalid_path():
     """Hits a deliberately non-existent path."""
     make_request(f"some/invalid/path/{uuid.uuid4()}")
@@ -96,8 +102,8 @@ def worker(worker_id):
     while not stop_event.is_set():
         # Add status and health checks to actions, adjust weights
         action_type = random.choices(
-            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 'bad_path', 'status_check', 'health_check'],
-            weights=   [0.15,       0.35,         0.15,          0.1,             0.1,        0.075,          0.075], # Weights sum to 1.0
+            population=['get_all', 'get_one_ok', 'get_one_404', 'get_one_invalid', 'bad_path', 'status_check', 'health_check', 'update_stock'],
+            weights=   [0.10,      0.25,         0.10,          0.1,             0.1,        0.075,          0.075,          0.2], # Adjusted weights
             k=1
         )[0]
 
@@ -116,6 +122,13 @@ def worker(worker_id):
                 hit_status_endpoint()
             elif action_type == 'health_check': # Add call to health endpoint
                 hit_health_endpoint()
+            elif action_type == 'update_stock':
+                if known_product_ids: # Only attempt if we have known IDs
+                    target_id = random.choice(known_product_ids)
+                    new_stock_value = random.randint(0, 100) # Simulate new stock level
+                    update_product_stock(target_id, new_stock_value)
+                else:
+                    logging.warning("Skipping update_stock action: No known product IDs loaded.")
 
             # Random delay between requests for a single worker
             # Increase sleep time significantly for ~3-4 req/min/worker

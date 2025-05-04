@@ -18,9 +18,9 @@ type FileDatabase struct {
 }
 
 // NewFileDatabase creates a new instance of FileDatabase.
-func NewFileDatabase(filePath string) *FileDatabase {
+func NewFileDatabase() *FileDatabase {
 	return &FileDatabase{
-		filePath: filePath,
+		filePath: globals.Cfg().PRODUCT_DATA_FILE_PATH,
 		logger:   globals.Logger(),
 	}
 }

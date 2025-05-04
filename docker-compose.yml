@@ -11,14 +11,7 @@ services:
     expose:
       - "8082"
     volumes:
-      - ./product-service/data.json:/app/data.json:ro
-    environment:
-      - ENVIRONMENT=production
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATA_FILE_PATH=/app/data.json
-      - OTEL_SERVICE_NAME=product-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
+      - ./product-service/data.json:/app/products.json:ro
     networks:
       - otel_internal-network
 
