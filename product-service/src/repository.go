@@ -32,9 +32,9 @@ type productRepository struct {
 }
 
 // NewProductRepository creates a new repository instance loading data from a JSON file.
-func NewProductRepository(dataFilePath string) ProductRepository {
+func NewProductRepository() ProductRepository {
 	repo := &productRepository{
-		database: db.NewFileDatabase(dataFilePath),
+		database: db.NewFileDatabase(),
 		logger:   globals.Logger(),
 	}
 	return repo

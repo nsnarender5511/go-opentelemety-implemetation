@@ -11,7 +11,7 @@ services:
     expose:
       - "8082"
     volumes:
-      - ./product-service/data.json:/app/data.json:ro
+      - ./product-service/data.json:/app/data.json
     environment:
       - ENVIRONMENT=production
       - LOG_LEVEL=${LOG_LEVEL:-info}

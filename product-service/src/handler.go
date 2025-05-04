@@ -123,10 +123,10 @@ func (h *ProductHandler) UpdateProductStock(c *fiber.Ctx) error {
 	var payload updateStockPayload
 	if err := c.BodyParser(&payload); err != nil {
 		h.logger.WarnContext(ctx, "Handler: Failed to parse request body", slog.String("error", err.Error()))
-		if span != nil {
-			span.SetStatus(codes.Error, opErr.Error())
-		}
-		return opErr // Return 400 Bad Request via framework error handler
+		// Use fiber.NewError for standard Bad Request
+		opErr = fiber.NewError(http.StatusBadRequest, "invalid request body: "+err.Error())
+		// Span status is set correctly in defer using the assigned opErr
+		return opErr // Return the Fiber error
 	}
 	newStock := payload.Stock // Extracted new stock value
 	h.logger.DebugContext(ctx, "Handler: Parsed newStock value", slog.Int("newStock", newStock))
@@ -158,7 +158,10 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 	payload := new(createProductPayload)
 	if err := c.BodyParser(payload); err != nil {
 		h.logger.WarnContext(ctx, "Handler: Failed to parse request body for create", slog.String("error", err.Error()))
-		return opErr // Return 400 Bad Request via framework error handler
+		// Use fiber.NewError for standard Bad Request
+		opErr = fiber.NewError(http.StatusBadRequest, "invalid request body: "+err.Error())
+		// Span status is set correctly in defer using the assigned opErr
+		return opErr // Return the Fiber error
 	}
 
 	h.logger.DebugContext(ctx, "Handler: Parsed create payload", slog.String("name", payload.Name))
@@ -171,7 +174,7 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 	createdProduct, err := h.service.Create(ctx, *payload)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "Service Create failed", slog.String("error", err.Error()))
-		opErr = err // Assign service error to opErr for defer/return
+		opErr = err  // Assign service error to opErr for defer/return
 		return opErr // Return error for framework handler (might be 400, 500, 409 etc.)
 	}
 

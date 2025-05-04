@@ -6,6 +6,8 @@ type Config struct {
 	LOG_LEVEL            string `env:"LOG_LEVEL,default=info"`
 	OTEL_ENDPOINT        string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,default=otel-collector:4317"`
 
+	PRODUCT_DATA_FILE_PATH string `mapstructure:"PRODUCT_DATA_FILE_PATH"`
+
 	SimulateDelayEnabled bool `mapstructure:"SIMULATE_DELAY_ENABLED"`
 	SimulateDelayMinMs   int  `mapstructure:"SIMULATE_DELAY_MIN_MS"`
 	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
@@ -23,7 +25,6 @@ func LoadConfig(env string) (*Config, error) {
 		cfg.OTEL_ENDPOINT = devCfg.OTEL_ENDPOINT
 		cfg.ENVIRONMENT = devCfg.ENVIRONMENT
 	}
-
 
 	return cfg, nil
 }
@@ -47,12 +48,13 @@ func GetDevelopmentConfig() *Config {
 func commonConfig() *Config {
 	// Base configuration for all environments
 	return &Config{
-		PRODUCT_SERVICE_PORT: "8082",
-		LOG_LEVEL:            "debug",
-		SimulateDelayEnabled: true,
-		SimulateDelayMinMs:   10,
-		SimulateDelayMaxMs:   10000,
+		PRODUCT_SERVICE_PORT:   "8082",
+		LOG_LEVEL:              "debug",
+		PRODUCT_DATA_FILE_PATH: "/app/data.json",
+		SimulateDelayEnabled:   false,
+		SimulateDelayMinMs:     10,
+		SimulateDelayMaxMs:     10000,
 		// Set a default environment maybe? Or let LoadConfig handle it.
-			// ENVIRONMENT: "development",
+		// ENVIRONMENT: "development",
 	}
 }
