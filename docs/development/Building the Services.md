@@ -3,7 +3,7 @@
 **Purpose:** Explain how to build the container images for the project services.
 **Audience:** Developers
 **Prerequisites:** Docker installed, [Running Locally with Docker Compose](./Running Locally with Docker Compose.md)
-**Related Pages:** [docker-compose.yml](), `product-service/Dockerfile`, `tests/Dockerfile`
+**Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), `product-service/Dockerfile`, `tests/Dockerfile`
 
 ---
 

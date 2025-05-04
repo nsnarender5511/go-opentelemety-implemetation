@@ -1,8 +1,7 @@
-
 **Purpose:** This page provides a high-level overview of the monitoring and observability setup for the application.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of observability concepts (Traces, Metrics, Logs).
-**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Logging Details](./Logging Details.md), [Tracing Details](./Tracing Details.md), [Key Metrics](./Key Metrics.md), [SigNoz Dashboards](./SigNoz Dashboards.md), [common/telemetry/attributes/attributes.go]()
+**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [Logging Details](./Logging Details.md), [Tracing Details](./Tracing Details.md), [Key Metrics](./Key Metrics.md), [SigNoz Dashboards](./SigNoz Dashboards.md), [`common/telemetry/attributes/attributes.go`](../../common/telemetry/attributes/attributes.go)
 
 ---
 

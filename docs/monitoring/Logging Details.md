@@ -2,8 +2,8 @@
 
 **Purpose:** This page explains how application logging is implemented using the `common/log` package, how it's configured, and how it integrates with OpenTelemetry for export.
 **Audience:** Developers, DevOps, Students
-**Prerequisites:** Understanding of Go `slog`, basic OpenTelemetry concepts. See [[Glossary]].
-**Related Pages:** [[Telemetry Setup]], [[common/log/log.go]], [[Configuration Management]]
+**Prerequisites:** Understanding of Go `slog`, basic OpenTelemetry concepts. See [Glossary](../Glossary.md).
+**Related Pages:** [Telemetry Setup](./Telemetry Setup.md), [`common/log/log.go`](../../common/log/log.go), [Configuration Management](../development/Configuration Management.md)
 
 ---
 
@@ -117,7 +117,7 @@ func main() {
 *   **Logs Emitted:** Application logs generated via `log.L` methods.
 *   **OTel Integration:** When `ENVIRONMENT=production`, the `otelslog.NewHandler` acts as a bridge.
     *   It converts `slog.Record` objects into OTel LogRecord objects.
-    *   These OTel LogRecords are then processed by the configured OTel `LoggerProvider` (setup in [[Telemetry Setup]] via `common/telemetry/log/exporter.go`).
+    *   These OTel LogRecords are then processed by the configured OTel `LoggerProvider` (setup in [Telemetry Setup](./Telemetry Setup.md) via `common/telemetry/log/exporter.go`).
     *   The OTel SDK then exports these LogRecords via OTLP to the Collector.
 *   **Attributes:** Key-value pairs added in the `log.L` calls (e.g., `slog.String("user", userID)`) become OTel LogRecord attributes.
 *   **Trace Context:** `otelslog` automatically attempts to correlate logs with active traces, injecting `trace_id` and `span_id` into the LogRecords when available.
@@ -167,13 +167,13 @@ sequenceDiagram
     7.  (Optional) Modify `docker-compose.yml` to set `ENVIRONMENT=development` for `product-service`, run `docker compose up --build product-service`, trigger actions, and show logs *only* appearing in the console, not SigNoz.
 *   **Common Pitfalls / Questions:**
     *   Why are my logs not structured in the console? (The `tint` handler focuses on human readability; structure is preserved for OTLP export).
-    *   Why are my logs not appearing in SigNoz? (Check `ENVIRONMENT` variable (and `globals.Init` override), ensure OTLP handler is active in `log.Init`, check [[Telemetry Setup]], check Collector pipeline for logs, check SigNoz ingestion key).
+    *   Why are my logs not appearing in SigNoz? (Check `ENVIRONMENT` variable (and `globals.Init` override), ensure OTLP handler is active in `log.Init`, check [Telemetry Setup](./Telemetry Setup.md), check Collector pipeline for logs, check SigNoz ingestion key).
     *   How do I add trace IDs to logs? (`otelslog` handles this automatically if tracing is set up correctly and context is propagated).
 *   **Simplification Analogy:** Think of `slog` as writing diary entries with specific fields (time, message, user, product). In development (`tint`), you just print the entry nicely to read yourself. In production (`otelslog` + `tint`), you *also* send a digital copy of that structured entry to a central library (OTel Collector/SigNoz) where it can be searched and linked to other events (traces).
 
 ---
 
-**Last Updated:** [Current Date]
+**Last Updated:**
 
 
 **Note on Initialization:** If the application uses `common/globals.Init()` for setup, be aware that this function **hardcodes the environment to "production"** when calling `config.LoadConfig` internally. Consequently, when using `globals.Init()`, the `log.Init` function (which receives this hardcoded "production" environment string) will *always* configure both the OTLP handler (via `otelslog`) and the console handler (`tint`), regardless of any external `ENVIRONMENT` variable set for the container. This ensures telemetry export is always attempted when using the global initializer.

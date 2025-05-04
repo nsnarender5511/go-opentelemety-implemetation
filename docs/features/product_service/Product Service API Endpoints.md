@@ -39,7 +39,7 @@ The service exposes a REST-like API for managing products.
           ...
         ]
         ```
-        (Array of [Product](#product) objects)
+        (Array of Product objects)
     *   **Error Response:** Standard Fiber error (e.g., 500 if repository read fails).
 
 *   **`GET /products/:productID`:**
@@ -49,7 +49,7 @@ The service exposes a REST-like API for managing products.
         {
           "id": "...", "name": "...", ... }
         ```
-        (Single [Product](#product) object)
+        (Single Product object)
     *   **Error Response:** Standard Fiber error (e.g., 500 if repository read fails, or likely 404/500 if product not found by service/repository).
 
 *   **`GET /status`:**
