@@ -19,7 +19,7 @@ processors:
   resource:
     attributes:
       - key: host.name
-        value: "FIXING_SPANS_1"
+        value: "testing_metrics"
         action: upsert
 
 
@@ -48,11 +48,11 @@ service:
     traces:
       receivers: [otlp]
       processors: [resource]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [resource]
       exporters: [otlp, debug]
-    # metrics:
-    #   receivers: [otlp, docker_stats]
-    #   processors: [resourcedetection, resource, batch]
-    #   exporters: [otlp]
     logs:
       receivers: [otlp]
       processors: [batch, resourcedetection, resource]
