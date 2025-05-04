@@ -23,6 +23,7 @@ type ProductRepository interface {
 	GetAll(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, id string) (Product, error)
 	UpdateStock(ctx context.Context, productID string, newStock int) error
+	Create(ctx context.Context, product Product) error
 }
 
 type productRepository struct {
@@ -33,21 +34,17 @@ type productRepository struct {
 // NewProductRepository creates a new repository instance loading data from a JSON file.
 func NewProductRepository(dataFilePath string) ProductRepository {
 	repo := &productRepository{
-		// No initial data loading
 		database: db.NewFileDatabase(dataFilePath),
 		logger:   globals.Logger(),
 	}
-	// Removed call to loadData
 	return repo
 }
-
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, opErr error) {
 
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr)
 
-	// Span represents the repository operation, which now includes reading from the file DB
 	ctx, spanner := commontrace.StartSpan(ctx,
 		attribute.String("repository.operation", "GetAll"),
 	)
@@ -88,7 +85,6 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, productIdAttr)
 
-	// Span represents the repository operation
 	ctx, spanner := commontrace.StartSpan(ctx,
 		productIdAttr,
 	)
@@ -104,7 +100,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 		opErr = fmt.Errorf("failed to read products for GetByID using FileDatabase: %w", err)
 		r.logger.ErrorContext(ctx, "Failed to read products for GetByID", slog.String("product_id", id), slog.String("error", opErr.Error()))
 		spanner.SetStatus(codes.Error, opErr.Error())
-		return Product{}, opErr	
+		return Product{}, opErr
 	}
 
 	product, exists := productsMap[id]
@@ -127,14 +123,12 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	mc := commonmetric.StartMetricsTimer()
 	defer mc.End(ctx, &opErr, attrs...)
 
-	// Span covers the entire read-modify-write operation
 	ctx, spanner := commontrace.StartSpan(ctx, attrs...)
 	defer commontrace.EndSpan(spanner, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
 	r.logger.InfoContext(ctx, "Repository: UpdateStock called - requires read-modify-write on FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
-
 
 	// 1. Read current data
 	var productsMap map[string]Product
@@ -145,7 +139,6 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		spanner.SetStatus(codes.Error, opErr.Error())
 		return opErr
 	}
-
 
 	// 2. Modify data
 	product, ok := productsMap[productID]
@@ -160,7 +153,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	product.Stock = newStock
 	productsMap[productID] = product // Update the map
 
-		spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
+	spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
 	r.logger.InfoContext(ctx, "Repository: Product stock updated in memory map (pre-save)", slog.String("product_id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock))
 
 	// 3. Write modified data back
@@ -175,3 +168,62 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	return nil
 }
 
+// Create adds a new product to the JSON file.
+func (repo *productRepository) Create(ctx context.Context, product Product) (opErr error) {
+	mc := commonmetric.StartMetricsTimer()
+	productIdAttr := attribute.String("product.id", product.ProductID)
+	defer mc.End(ctx, &opErr, productIdAttr)
+
+	ctx, spanner := commontrace.StartSpan(ctx, productIdAttr)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
+
+	debugutils.Simulate(ctx)
+
+	// NOTE: Assuming db.FileDatabase handles concurrency, so no explicit repo mutex needed here.
+
+	repo.logger.InfoContext(ctx, "Repository: Create called", slog.String("productID", product.ProductID))
+
+	// Load existing products using FileDatabase
+	var productsMap map[string]Product
+	err := repo.database.Read(ctx, &productsMap)
+	// Handle file not existing initially - create an empty map
+	if err != nil && os.IsNotExist(err) {
+		repo.logger.InfoContext(ctx, "Repository: data file not found during create, initializing empty map", slog.String("productID", product.ProductID))
+		productsMap = make(map[string]Product)
+		err = nil // Clear the IsNotExist error
+	} else if err != nil {
+		repo.logger.ErrorContext(ctx, "Repository: Failed to read products during create", slog.String("error", err.Error()))
+		if spanner != nil {
+			spanner.SetStatus(codes.Error, "failed to read products: "+err.Error())
+		}
+		opErr = fmt.Errorf("failed to read products during create: %w", err)
+		return opErr
+	}
+
+	// Check if product ID already exists in the map
+	if _, exists := productsMap[product.ProductID]; exists {
+		repo.logger.WarnContext(ctx, "Repository: Product ID already exists", slog.String("productID", product.ProductID))
+		// Assign a conflict error
+		if spanner != nil {
+			spanner.SetStatus(codes.Error, opErr.Error())
+		}
+		return opErr
+	}
+
+	// Add the new product to the map
+	productsMap[product.ProductID] = product
+
+	// Save updated products map using FileDatabase
+	err = repo.database.Write(ctx, productsMap)
+	if err != nil {
+		repo.logger.ErrorContext(ctx, "Repository: Failed to save products after create", slog.String("productID", product.ProductID), slog.String("error", err.Error()))
+		if spanner != nil {
+			spanner.SetStatus(codes.Error, "failed to save products: "+err.Error())
+		}
+		opErr = fmt.Errorf("failed to save products after create: %w", err)
+		return opErr
+	}
+
+	repo.logger.InfoContext(ctx, "Repository: Product created successfully", slog.String("productID", product.ProductID))
+	return nil // Success
+}

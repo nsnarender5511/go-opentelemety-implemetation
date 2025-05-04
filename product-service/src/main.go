@@ -53,6 +53,8 @@ func main() {
 	app.Get("/products", handler.GetAllProducts)
 	app.Get("/products/:productId", handler.GetProductByID)
 	app.Get("/status", handler.HealthCheck)
+	app.Patch("/products/:productID/stock", handler.UpdateProductStock)
+	app.Post("/products", handler.CreateProduct)
 	logger.Info("Routes registered")
 
 	// --- Server Startup ---
