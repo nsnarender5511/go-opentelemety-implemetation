@@ -3,7 +3,7 @@
 **Purpose:** This page explains how distributed tracing is implemented using OpenTelemetry, including SDK setup, span creation, and context propagation.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Understanding of OpenTelemetry Tracing concepts (Span, Trace Context, Propagation). See [Glossary](../Glossary.md).
-**Related Pages:** [Telemetry Setup](./Telemetry%20Setup.md), [Monitoring Overview](./README.md), [`common/telemetry/trace/trace.go`](../../common/telemetry/trace/trace.go), [`common/telemetry/trace/exporter.go`](../../common/telemetry/trace/exporter.go), [`common/telemetry/trace/trace_utils.go`](../../common/telemetry/trace/trace_utils.go)
+**Related Pages:** ./Telemetry_Setup.md, [Monitoring Overview](./README.md), [`common/telemetry/trace/trace.go`](../../common/telemetry/trace/trace.go), [`common/telemetry/trace/exporter.go`](../../common/telemetry/trace/exporter.go), [`common/telemetry/trace/trace_utils.go`](../../common/telemetry/trace/trace_utils.go)
 
 ---
 
@@ -22,7 +22,7 @@ Distributed tracing allows tracking requests as they propagate across different 
 
 ### 2.1 Trace Exporter & Provider Setup (`common/telemetry/trace/exporter.go`)
 
-The OpenTelemetry TracerProvider and OTLP exporter are configured as part of the [Telemetry Setup](./Telemetry%20Setup.md) process, specifically within the `trace.SetupOtlpTraceExporter` function when `ENVIRONMENT=production`.
+The OpenTelemetry TracerProvider and OTLP exporter are configured as part of the ./Telemetry_Setup.md process, specifically within the `trace.SetupOtlpTraceExporter` function when `ENVIRONMENT=production`.
 
 *   **Exporter:** An `otlptracegrpc` exporter sends trace data to the configured `OTEL_ENDPOINT`.
 *   **Processor:** A `BatchSpanProcessor` is used to export spans efficiently in batches.

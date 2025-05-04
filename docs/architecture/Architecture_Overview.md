@@ -1,7 +1,7 @@
 **Purpose:** This page provides a high-level overview of the system architecture, its main components, and how they interact.
 **Audience:** Developers, DevOps, Architects, Students
 **Prerequisites:** None
-**Related Pages:** [Service Details](./Service%20Details.md), [Data Model & Persistence](./Data%20Model%20&%20Persistence.md), [Monitoring Overview](../monitoring/README.md)
+**Related Pages:** ./Service_Details.md, ./Data_Model_&_Persistence.md, [Monitoring Overview](../monitoring/README.md)
 
 ---
 
@@ -22,10 +22,10 @@ The system currently consists of the following main services orchestrated via `d
 
 Core infrastructure code shared across Go services (currently just `product-service`) is located in the `common/` Go module. This includes packages for:
 
-*   **Configuration (`common/config`):** Manages loading configuration settings. See [Configuration Management](../development/Configuration%20Management.md).
-*   **Logging (`common/log`):** Provides structured logging using `slog`, integrated with OTel. See [Logging Details](../monitoring/Logging%20Details.md).
-*   **Database (`common/db`):** Provides access to the file-based JSON data store (`FileDatabase`). See [Data Model & Persistence](./Data%20Model%20&%20Persistence.md).
-*   **Telemetry (`common/telemetry`):** Handles OpenTelemetry SDK initialization (traces, metrics, logs, resource) and includes helper functions/constants. See [Telemetry Setup](../monitoring/Telemetry%20Setup.md).
+*   **Configuration (`common/config`):** Manages loading configuration settings. See ../development/Configuration_Management.md.
+*   **Logging (`common/log`):** Provides structured logging using `slog`, integrated with OTel. See ../monitoring/Logging_Details.md.
+*   **Database (`common/db`):** Provides access to the file-based JSON data store (`FileDatabase`). See ./Data_Model_&_Persistence.md.
+*   **Telemetry (`common/telemetry`):** Handles OpenTelemetry SDK initialization (traces, metrics, logs, resource) and includes helper functions/constants. See ../monitoring/Telemetry_Setup.md.
 *   **Utilities (`common/utils`):** Contains general utility functions (e.g., `GetCallerFunctionName`).
 *   **Globals (`common/globals`):** Provides centralized initialization (`Init()`) for config, logging, and telemetry, plus global accessors (`Cfg()`, `Logger()`). Uses `sync.Once` for safe initialization. **Note:** The `Init()` function currently hardcodes the environment to "production" for config loading purposes, impacting OTel endpoint selection.
 *   **Debug Utils (`common/debugutils`):** Contains utilities for simulating delays (`Simulate` function).

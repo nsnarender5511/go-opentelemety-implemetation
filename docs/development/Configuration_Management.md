@@ -3,7 +3,7 @@
 **Purpose:** This page explains how application configuration is managed, loaded, and what settings are available.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of Go structs and environment variables.
-**Related Pages:** [`common/config/config.go`](../../common/config/config.go), [Running Locally with Docker Compose](./Running%20Locally%20with%20Docker%20Compose.md), [Telemetry Setup](../monitoring/Telemetry%20Setup.md), [`docker-compose.yml`](../../docker-compose.yml), [`common/globals/globals.go`](../../common/globals/globals.go)
+**Related Pages:** [`common/config/config.go`](../../common/config/config.go), ./Running_Locally_with_Docker_Compose.md, ../monitoring/Telemetry_Setup.md, [`docker-compose.yml`](../../docker-compose.yml), [`common/globals/globals.go`](../../common/globals/globals.go)
 
 ---
 

@@ -1,7 +1,7 @@
 **Purpose:** This page details the HTTP API endpoints exposed by the `product-service`.
 **Audience:** Developers, Testers, API Consumers, Students
-**Prerequisites:** [Product Service Features Overview](./Product%20Service%20Features%20Overview.md)
-**Related Pages:** `product-service/src/main.go`, `product-service/src/handler.go`, `product-service/src/repository.go`, [Feature Update Product Stock](./Feature%20Update%20Product%20Stock.md)
+**Prerequisites:** ./Product_Service_Features_Overview.md
+**Related Pages:** `product-service/src/main.go`, `product-service/src/handler.go`, `product-service/src/repository.go`, ./Feature_Update_Product_Stock.md
 
 ---
 
@@ -65,12 +65,12 @@ The service exposes a REST-like API for managing products.
         { "stock": <integer> }
         ```
         (Uses `updateStockPayload` struct internally)
-    *   **Validation:** Checks for non-negative `stock` value, primarily handled in the service layer ([Feature Update Product Stock](./Feature%20Update%20Product%20Stock.md)). **// Fix Applied**
+    *   **Validation:** Checks for non-negative `stock` value, primarily handled in the service layer (./Feature_Update_Product_Stock.md). **// Fix Applied**
     *   **Success Response (200 OK):** `Content-Type: application/json`
         ```json
         { "status": "ok" }
         ```
     *   **Error Response:** Standard Fiber error (e.g., 400 Bad Request if body parsing fails or stock is invalid, 404/500 if product not found, 500 if repository fails).
-    *   **Telemetry Note:** The underlying repository operation adds the `product.old_stock` attribute to its trace span. See [Feature Update Product Stock](./Feature%20Update%20Product%20Stock.md). **// Fix Applied**
+    *   **Telemetry Note:** The underlying repository operation adds the `product.old_stock` attribute to its trace span. See ./Feature_Update_Product_Stock.md. **// Fix Applied**
 
 *   **`

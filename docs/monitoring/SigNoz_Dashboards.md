@@ -2,7 +2,7 @@
 
 **Purpose:** Provide links to and explanations for relevant dashboards within the SigNoz UI for monitoring the application.
 **Audience:** Developers, DevOps, SREs, Students
-**Prerequisites:** [Running Locally with Docker Compose](../../development/Running%20Locally%20with%20Docker%20Compose.md), [Monitoring Overview](./README.md), [Key Metrics](./Key%20Metrics.md)
+**Prerequisites:** ../../development/Running_Locally_with_Docker_Compose.md, [Monitoring Overview](./README.md), ./Key_Metrics.md
 **Related Pages:** SigNoz UI ([http://localhost:3301](http://localhost:3301))
 
 ---

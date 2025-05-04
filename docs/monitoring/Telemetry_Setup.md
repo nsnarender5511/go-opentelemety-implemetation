@@ -1,7 +1,7 @@
 **Purpose:** This page explains how OpenTelemetry is configured and initialized within the Go services and how the OpenTelemetry Collector is set up to process and export telemetry data.
 **Audience:** Developers, DevOps, Students
 **Prerequisites:** Basic understanding of OpenTelemetry concepts (Traces, Metrics, Logs, OTLP). See [Glossary](../Glossary.md).
-**Related Pages:** `common/telemetry/setup.go`, `otel-collector-config.yaml`, [Monitoring Overview](./README.md), [SigNoz Dashboards](./SigNoz%20Dashboards.md)
+**Related Pages:** `common/telemetry/setup.go`, `otel-collector-config.yaml`, [Monitoring Overview](./README.md), ./SigNoz_Dashboards.md
 
 ---
 
@@ -75,7 +75,7 @@ The OTel Collector service handles receiving, processing, and exporting telemetr
 
 ## 3. Implementation Details & Usage
 
-This page focuses on the setup. Refer to [Logging Details](./Logging%20Details.md), [Tracing Details](./Tracing%20Details.md), and [Key Metrics](./Key%20Metrics.md) for how the initialized SDK components are used within the application code.
+This page focuses on the setup. Refer to ./Logging_Details.md, ./Tracing_Details.md, and ./Key_Metrics.md for how the initialized SDK components are used within the application code.
 
 ---
 
@@ -111,7 +111,7 @@ Example Markdown:
     3.  Show how the `SIGNOZ_INGESTION_KEY` is passed from `docker-compose.yml` to the collector's environment and used in the OTLP exporter configuration.
     4.  Run `docker-compose up`.
     5.  Show collector logs (`docker compose logs otel-collector`) potentially including debug exporter output for metrics.
-    6.  Briefly show the [SigNoz Dashboards](./SigNoz%20Dashboards.md) page.
+    6.  Briefly show the ./SigNoz_Dashboards.md page.
 *   **Common Pitfalls / Questions:**
     *   Why use a Collector instead of exporting directly from the service? (Decoupling, batching, processing, multiple backends, potentially less resource usage in the service).
     *   What's the difference between SDK initialization and Collector configuration? (SDK is *in* the app code, generates data; Collector is *external* infrastructure, handles data flow).

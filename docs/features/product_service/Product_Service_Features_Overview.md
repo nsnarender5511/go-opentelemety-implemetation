@@ -1,7 +1,7 @@
 **Purpose:** This page provides a high-level overview of the features provided by the `product-service`.
 **Audience:** Developers, Product Managers, Testers, Students
-**Prerequisites:** [Architecture Overview](../../architecture/Architecture%20Overview.md), [Service Details](../../architecture/Service%20Details.md)
-**Related Pages:** [Product Service API Endpoints](./Product%20Service%20API%20Endpoints.md), [Feature: Update Product Stock](./Feature%20Update%20Product%20Stock.md)
+**Prerequisites:** ../../architecture/Architecture_Overview.md, ../../architecture/Service_Details.md
+**Related Pages:** ./Product_Service_API_Endpoints.md, ./Feature_Update_Product_Stock.md
 
 ---
 
@@ -18,12 +18,12 @@ The `product-service` is responsible for managing product information stored in 
 
 ## 2. Feature Breakdown
 
-Detailed descriptions of the API endpoints implementing these features can be found in [Product Service API Endpoints](./Product%20Service%20API%20Endpoints.md).
+Detailed descriptions of the API endpoints implementing these features can be found in ./Product_Service_API_Endpoints.md.
 
 *   **Get All Products:** Retrieves all products currently loaded from `data.json`.
 *   **Get Product by ID:** Retrieves a specific product matching the provided ID from the in-memory map.
 *   **Create Product:** Validates input (name required, price/stock >= 0), generates a unique product ID (using `uuid`), adds the new product to the in-memory map, and triggers a write back to `data.json` (requires locking).
-*   **Update Product Stock:** [Feature: Update Product Stock](./Feature%20Update%20Product%20Stock.md) - Modifies the stock count for an existing product, triggering a write back (requires locking).
+*   **Update Product Stock:** ./Feature_Update_Product_Stock.md - Modifies the stock count for an existing product, triggering a write back (requires locking).
 *   **Health/Status Check:** Simple endpoints (`/health`, `/status`) returning `200 OK` to indicate the service is running.
 
 ---

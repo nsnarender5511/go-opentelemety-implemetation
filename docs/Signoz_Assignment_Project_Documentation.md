@@ -1,0 +1,52 @@
+**Purpose:** This documentation provides a comprehensive overview of the Signoz Assignment project, including its architecture, services, development workflow, and observability setup using OpenTelemetry and SigNoz. It serves as the entry point for understanding the system.
+**Audience:** Developers, DevOps, Students, anyone interested in the project.
+**Prerequisites:** None
+
+---
+
+## 1. Overview
+
+This project demonstrates a simple microservices application instrumented with OpenTelemetry for comprehensive observability using SigNoz as the backend. It includes:
+*   A core `product-service` written in Go using the Fiber framework.
+*   A `product-simulator` for generating load (Python).
+*   An OpenTelemetry Collector for processing telemetry data.
+*   Shared Go modules (`common/`) for configuration, logging, database access (file-based), and telemetry setup.
+*   Docker Compose configuration for running the entire stack locally.
+
+The primary goal is to showcase best practices in setting up and utilizing observability (traces, metrics, logs) in a realistic application context.
+
+---
+
+## 2. Documentation Structure
+
+This documentation is organized into the following main sections:
+
+*   **[Quick Start](./docs/Quick_Start.md)**: Minimal steps to get the project running and observe basic telemetry.
+*   **[Glossary](./docs/Glossary.md)**: Definitions of key terms and technologies used.
+*   **[Architecture](./docs/architecture/Architecture_Overview.md)**: High-level view of the system components and their interactions.
+    *   [Service Details](./docs/architecture/Service_Details.md): Detailed descriptions of individual services (`product-service`, `product-simulator`).
+    *   [Data Model & Persistence](./docs/architecture/Data_Model_&_Persistence.md): Explanation of the file-based data storage.
+*   **[Features](./docs/features/product_service/Product_Service_Features_Overview.md)**: Details about the application's functionality.
+    *   [Product Service Features Overview](./docs/features/product_service/Product_Service_Features_Overview.md): Summary of features provided by the `product-service`.
+    *   [Product Service API Endpoints](./docs/features/product_service/Product_Service_API_Endpoints.md): Specification of the HTTP API.
+*   **[Development](./docs/development/Running_Locally_with_Docker_Compose.md)**: Information for developers working on the project.
+    *   [Configuration Management](./docs/development/Configuration_Management.md): How application configuration is handled.
+    *   [Building the Services](./docs/development/Building_the_Services.md): Instructions for building the services.
+    *   [Running Locally with Docker Compose](./docs/development/Running_Locally_with_Docker_Compose.md): How to run the application stack using Docker Compose.
+    *   [Testing Procedures](./docs/development/Testing_Procedures.md): Information on testing procedures, including the simulator.
+*   **[Monitoring](./docs/monitoring/README.md)**: Overview of the observability setup.
+    *   [Telemetry Setup](./docs/monitoring/Telemetry_Setup.md): Detailed configuration of the OpenTelemetry SDK and Collector.
+    *   [Logging Details](./docs/monitoring/Logging_Details.md): How logging is implemented and integrated with OTel.
+    *   [Tracing Details](./docs/monitoring/Tracing_Details.md): How distributed tracing is implemented.
+    *   [Key Metrics](./docs/monitoring/Key_Metrics.md): Description of custom application metrics.
+    *   [SigNoz Dashboards](./docs/monitoring/SigNoz_Dashboards.md): Links and explanations for relevant SigNoz dashboards (once configured).
+
+---
+
+## 3. Navigating the Documentation
+
+Use the links above or the file explorer to navigate through the different sections. Relative links (`./path/to/Page.md`) are used throughout to connect related topics.
+
+---
+
+**Last Updated:** 2024-07-30

@@ -3,7 +3,7 @@
 **Purpose:** This page details the key application-level metrics defined and collected via OpenTelemetry.
 **Audience:** Developers, DevOps, SREs, Students
 **Prerequisites:** Understanding of OpenTelemetry Metrics concepts (Counter, Histogram). See [Glossary](../Glossary.md).
-**Related Pages:** [Telemetry Setup](./Telemetry%20Setup.md), [Monitoring Overview](./README.md), `common/telemetry/metric/metric.go`
+**Related Pages:** ./Telemetry_Setup.md, [Monitoring Overview](./README.md), `common/telemetry/metric/metric.go`
 
 ---
 
@@ -20,7 +20,7 @@ The application emits custom metrics using the OpenTelemetry Go SDK to provide i
 
 ## 2. Configuration & Setup
 
-Metrics are defined in `common/telemetry/metric/metric.go` using a named `Meter` (`common/telemetry/metric`). The OTLP export pipeline is configured in [Telemetry Setup](./Telemetry%20Setup.md).
+Metrics are defined in `common/telemetry/metric/metric.go` using a named `Meter` (`common/telemetry/metric`). The OTLP export pipeline is configured in ./Telemetry_Setup.md.
 
 **Relevant Files:**
 *   `common/telemetry/metric/metric.go`: Defines metric instruments (`app.operations.*`) and the `MetricsController` helper.
@@ -29,7 +29,7 @@ Metrics are defined in `common/telemetry/metric/metric.go` using a named `Meter`
 
 **Initialization:**
 *   Metric instruments (`operationsTotal`, `durationMillis`, `errorsTotal`) are created in the `common/telemetry/metric/metric.go` package `init()` function.
-*   The global `MeterProvider` configured in [Telemetry Setup](./Telemetry%20Setup.md) makes these metrics available for recording.
+*   The global `MeterProvider` configured in ./Telemetry_Setup.md makes these metrics available for recording.
 
 ---
 
@@ -124,7 +124,7 @@ func (s *productService) UpdateProduct(ctx context.Context, id string, /*...upda
 
 ## 5. Monitoring & Observability Integration
 
-*   These `app.*` metrics are exported via the OTLP pipeline configured in [Telemetry Setup](./Telemetry%20Setup.md).
+*   These `app.*` metrics are exported via the OTLP pipeline configured in ./Telemetry_Setup.md.
 *   They will appear in SigNoz and can be used to build dashboards and alerts.
 *   The common attributes allow filtering/grouping (e.g., view average duration using `app.operation.duration.milliseconds`, or filter inventory by `product.id`).
 
