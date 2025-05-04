@@ -1,6 +1,9 @@
 package utils
 
-import "runtime"
+import (
+	"runtime"
+	"strings"
+)
 
 // GetCallerFunctionName retrieves the name of the calling function.
 // skip determines how many stack frames to ascend.
@@ -17,5 +20,10 @@ func GetCallerFunctionName(skip int) string {
 		return "<unknown>"
 	}
 	// Consider simplifying the name if needed (e.g., strip package path)
-	return fn.Name()
+	fullFuncName := fn.Name()
+	operationName := fullFuncName // Declare and initialize operationName
+	if lastDotIndex := strings.LastIndexByte(fullFuncName, '.'); lastDotIndex != -1 {
+		operationName = fullFuncName[lastDotIndex+1:] // Assign within if
+	}
+	return operationName
 }

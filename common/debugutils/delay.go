@@ -2,7 +2,7 @@ package debugutils
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -10,10 +10,11 @@ import (
 )
 
 func Simulate(ctx context.Context) {
+	logger := globals.Logger()
 
 	if globals.Cfg().SimulateDelayEnabled {
 		if globals.Cfg().SimulateDelayMinMs < 0 || globals.Cfg().SimulateDelayMaxMs <= 0 || globals.Cfg().SimulateDelayMinMs >= globals.Cfg().SimulateDelayMaxMs {
-			log.Printf("WARN: Invalid delay configuration: Min=%dms, Max=%dms. Skipping delay.", globals.Cfg().SimulateDelayMinMs, globals.Cfg().SimulateDelayMaxMs)
+			logger.Warn("Invalid delay configuration", slog.Int("min_ms", globals.Cfg().SimulateDelayMinMs), slog.Int("max_ms", globals.Cfg().SimulateDelayMaxMs))
 			return
 		}
 		
@@ -24,7 +25,6 @@ func Simulate(ctx context.Context) {
 		randomDelayMs := rng.Intn(delayRange+1) + globals.Cfg().SimulateDelayMinMs 
 		delayDuration := time.Duration(randomDelayMs) * time.Millisecond
 
-		log.Printf("DEBUG: Simulating delay for %v", delayDuration)
 		time.Sleep(delayDuration)
 	}
 }

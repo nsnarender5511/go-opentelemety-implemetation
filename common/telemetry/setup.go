@@ -7,7 +7,7 @@ import (
 
 	"github.com/narender/common/config"
 	logExporter "github.com/narender/common/telemetry/log"
-	// metricExporter "github.com/narender/common/telemetry/metric"
+	metricExporter "github.com/narender/common/telemetry/metric"
 	otelemetryResource "github.com/narender/common/telemetry/resource"
 	traceExporter "github.com/narender/common/telemetry/trace"
 
@@ -38,10 +38,10 @@ func InitTelemetry(cfg *config.Config) error {
 			return fmt.Errorf("trace exporter setup failed: %w", err)
 		}
 
-		// if err := metricExporter.SetupOtlpMetricExporter(ctx, cfg, connOpts, res); err != nil {
-		// 	log.Printf("ERROR: OTLP Metric exporter setup failed: %v\n", err)
-		// 	return fmt.Errorf("metric exporter setup failed: %w", err)
-		// }
+		if err := metricExporter.SetupOtlpMetricExporter(ctx, cfg, connOpts, res); err != nil {
+			log.Printf("ERROR: OTLP Metric exporter setup failed: %v\n", err)
+			return fmt.Errorf("metric exporter setup failed: %w", err)
+		}
 
 		if err := logExporter.SetupOtlpLogExporter(ctx, cfg, connOpts, res); err != nil {
 			log.Printf("ERROR: OTLP Log exporter setup failed: %v\n", err)

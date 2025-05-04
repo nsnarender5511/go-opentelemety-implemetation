@@ -71,10 +71,3 @@ func Logger() *slog.Logger {
 	return logger
 }
 
-func GetCfg() *config.Config {
-	return cfg
-}
-
-func GetLogger() *slog.Logger {
-	return logger
-}
