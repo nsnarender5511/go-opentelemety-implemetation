@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"sync"
@@ -96,12 +95,11 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 
 	product, exists := r.products[id]
 	if !exists {
-		opErr = fmt.Errorf("product with id '%s' not found: %w", id)
 		r.logger.WarnContext(ctx, "Repository: GetByID product not found",
 			slog.String("product_id", id),
 		)
-		spanner.SetStatus(codes.Error, opErr.Error())
-		return Product{}, opErr
+		spanner.SetStatus(codes.Error, "PRODUCT_NOT_FOUND")
+		return Product{}, nil
 	}
 
 	spanner.SetAttributes(attribute.String("product.name", product.Name))
