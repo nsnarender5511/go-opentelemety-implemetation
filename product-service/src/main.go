@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -47,13 +46,10 @@ func main() {
 	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
 
 	// --- Route Definitions ---
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.Status(http.StatusOK).JSON(fiber.Map{"status": "ok (minimal)"})
-	})
 
+	app.Get("/health", handler.HealthCheck)
 	app.Get("/products", handler.GetAllProducts)
 	app.Get("/products/:productId", handler.GetProductByID)
-	app.Get("/status", handler.HealthCheck)
 	logger.InfoContext(context.Background(), "Routes registered")
 
 	// --- Server Startup ---
