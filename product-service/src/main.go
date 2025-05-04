@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
@@ -26,8 +25,7 @@ func main() {
 	logger := globals.Logger()
 
 	// --- Service and Handler Initialization ---
-	productDataPath := filepath.Join("product-service", "data.json")
-	repo := NewProductRepository(productDataPath)
+	repo := NewProductRepository()
 	service := NewProductService(repo)
 	handler := NewProductHandler(service)
 
@@ -52,6 +50,7 @@ func main() {
 
 	app.Get("/products", handler.GetAllProducts)
 	app.Get("/products/:productId", handler.GetProductByID)
+	app.Patch("/products/:productId/stock", handler.UpdateProductStock)
 	app.Get("/status", handler.HealthCheck)
 	logger.Info("Routes registered")
 

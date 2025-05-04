@@ -15,6 +15,7 @@ import (
 type ProductService interface {
 	GetAll(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, id string) (Product, error)
+	UpdateStock(ctx context.Context, productID string, newStock int) error
 }
 
 type productService struct {
@@ -79,9 +80,38 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 		}
 		return Product{}, repoErr
 	}
-	
+
 	debugutils.Simulate(ctx)
 	s.logger.InfoContext(ctx, "Service: GetByID completed successfully", slog.String("product_id", productID))
-		return product, nil
+	return product, nil
 }
 
+func (s *productService) UpdateStock(ctx context.Context, productID string, newStock int) (opErr error) {
+	productIdAttr := attribute.String("product.id", productID)
+	newStockAttr := attribute.Int("product.new_stock", newStock)
+	attrs := []attribute.KeyValue{productIdAttr, newStockAttr}
+
+	mc := commonmetric.StartMetricsTimer()
+	defer mc.End(ctx, &opErr, attrs...)
+
+	ctx, spanner := commontrace.StartSpan(ctx, attrs...)
+	defer commontrace.EndSpan(spanner, &opErr, nil)
+
+	debugutils.Simulate(ctx)
+
+	s.logger.InfoContext(ctx, "Service: UpdateStock called", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+
+	debugutils.Simulate(ctx)
+	repoErr := s.repo.UpdateStock(ctx, productID, newStock)
+	if repoErr != nil {
+		s.logger.ErrorContext(ctx, "Repository UpdateStock failed", slog.String("error", repoErr.Error()))
+		if spanner != nil {
+			spanner.SetStatus(codes.Error, repoErr.Error())
+		}
+		return repoErr // Propagate the specific error
+	}
+
+	debugutils.Simulate(ctx)
+	s.logger.InfoContext(ctx, "Service: UpdateStock completed successfully", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	return nil
+}

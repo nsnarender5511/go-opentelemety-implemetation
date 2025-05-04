@@ -31,16 +31,14 @@ type productRepository struct {
 }
 
 // NewProductRepository creates a new repository instance loading data from a JSON file.
-func NewProductRepository(dataFilePath string) ProductRepository {
+func NewProductRepository() ProductRepository {
 	repo := &productRepository{
-		// No initial data loading
-		database: db.NewFileDatabase(dataFilePath),
+		database: db.NewFileDatabase(),
 		logger:   globals.Logger(),
 	}
 	// Removed call to loadData
 	return repo
 }
-
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, opErr error) {
 
@@ -104,7 +102,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 		opErr = fmt.Errorf("failed to read products for GetByID using FileDatabase: %w", err)
 		r.logger.ErrorContext(ctx, "Failed to read products for GetByID", slog.String("product_id", id), slog.String("error", opErr.Error()))
 		spanner.SetStatus(codes.Error, opErr.Error())
-		return Product{}, opErr	
+		return Product{}, opErr
 	}
 
 	product, exists := productsMap[id]
@@ -135,7 +133,6 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 
 	r.logger.InfoContext(ctx, "Repository: UpdateStock called - requires read-modify-write on FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
 
-
 	// 1. Read current data
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
@@ -145,7 +142,6 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 		spanner.SetStatus(codes.Error, opErr.Error())
 		return opErr
 	}
-
 
 	// 2. Modify data
 	product, ok := productsMap[productID]
@@ -160,7 +156,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	product.Stock = newStock
 	productsMap[productID] = product // Update the map
 
-		spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
+	spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
 	r.logger.InfoContext(ctx, "Repository: Product stock updated in memory map (pre-save)", slog.String("product_id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock))
 
 	// 3. Write modified data back
@@ -174,4 +170,3 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 
 	return nil
 }
-
