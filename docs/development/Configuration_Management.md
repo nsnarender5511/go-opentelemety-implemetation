@@ -1,7 +1,6 @@
 # Configuration Management
 
-**Purpose:** This page explains how application configuration is managed, loaded, and what settings are available.
-**Audience:** Developers, DevOps, Students
+**Purpose:** Describe how configuration is managed for the application services, primarily using environment variables and the `common/config` package.
 **Prerequisites:** Basic understanding of Go structs and environment variables.
 **Related Pages:** [`common/config/config.go`](../../common/config/config.go), [Running Locally with Docker Compose](./Running_Locally_with_Docker_Compose.md), [Telemetry Setup](../monitoring/Telemetry_Setup.md), [`docker-compose.yml`](../../docker-compose.yml), [`common/globals/globals.go`](../../common/globals/globals.go)
 

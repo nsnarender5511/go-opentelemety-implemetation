@@ -1,7 +1,6 @@
 # Logging Details
 
 **Purpose:** This page explains how application logging is implemented using the `common/log` package, how it's configured, and how it integrates with OpenTelemetry for export.
-**Audience:** Developers, DevOps, Students
 **Prerequisites:** Understanding of Go `slog`, basic OpenTelemetry concepts. See [Glossary](../Glossary.md).
 **Related Pages:** [Telemetry Setup](./Telemetry_Setup.md), [`common/log/log.go`](../../common/log/log.go), [Configuration Management](../development/Configuration_Management.md)
 

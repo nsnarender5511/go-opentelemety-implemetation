@@ -1,5 +1,6 @@
+# Product Service Features Overview
+
 **Purpose:** This page provides a high-level overview of the features provided by the `product-service`.
-**Audience:** Developers, Product Managers, Testers, Students
 **Prerequisites:** [Architecture Overview](../../architecture/Architecture_Overview.md), [Service Details](../../architecture/Service_Details.md)
 **Related Pages:** [Product Service API Endpoints](./Product_Service_API_Endpoints.md), [Feature: Update Product Stock](./Feature_Update_Product_Stock.md)
 

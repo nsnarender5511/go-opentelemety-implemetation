@@ -1,7 +1,6 @@
 # Feature: Update Product Stock
 
-**Purpose:** This page details the `UpdateProductStock` feature, allowing clients to modify the stock level of a specific product.
-**Audience:** Developers, API Consumers, Students
+**Purpose:** Describe the API endpoint and logic for updating the stock quantity of an existing product.
 **Prerequisites:** [Product Service API Endpoints](./Product_Service_API_Endpoints.md), [Data Model & Persistence](../../architecture/Data_Model_&_Persistence.md)
 **Related Pages:** `product-service/src/handler.go`, `product-service/src/service.go`, `product-service/src/repository.go`
 

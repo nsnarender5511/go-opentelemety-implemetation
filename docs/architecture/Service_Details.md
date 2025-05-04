@@ -1,7 +1,6 @@
-# Service Details
+# Service Details: Product Service
 
-**Purpose:** This page provides detailed descriptions of the individual services within the system.
-**Audience:** Developers, DevOps, Students
+**Purpose:** Provide detailed information about the `product-service`, including its responsibilities, API endpoints, dependencies, and key implementation notes.
 **Prerequisites:** [Architecture Overview](./Architecture_Overview.md)
 **Related Pages:** `docker-compose.yml`, `product-service/src/main.go`, [Testing Procedures](../../development/Testing_Procedures.md), [Data Model & Persistence](./Data_Model_&_Persistence.md)
 

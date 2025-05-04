@@ -1,7 +1,6 @@
 # Building the Services
 
-**Purpose:** Explain how to build the container images for the project services.
-**Audience:** Developers
+**Purpose:** Explain the process for building the Go service binaries.
 **Prerequisites:** Docker installed, [Running Locally with Docker Compose](./Running_Locally_with_Docker_Compose.md)
 **Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), `product-service/Dockerfile`, `tests/Dockerfile`
 

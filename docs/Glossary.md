@@ -1,7 +1,6 @@
 
 
 **Purpose:** Define key terminology, technologies, and concepts used within this project and its documentation.
-**Audience:** All
 **Prerequisites:** None
 
 ---

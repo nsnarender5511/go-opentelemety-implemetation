@@ -1,5 +1,6 @@
+# Running Locally with Docker Compose
+
 **Purpose:** Explain how to run the complete application stack locally using Docker Compose for development and testing.
-**Audience:** Developers, Testers, Students
 **Prerequisites:** Docker and Docker Compose installed, [Quick Start](../Quick_Start.md), [Building the Services](./Building_the_Services.md)
 **Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), [Configuration Management](./Configuration_Management.md)
 

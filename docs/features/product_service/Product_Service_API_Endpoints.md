@@ -1,5 +1,6 @@
+# Product Service API Endpoints
+
 **Purpose:** This page details the HTTP API endpoints exposed by the `product-service`.
-**Audience:** Developers, Testers, API Consumers, Students
 **Prerequisites:** [Product Service Features Overview](./Product_Service_Features_Overview.md)
 **Related Pages:** `product-service/src/main.go`, `product-service/src/handler.go`, `product-service/src/repository.go`, [Feature Update Product Stock](./Feature_Update_Product_Stock.md)
 

@@ -1,5 +1,6 @@
+# Quick Start
+
 **Purpose:** Provide the minimal steps required to run the entire application stack locally and observe basic telemetry output in SigNoz.
-**Audience:** Developers, Students, anyone wanting to run the demo.
 **Prerequisites:** Docker and Docker Compose installed.
 **Related Pages:** [Running Locally with Docker Compose](./development/Running_Locally_with_Docker_Compose.md), [SigNoz Dashboards](./monitoring/SigNoz_Dashboards.md)
 

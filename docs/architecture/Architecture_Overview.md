@@ -1,5 +1,6 @@
+# Architecture Overview
+
 **Purpose:** This page provides a high-level overview of the system architecture, its main components, and how they interact.
-**Audience:** Developers, DevOps, Architects, Students
 **Prerequisites:** None
 **Related Pages:** [Service Details](./Service_Details.md), [Data Model & Persistence](./Data_Model_&_Persistence.md), [Monitoring Overview](../monitoring/README.md)
 

@@ -21,7 +21,7 @@ The system includes:
 
 Comprehensive documentation covering architecture, features, development setup, and monitoring details can be found within the `docs/` directory (intended for use within an Obsidian vault or compatible Markdown viewer).
 
-**Start Here:** [**Signoz Assignment Project Documentation**](./docs/Signoz%20Assignment%20Project%20Documentation.md)
+**Start Here:** [**Signoz Assignment Project Documentation**](./docs/Signoz_Assignment_Project_Documentation.md)
 
   
 
