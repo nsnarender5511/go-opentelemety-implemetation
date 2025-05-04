@@ -2,11 +2,9 @@ package metric
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
-	commonerrors "github.com/narender/common/errors"
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,15 +17,6 @@ var (
 	durationMillis  metric.Float64Histogram
 	errorsTotal     metric.Int64Counter
 	// initErr variable removed as error handling is encapsulated in helpers
-
-	// Map for error type lookup
-	errorTypeMap = map[error]string{
-		commonerrors.ErrNotFound:     "not_found",
-		commonerrors.ErrValidation:   "validation",
-		commonerrors.ErrInternal:     "internal",
-		commonerrors.ErrUnauthorized: "unauthorized",
-		commonerrors.ErrForbidden:    "forbidden",
-	}
 )
 
 // Helper function to initialize an Int64Counter
@@ -119,15 +108,7 @@ func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additio
 	attrs := append(baseAttrs, additionalAttrs...)
 
 	if isError {
-		err := *errPtr
 		errorType := "unknown" // Default error type
-		// Use map lookup for error type classification
-		for errKey, typeStr := range errorTypeMap {
-			if errors.Is(err, errKey) {
-				errorType = typeStr
-				break // Found the most specific type
-			}
-		}
 		attrs = append(attrs, attribute.String("app.error.type", errorType))
 	}
 

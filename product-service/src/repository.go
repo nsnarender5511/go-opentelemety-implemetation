@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/narender/common/debugutils"
-	commonerrors "github.com/narender/common/errors"
 	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"github.com/narender/common/utils"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/narender/common/globals"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // ProductRepository defines the interface for accessing product data.
@@ -96,11 +96,11 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 
 	product, exists := r.products[id]
 	if !exists {
-		opErr = fmt.Errorf("product with id '%s' not found: %w", id, commonerrors.ErrNotFound)
+		opErr = fmt.Errorf("product with id '%s' not found: %w", id)
 		r.logger.WarnContext(ctx, "Repository: GetByID product not found",
 			slog.String("product_id", id),
-			slog.String("operation", operationName),
 		)
+		spanner.SetStatus(codes.Error, opErr.Error())
 		return Product{}, opErr
 	}
 

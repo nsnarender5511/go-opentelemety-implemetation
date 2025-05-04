@@ -13,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/narender/common/globals"
-	"github.com/narender/common/middleware"
 )
 
 func main() {
@@ -33,9 +32,7 @@ func main() {
 
 	// --- Service Information Logging ---
 	logger.InfoContext(context.Background(), "Starting product-service")
-	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.ErrorHandler(logger),
-	})
+	app := fiber.New(fiber.Config{})
 
 	// --- Middleware Configuration ---
 	app.Use(cors.New(cors.Config{
