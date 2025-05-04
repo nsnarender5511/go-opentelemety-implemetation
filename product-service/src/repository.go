@@ -8,7 +8,6 @@ import (
 
 	db "github.com/narender/common/db"
 	"github.com/narender/common/debugutils"
-	commonerrors "github.com/narender/common/errors"
 	commonmetric "github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
@@ -105,7 +104,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 
 	product, exists := productsMap[id]
 	if !exists {
-		opErr = fmt.Errorf("product with id '%s' not found in file data: %w", id, commonerrors.ErrNotFound)
+		opErr = fmt.Errorf("product with id '%s' not found", id)
 		r.logger.ErrorContext(ctx, "Product not found in file data", slog.String("error", opErr.Error()), slog.String("product_id", id))
 		return Product{}, opErr
 	}
@@ -143,7 +142,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, productID string, n
 	// 2. Modify data
 	product, ok := productsMap[productID]
 	if !ok {
-		opErr = fmt.Errorf("product with id '%s' not found in file data for update: %w", productID, commonerrors.ErrNotFound)
+		opErr = fmt.Errorf("product with id '%s' not found for update", productID)
 		r.logger.ErrorContext(ctx, "Product not found in file data for update", slog.String("error", opErr.Error()), slog.String("product_id", productID))
 		spanner.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
 		return opErr
@@ -203,10 +202,7 @@ func (repo *productRepository) Create(ctx context.Context, product Product) (opE
 	// Check if product ID already exists in the map
 	if _, exists := productsMap[product.ProductID]; exists {
 		repo.logger.WarnContext(ctx, "Repository: Product ID already exists", slog.String("productID", product.ProductID))
-		// Assign a conflict error
-		if spanner != nil {
-			spanner.SetStatus(codes.Error, opErr.Error())
-		}
+		opErr = fmt.Errorf("product with ID %s already exists", product.ProductID)
 		return opErr
 	}
 

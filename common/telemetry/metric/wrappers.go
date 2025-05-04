@@ -3,10 +3,7 @@ package metric
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
-
-	commonerrors "github.com/narender/common/errors"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -81,25 +78,6 @@ func RecordOperationMetrics(
 	}
 
 	if opErr != nil && errorCounter != nil {
-
-		errorType := "internal"
-		if errors.Is(opErr, commonerrors.ErrNotFound) {
-			errorType = "not_found"
-		} else if errors.Is(opErr, commonerrors.ErrInvalidInput) || errors.Is(opErr, commonerrors.ErrBadRequest) {
-			errorType = "bad_request"
-		} else if errors.Is(opErr, commonerrors.ErrConflict) {
-			errorType = "conflict"
-		} else if errors.Is(opErr, commonerrors.ErrUnauthorized) {
-			errorType = "unauthorized"
-		} else if errors.Is(opErr, commonerrors.ErrForbidden) {
-			errorType = "forbidden"
-		} else if _, ok := opErr.(*commonerrors.DatabaseError); ok {
-			errorType = "database"
-		} else if errors.Is(opErr, os.ErrNotExist) {
-			errorType = "file_not_found"
-		}
-
-		errorAttrs := append(mergedAttrs, attribute.String("error_type", errorType))
-		errorCounter.Add(ctx, 1, metric.WithAttributes(errorAttrs...))
+		errorCounter.Add(ctx, 1, metric.WithAttributes(mergedAttrs...))
 	}
 }

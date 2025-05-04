@@ -2,10 +2,8 @@ package trace
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	commonerrors "github.com/narender/common/errors"
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,9 +17,6 @@ func DefaultStatusMapper(err error) codes.Code {
 		return codes.Ok
 	}
 
-	if errors.Is(err, commonerrors.ErrNotFound) {
-		return codes.Ok
-	}
 
 	return codes.Error
 }
