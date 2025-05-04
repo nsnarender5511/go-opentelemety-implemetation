@@ -2,8 +2,8 @@
 
 **Purpose:** This page provides detailed descriptions of the individual services within the system.
 **Audience:** Developers, DevOps, Students
-**Prerequisites:** ./Architecture_Overview.md
-**Related Pages:** `docker-compose.yml`, `product-service/src/main.go`, ../../development/Testing_Procedures.md, ./Data_Model_&_Persistence.md
+**Prerequisites:** [Architecture Overview](./Architecture_Overview.md)
+**Related Pages:** `docker-compose.yml`, `product-service/src/main.go`, [Testing Procedures](../../development/Testing_Procedures.md), [Data Model & Persistence](./Data_Model_&_Persistence.md)
 
 ---
 
@@ -18,13 +18,13 @@
 *   **Architecture:** Follows a layered approach (Handler -> Service -> Repository).
     *   **Handler (`handler.go`):** Handles incoming HTTP requests using Fiber (`fiber.Ctx`), parses path parameters and JSON request bodies, calls the service layer, and returns JSON responses or errors. Explicitly creates trace spans for handler operations.
     *   **Service (`service.go`):** Contains the core business logic (e.g., validation, ID generation). Mostly acts as a pass-through to the repository layer. Creates its own trace spans and records operation metrics.
-    *   **Repository (`repository.go`):** Implements `ProductRepository` interface. Interacts with the data persistence layer (`common/db.FileDatabase`), reads/writes `data.json`. Expects `data.json` to be a map keyed by product ID. Performs read-modify-write for updates/creates. **CRITICAL:** It **does not** implement the necessary locking (`sync.Mutex`) for concurrency control on these write operations, leading to potential race conditions. See ./Data_Model_&_Persistence.md. Well-instrumented with traces and metrics.
+    *   **Repository (`repository.go`):** Implements `ProductRepository` interface. Interacts with the data persistence layer (`common/db.FileDatabase`), reads/writes `data.json`. Expects `data.json` to be a map keyed by product ID. Performs read-modify-write for updates/creates. **CRITICAL:** It **does not** implement the necessary locking (`sync.Mutex`) for concurrency control on these write operations, leading to potential race conditions. See [Data Model & Persistence](./Data_Model_&_Persistence.md). Well-instrumented with traces and metrics.
 *   **Why it Matters:** This is the primary application service providing the core functionality, but its current persistence implementation has significant concurrency flaws.
 
 ### 1.2 Configuration & Setup
 
 *   **Initialization:** The service entry point is `product-service/src/main.go`.
-*   **Globals:** It calls `common/globals.Init()` on startup. This initializes shared config, logging, and telemetry by calling `config.LoadConfig("production")` internally. This means the **"production" configuration profile is loaded by default**, merging its settings (like OTel endpoint) with common defaults. While runtime environment variables (e.g., `LOG_LEVEL` set in `docker-compose.yml`) can override specific values after loading, the base configuration loaded is the "production" one. (See ../../development/Configuration_Management.md and ../../monitoring/Telemetry_Setup.md). **// Fix Applied**
+*   **Globals:** It calls `common/globals.Init()` on startup. This initializes shared config, logging, and telemetry by calling `config.LoadConfig("production")` internally. This means the **"production" configuration profile is loaded by default**, merging its settings (like OTel endpoint) with common defaults. While runtime environment variables (e.g., `LOG_LEVEL` set in `docker-compose.yml`) can override specific values after loading, the base configuration loaded is the "production" one. (See [Configuration Management](../../development/Configuration_Management.md) and [Telemetry Setup](../../monitoring/Telemetry_Setup.md)). **// Fix Applied**
 *   **Dependencies:** Dependencies (Repository, Service, Handler) are manually instantiated and injected in `main.go`.
 *   **Configuration Values:** Reads required values (e.g., `PRODUCT_SERVICE_PORT`) from the config provided by `globals.Cfg()`.
 
@@ -35,8 +35,8 @@
     *   CORS (`cors.New`)
     *   Panic Recovery (`recover.New`)
     *   OpenTelemetry (`otelfiber.Middleware()`): Automatically creates spans for incoming HTTP requests, captures relevant HTTP attributes (URL, method, status code), and handles trace context propagation.
-*   **Routing:** Defines routes for product operations and health checks (see ../../features/product_service/Product_Service_API_Endpoints.md).
-*   **Concurrency Issue:** As noted, the repository layer lacks proper locking for write operations (`Create`, `UpdateStock`), making the service unsafe for concurrent modifications. See ./Data_Model_&_Persistence.md.
+*   **Routing:** Defines routes for product operations and health checks (see [Product Service API Endpoints](../../features/product_service/Product_Service_API_Endpoints.md)).
+*   **Concurrency Issue:** As noted, the repository layer lacks proper locking for write operations (`Create`, `UpdateStock`), making the service unsafe for concurrent modifications. See [Data Model & Persistence](./Data_Model_&_Persistence.md).
 
 ### 1.4 Monitoring & Observability Integration
 
@@ -74,7 +74,7 @@ graph LR
 *   **Demo Steps:**
     1.  Show `main.go`, highlighting the `globals.Init()` call, dependency creation, Fiber app setup, middleware (`otelfiber`), and route definitions.
     2.  Explain the Handler -> Service -> Repository layering concept with the diagram.
-    3.  **Explicitly** show the lack of `sync.Mutex` in `repository.go` and `common/db/file_database.go` and explain the race condition risk as documented in ./Data_Model_&_Persistence.md.
+    3.  **Explicitly** show the lack of `sync.Mutex` in `repository.go` and `common/db/file_database.go` and explain the race condition risk as documented in [Data Model & Persistence](./Data_Model_&_Persistence.md).
     4.  Run the service and make a request (e.g., `GET /products`).
     5.  Show the trace in SigNoz, pointing out the span created by `otelfiber` middleware for the HTTP request and the nested spans from handler/service/repository.
 *   **Common Pitfalls:** Forgetting to initialize globals (`panic: configuration not initialized`), incorrect dependency injection, **ignoring concurrency issues in simple persistence layers.**
@@ -96,7 +96,7 @@ graph LR
 *   **Dockerfile:** `tests/Dockerfile` defines how to build the Python image.
 *   **Docker Compose:** Defined as the `product-simulator` service in `docker-compose.yml`. Depends on `product-service` being available.
 *   **Target:** Configured via environment variable `PRODUCT_SERVICE_URL` (set to `http://product-service:8082` in `docker-compose.yml`) to target the `product-service` within the Docker network.
-*   **Dependencies:** Requires Python libraries (likely `requests`). A `tests/requirements.txt` file is needed for the Docker build; its absence would cause the build to fail. See ../../development/Building_the_Services.md.
+*   **Dependencies:** Requires Python libraries (likely `requests`). A `tests/requirements.txt` file is needed for the Docker build; its absence would cause the build to fail. See [Building the Services](../../development/Building_the_Services.md).
 
 ### 2.3 Implementation Details & Usage
 
@@ -126,7 +126,7 @@ graph LR
 This is the standard OpenTelemetry Collector.
 *   **Configuration:** Defined in `otel-collector-config.yaml`.
 *   **Role:** Receives OTLP data from `product-service`, processes it (batching, adding resource attributes), and exports it to SigNoz Cloud.
-*   See ../../monitoring/Telemetry_Setup.md for detailed configuration.
+*   See [Telemetry Setup](../../monitoring/Telemetry_Setup.md) for detailed configuration.
 
 ---
 

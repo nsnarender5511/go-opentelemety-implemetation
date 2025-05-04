@@ -26,6 +26,24 @@
     "category": "",
     "tags": null
   },
+  "prod_006e9751-807c-4e97-a1ca-85f85a71a4d8": {
+    "productID": "prod_006e9751-807c-4e97-a1ca-85f85a71a4d8",
+    "name": "Simulated Product 4d379b",
+    "description": "Created by simulation script",
+    "price": 209.1,
+    "stock": 87,
+    "category": "",
+    "tags": null
+  },
+  "prod_01a07772-94a1-4d01-9699-7fc143b400e5": {
+    "productID": "prod_01a07772-94a1-4d01-9699-7fc143b400e5",
+    "name": "Simulated Product 27c6a8",
+    "description": "Created by simulation script",
+    "price": 350.45,
+    "stock": 50,
+    "category": "",
+    "tags": null
+  },
   "prod_027900ef-bfce-40b8-9c3c-1846a7fb967b": {
     "productID": "prod_027900ef-bfce-40b8-9c3c-1846a7fb967b",
     "name": "Simulated Product 98aa30",
@@ -35,12 +53,30 @@
     "category": "",
     "tags": null
   },
+  "prod_028b36ec-a29a-48f1-894a-eb398c0129ce": {
+    "productID": "prod_028b36ec-a29a-48f1-894a-eb398c0129ce",
+    "name": "Simulated Product 594cdc",
+    "description": "Created by simulation script",
+    "price": 303.74,
+    "stock": 160,
+    "category": "",
+    "tags": null
+  },
   "prod_02b5ce0b-2f02-43f5-9767-8009cd54bcbc": {
     "productID": "prod_02b5ce0b-2f02-43f5-9767-8009cd54bcbc",
     "name": "Simulated Product f45f1f",
     "description": "Created by simulation script",
     "price": 426.72,
-    "stock": 40,
+    "stock": 99,
+    "category": "",
+    "tags": null
+  },
+  "prod_02d8a684-026b-41b1-b5a5-ba8b1fb415ae": {
+    "productID": "prod_02d8a684-026b-41b1-b5a5-ba8b1fb415ae",
+    "name": "Simulated Product 3c06dd",
+    "description": "Created by simulation script",
+    "price": 300.23,
+    "stock": 184,
     "category": "",
     "tags": null
   },
@@ -49,6 +85,15 @@
     "name": "Simulated Product 9fb8e2",
     "description": "Created by simulation script",
     "price": 174.92,
+    "stock": 7,
+    "category": "",
+    "tags": null
+  },
+  "prod_03687375-5b95-40c9-aab1-8d1fe3a51285": {
+    "productID": "prod_03687375-5b95-40c9-aab1-8d1fe3a51285",
+    "name": "Simulated Product a269f9",
+    "description": "Created by simulation script",
+    "price": 203.9,
     "stock": 147,
     "category": "",
     "tags": null
@@ -58,7 +103,25 @@
     "name": "Simulated Product d19302",
     "description": "Created by simulation script",
     "price": 395.16,
-    "stock": 59,
+    "stock": 35,
+    "category": "",
+    "tags": null
+  },
+  "prod_0510b49e-9147-457f-b17e-35118af7c15c": {
+    "productID": "prod_0510b49e-9147-457f-b17e-35118af7c15c",
+    "name": "Simulated Product 427880",
+    "description": "Created by simulation script",
+    "price": 275.22,
+    "stock": 64,
+    "category": "",
+    "tags": null
+  },
+  "prod_0523d11f-89e4-4b3f-ad97-181aa58c40cb": {
+    "productID": "prod_0523d11f-89e4-4b3f-ad97-181aa58c40cb",
+    "name": "Simulated Product 1991f0",
+    "description": "Created by simulation script",
+    "price": 299.01,
+    "stock": 189,
     "category": "",
     "tags": null
   },
@@ -71,6 +134,15 @@
     "category": "",
     "tags": null
   },
+  "prod_05ffb921-4564-45cd-8023-6a027b6090c5": {
+    "productID": "prod_05ffb921-4564-45cd-8023-6a027b6090c5",
+    "name": "Simulated Product 4c22ba",
+    "description": "Created by simulation script",
+    "price": 201.36,
+    "stock": 165,
+    "category": "",
+    "tags": null
+  },
   "prod_062f9df3-892f-4878-8b67-5fb24f7ed7e0": {
     "productID": "prod_062f9df3-892f-4878-8b67-5fb24f7ed7e0",
     "name": "Simulated Product 53ef34",
@@ -80,12 +152,30 @@
     "category": "",
     "tags": null
   },
+  "prod_06a9fa50-0d15-4d47-af13-49abf935296b": {
+    "productID": "prod_06a9fa50-0d15-4d47-af13-49abf935296b",
+    "name": "Simulated Product 5873a8",
+    "description": "Created by simulation script",
+    "price": 367.28,
+    "stock": 6,
+    "category": "",
+    "tags": null
+  },
   "prod_0730a133-3757-4323-8789-cd6c452f6d34": {
     "productID": "prod_0730a133-3757-4323-8789-cd6c452f6d34",
     "name": "Simulated Product 6757f6",
     "description": "Created by simulation script",
     "price": 169.18,
-    "stock": 96,
+    "stock": 40,
+    "category": "",
+    "tags": null
+  },
+  "prod_077d9374-ba7a-45b1-aac9-4e48aa725da4": {
+    "productID": "prod_077d9374-ba7a-45b1-aac9-4e48aa725da4",
+    "name": "Simulated Product 7b1528",
+    "description": "Created by simulation script",
+    "price": 220.63,
+    "stock": 11,
     "category": "",
     "tags": null
   },
@@ -94,7 +184,7 @@
     "name": "Simulated Product 58d8ec",
     "description": "Created by simulation script",
     "price": 348.87,
-    "stock": 36,
+    "stock": 72,
     "category": "",
     "tags": null
   },
@@ -103,7 +193,7 @@
     "name": "Simulated Product 63a70d",
     "description": "Created by simulation script",
     "price": 217.96,
-    "stock": 157,
+    "stock": 76,
     "category": "",
     "tags": null
   },
@@ -112,7 +202,16 @@
     "name": "Simulated Product d2f271",
     "description": "Created by simulation script",
     "price": 277.41,
-    "stock": 88,
+    "stock": 24,
+    "category": "",
+    "tags": null
+  },
+  "prod_0a38e52f-2a29-4582-bc2a-a382594a5b28": {
+    "productID": "prod_0a38e52f-2a29-4582-bc2a-a382594a5b28",
+    "name": "Simulated Product 618512",
+    "description": "Created by simulation script",
+    "price": 76.86,
+    "stock": 97,
     "category": "",
     "tags": null
   },
@@ -121,7 +220,7 @@
     "name": "Simulated Product 51aed6",
     "description": "Created by simulation script",
     "price": 378.81,
-    "stock": 73,
+    "stock": 22,
     "category": "",
     "tags": null
   },
@@ -140,6 +239,24 @@
     "description": "Created by simulation script",
     "price": 13.47,
     "stock": 8,
+    "category": "",
+    "tags": null
+  },
+  "prod_0b47a3ba-3f32-4303-85ca-c00636a86c18": {
+    "productID": "prod_0b47a3ba-3f32-4303-85ca-c00636a86c18",
+    "name": "Simulated Product 6a2a06",
+    "description": "Created by simulation script",
+    "price": 101.92,
+    "stock": 118,
+    "category": "",
+    "tags": null
+  },
+  "prod_0b61aa13-aab0-47a6-a0e9-264345ab92ae": {
+    "productID": "prod_0b61aa13-aab0-47a6-a0e9-264345ab92ae",
+    "name": "Simulated Product 5b622c",
+    "description": "Created by simulation script",
+    "price": 281.11,
+    "stock": 159,
     "category": "",
     "tags": null
   },
@@ -175,7 +292,7 @@
     "name": "Simulated Product 7c7fa9",
     "description": "Created by simulation script",
     "price": 105.03,
-    "stock": 66,
+    "stock": 92,
     "category": "",
     "tags": null
   },
@@ -185,6 +302,15 @@
     "description": "Created by simulation script",
     "price": 450.52,
     "stock": 98,
+    "category": "",
+    "tags": null
+  },
+  "prod_0c858f09-aa4d-4dc8-8e25-4182acc89a2f": {
+    "productID": "prod_0c858f09-aa4d-4dc8-8e25-4182acc89a2f",
+    "name": "Simulated Product 510ac6",
+    "description": "Created by simulation script",
+    "price": 138.05,
+    "stock": 85,
     "category": "",
     "tags": null
   },
@@ -203,6 +329,15 @@
     "description": "Created by simulation script",
     "price": 141.5,
     "stock": 79,
+    "category": "",
+    "tags": null
+  },
+  "prod_0e1a423b-fa1d-4b46-8901-0a4aacf3d632": {
+    "productID": "prod_0e1a423b-fa1d-4b46-8901-0a4aacf3d632",
+    "name": "Simulated Product 9626aa",
+    "description": "Created by simulation script",
+    "price": 405.67,
+    "stock": 126,
     "category": "",
     "tags": null
   },
@@ -229,7 +364,16 @@
     "name": "Simulated Product 574b6c",
     "description": "Created by simulation script",
     "price": 19.65,
-    "stock": 37,
+    "stock": 40,
+    "category": "",
+    "tags": null
+  },
+  "prod_0f9f5ec8-3baf-4baf-a73a-93af8b4d4fa3": {
+    "productID": "prod_0f9f5ec8-3baf-4baf-a73a-93af8b4d4fa3",
+    "name": "Simulated Product a3c95f",
+    "description": "Created by simulation script",
+    "price": 96.66,
+    "stock": 46,
     "category": "",
     "tags": null
   },
@@ -242,12 +386,39 @@
     "category": "",
     "tags": null
   },
+  "prod_107d600e-d1ad-4c61-a0d9-e71f2f7f864a": {
+    "productID": "prod_107d600e-d1ad-4c61-a0d9-e71f2f7f864a",
+    "name": "Simulated Product 074150",
+    "description": "Created by simulation script",
+    "price": 166.4,
+    "stock": 24,
+    "category": "",
+    "tags": null
+  },
+  "prod_110ae3cc-1ab0-4fba-80be-48e1022bc77f": {
+    "productID": "prod_110ae3cc-1ab0-4fba-80be-48e1022bc77f",
+    "name": "Simulated Product 4fca00",
+    "description": "Created by simulation script",
+    "price": 142.91,
+    "stock": 96,
+    "category": "",
+    "tags": null
+  },
   "prod_11cc2483-c85f-4df9-a8f0-bd1977c70eb4": {
     "productID": "prod_11cc2483-c85f-4df9-a8f0-bd1977c70eb4",
     "name": "Simulated Product e85f65",
     "description": "Created by simulation script",
     "price": 357.68,
-    "stock": 119,
+    "stock": 40,
+    "category": "",
+    "tags": null
+  },
+  "prod_11d2d4e9-d4ba-4a6e-835a-80d8bc6dc715": {
+    "productID": "prod_11d2d4e9-d4ba-4a6e-835a-80d8bc6dc715",
+    "name": "Simulated Product 67f8ba",
+    "description": "Created by simulation script",
+    "price": 298.65,
+    "stock": 195,
     "category": "",
     "tags": null
   },
@@ -283,7 +454,16 @@
     "name": "Simulated Product 5b0a78",
     "description": "Created by simulation script",
     "price": 206.87,
-    "stock": 131,
+    "stock": 33,
+    "category": "",
+    "tags": null
+  },
+  "prod_1681b60d-429e-4708-b415-2c773f8c986d": {
+    "productID": "prod_1681b60d-429e-4708-b415-2c773f8c986d",
+    "name": "Simulated Product 3af671",
+    "description": "Created by simulation script",
+    "price": 405.84,
+    "stock": 40,
     "category": "",
     "tags": null
   },
@@ -292,7 +472,16 @@
     "name": "Simulated Product 5128e5",
     "description": "Created by simulation script",
     "price": 146.45,
-    "stock": 157,
+    "stock": 68,
+    "category": "",
+    "tags": null
+  },
+  "prod_16ed3df4-2a63-4f19-bac7-77fe6648148b": {
+    "productID": "prod_16ed3df4-2a63-4f19-bac7-77fe6648148b",
+    "name": "Simulated Product 943f9a",
+    "description": "Created by simulation script",
+    "price": 110.78,
+    "stock": 139,
     "category": "",
     "tags": null
   },
@@ -302,6 +491,24 @@
     "description": "Created by simulation script",
     "price": 132.35,
     "stock": 81,
+    "category": "",
+    "tags": null
+  },
+  "prod_18d66877-4664-47dc-97ef-330036453bcb": {
+    "productID": "prod_18d66877-4664-47dc-97ef-330036453bcb",
+    "name": "Simulated Product 6bcdba",
+    "description": "Created by simulation script",
+    "price": 21.34,
+    "stock": 75,
+    "category": "",
+    "tags": null
+  },
+  "prod_19565805-d111-4c44-afd6-4a04546919be": {
+    "productID": "prod_19565805-d111-4c44-afd6-4a04546919be",
+    "name": "Simulated Product 729678",
+    "description": "Created by simulation script",
+    "price": 82.08,
+    "stock": 159,
     "category": "",
     "tags": null
   },
@@ -337,7 +544,7 @@
     "name": "Simulated Product 4a7060",
     "description": "Created by simulation script",
     "price": 270.16,
-    "stock": 29,
+    "stock": 7,
     "category": "",
     "tags": null
   },
@@ -350,12 +557,48 @@
     "category": "",
     "tags": null
   },
+  "prod_1b82ed51-f573-48d2-b376-52fef0a18c4d": {
+    "productID": "prod_1b82ed51-f573-48d2-b376-52fef0a18c4d",
+    "name": "Simulated Product a761e0",
+    "description": "Created by simulation script",
+    "price": 478.65,
+    "stock": 122,
+    "category": "",
+    "tags": null
+  },
   "prod_1bc92f6e-3ad9-4344-be71-abce28ad2d17": {
     "productID": "prod_1bc92f6e-3ad9-4344-be71-abce28ad2d17",
     "name": "Simulated Product fcae12",
     "description": "Created by simulation script",
     "price": 123.12,
     "stock": 15,
+    "category": "",
+    "tags": null
+  },
+  "prod_1c216bca-2537-4a84-b349-b4a25098ae94": {
+    "productID": "prod_1c216bca-2537-4a84-b349-b4a25098ae94",
+    "name": "Simulated Product 9b584b",
+    "description": "Created by simulation script",
+    "price": 320.75,
+    "stock": 14,
+    "category": "",
+    "tags": null
+  },
+  "prod_1ca9c952-5133-4e6b-9873-70af190f1181": {
+    "productID": "prod_1ca9c952-5133-4e6b-9873-70af190f1181",
+    "name": "Simulated Product 57e898",
+    "description": "Created by simulation script",
+    "price": 100.38,
+    "stock": 13,
+    "category": "",
+    "tags": null
+  },
+  "prod_1ce891ce-1015-4bbc-86ab-fa723c415ce3": {
+    "productID": "prod_1ce891ce-1015-4bbc-86ab-fa723c415ce3",
+    "name": "Simulated Product e5bc35",
+    "description": "Created by simulation script",
+    "price": 468.59,
+    "stock": 39,
     "category": "",
     "tags": null
   },
@@ -368,12 +611,39 @@
     "category": "",
     "tags": null
   },
+  "prod_1d33fc03-0a53-46d1-bcba-307044239ca8": {
+    "productID": "prod_1d33fc03-0a53-46d1-bcba-307044239ca8",
+    "name": "Simulated Product 78e4a2",
+    "description": "Created by simulation script",
+    "price": 424.88,
+    "stock": 9,
+    "category": "",
+    "tags": null
+  },
+  "prod_1d825e4a-0b72-445a-bd9e-fc72eecfef83": {
+    "productID": "prod_1d825e4a-0b72-445a-bd9e-fc72eecfef83",
+    "name": "Simulated Product ae5a48",
+    "description": "Created by simulation script",
+    "price": 152.85,
+    "stock": 71,
+    "category": "",
+    "tags": null
+  },
+  "prod_1dba6bdd-4e77-40d0-8411-988bc1f60544": {
+    "productID": "prod_1dba6bdd-4e77-40d0-8411-988bc1f60544",
+    "name": "Simulated Product a5db85",
+    "description": "Created by simulation script",
+    "price": 494.82,
+    "stock": 175,
+    "category": "",
+    "tags": null
+  },
   "prod_1defe9e1-c911-41d9-b3af-b5e1d864a59a": {
     "productID": "prod_1defe9e1-c911-41d9-b3af-b5e1d864a59a",
     "name": "Simulated Product 8bd1ef",
     "description": "Created by simulation script",
     "price": 151.07,
-    "stock": 74,
+    "stock": 18,
     "category": "",
     "tags": null
   },
@@ -383,6 +653,33 @@
     "description": "Created by simulation script",
     "price": 499.52,
     "stock": 71,
+    "category": "",
+    "tags": null
+  },
+  "prod_1e4b8871-2630-4695-abf7-aaf1f5e5bc2a": {
+    "productID": "prod_1e4b8871-2630-4695-abf7-aaf1f5e5bc2a",
+    "name": "Simulated Product 8ec157",
+    "description": "Created by simulation script",
+    "price": 17.54,
+    "stock": 117,
+    "category": "",
+    "tags": null
+  },
+  "prod_1ecc7b9b-5926-4027-9d6a-860632a382b0": {
+    "productID": "prod_1ecc7b9b-5926-4027-9d6a-860632a382b0",
+    "name": "Simulated Product 1eaa30",
+    "description": "Created by simulation script",
+    "price": 383.08,
+    "stock": 14,
+    "category": "",
+    "tags": null
+  },
+  "prod_1f1c4d21-65eb-4535-a695-70805f85daa2": {
+    "productID": "prod_1f1c4d21-65eb-4535-a695-70805f85daa2",
+    "name": "Simulated Product e2b4cb",
+    "description": "Created by simulation script",
+    "price": 254.99,
+    "stock": 59,
     "category": "",
     "tags": null
   },
@@ -413,12 +710,21 @@
     "category": "",
     "tags": null
   },
+  "prod_2002f43f-5e57-46f3-98c0-5d91295b5f12": {
+    "productID": "prod_2002f43f-5e57-46f3-98c0-5d91295b5f12",
+    "name": "Simulated Product aa6814",
+    "description": "Created by simulation script",
+    "price": 364.21,
+    "stock": 46,
+    "category": "",
+    "tags": null
+  },
   "prod_20692cde-45fa-4dab-b086-e402df879e57": {
     "productID": "prod_20692cde-45fa-4dab-b086-e402df879e57",
     "name": "Simulated Product 5175a5",
     "description": "Created by simulation script",
     "price": 96.83,
-    "stock": 33,
+    "stock": 100,
     "category": "",
     "tags": null
   },
@@ -427,7 +733,7 @@
     "name": "Simulated Product 51ef18",
     "description": "Created by simulation script",
     "price": 182.68,
-    "stock": 75,
+    "stock": 47,
     "category": "",
     "tags": null
   },
@@ -436,7 +742,25 @@
     "name": "Simulated Product 06e824",
     "description": "Created by simulation script",
     "price": 303.8,
-    "stock": 173,
+    "stock": 38,
+    "category": "",
+    "tags": null
+  },
+  "prod_20d919fb-be15-4134-816f-4feecfc78439": {
+    "productID": "prod_20d919fb-be15-4134-816f-4feecfc78439",
+    "name": "Simulated Product bd75e2",
+    "description": "Created by simulation script",
+    "price": 248.5,
+    "stock": 174,
+    "category": "",
+    "tags": null
+  },
+  "prod_212ab954-26d8-40a9-a35e-210f6297801b": {
+    "productID": "prod_212ab954-26d8-40a9-a35e-210f6297801b",
+    "name": "Simulated Product 530825",
+    "description": "Created by simulation script",
+    "price": 373.4,
+    "stock": 144,
     "category": "",
     "tags": null
   },
@@ -446,6 +770,15 @@
     "description": "Created by simulation script",
     "price": 271.61,
     "stock": 34,
+    "category": "",
+    "tags": null
+  },
+  "prod_21baa96a-ea98-40e0-9770-ce073ba9261f": {
+    "productID": "prod_21baa96a-ea98-40e0-9770-ce073ba9261f",
+    "name": "Simulated Product 4a8cfa",
+    "description": "Created by simulation script",
+    "price": 113.38,
+    "stock": 56,
     "category": "",
     "tags": null
   },
@@ -463,7 +796,16 @@
     "name": "Simulated Product f114b8",
     "description": "Created by simulation script",
     "price": 339.15,
-    "stock": 99,
+    "stock": 86,
+    "category": "",
+    "tags": null
+  },
+  "prod_236fa4e3-a62e-4518-95a6-bb548781b379": {
+    "productID": "prod_236fa4e3-a62e-4518-95a6-bb548781b379",
+    "name": "Simulated Product 8a4e5f",
+    "description": "Created by simulation script",
+    "price": 50.62,
+    "stock": 91,
     "category": "",
     "tags": null
   },
@@ -472,7 +814,7 @@
     "name": "Simulated Product a827ae",
     "description": "Created by simulation script",
     "price": 384.91,
-    "stock": 39,
+    "stock": 100,
     "category": "",
     "tags": null
   },
@@ -481,7 +823,7 @@
     "name": "Simulated Product e74d09",
     "description": "Created by simulation script",
     "price": 232.78,
-    "stock": 113,
+    "stock": 88,
     "category": "",
     "tags": null
   },
@@ -494,12 +836,30 @@
     "category": "",
     "tags": null
   },
+  "prod_24c32aab-a611-49b1-a644-a7b864c9b2f1": {
+    "productID": "prod_24c32aab-a611-49b1-a644-a7b864c9b2f1",
+    "name": "Simulated Product 5cd2ba",
+    "description": "Created by simulation script",
+    "price": 249.98,
+    "stock": 111,
+    "category": "",
+    "tags": null
+  },
+  "prod_2519547d-93f3-4c22-8d07-449a3724758d": {
+    "productID": "prod_2519547d-93f3-4c22-8d07-449a3724758d",
+    "name": "Simulated Product 0b012f",
+    "description": "Created by simulation script",
+    "price": 40.78,
+    "stock": 20,
+    "category": "",
+    "tags": null
+  },
   "prod_2541bc1f-eb06-4688-b71f-e864d3f08d55": {
     "productID": "prod_2541bc1f-eb06-4688-b71f-e864d3f08d55",
     "name": "Simulated Product d0bfda",
     "description": "Created by simulation script",
     "price": 361.6,
-    "stock": 122,
+    "stock": 14,
     "category": "",
     "tags": null
   },
@@ -508,7 +868,7 @@
     "name": "Simulated Product 3936f0",
     "description": "Created by simulation script",
     "price": 5.74,
-    "stock": 158,
+    "stock": 32,
     "category": "",
     "tags": null
   },
@@ -517,7 +877,25 @@
     "name": "Simulated Product 015007",
     "description": "Created by simulation script",
     "price": 203.95,
-    "stock": 68,
+    "stock": 40,
+    "category": "",
+    "tags": null
+  },
+  "prod_2812eb44-682c-43c5-b5fe-8ec516701f3e": {
+    "productID": "prod_2812eb44-682c-43c5-b5fe-8ec516701f3e",
+    "name": "Simulated Product 9d3bf3",
+    "description": "Created by simulation script",
+    "price": 279.99,
+    "stock": 10,
+    "category": "",
+    "tags": null
+  },
+  "prod_286ddd3d-e580-421c-a614-e82bbdb81af8": {
+    "productID": "prod_286ddd3d-e580-421c-a614-e82bbdb81af8",
+    "name": "Simulated Product a2874c",
+    "description": "Created by simulation script",
+    "price": 29.45,
+    "stock": 85,
     "category": "",
     "tags": null
   },
@@ -544,7 +922,7 @@
     "name": "Simulated Product 844425",
     "description": "Created by simulation script",
     "price": 362.14,
-    "stock": 50,
+    "stock": 17,
     "category": "",
     "tags": null
   },
@@ -553,7 +931,7 @@
     "name": "Simulated Product 572d86",
     "description": "Created by simulation script",
     "price": 140.55,
-    "stock": 43,
+    "stock": 22,
     "category": "",
     "tags": null
   },
@@ -571,7 +949,7 @@
     "name": "Simulated Product 5d4b22",
     "description": "Created by simulation script",
     "price": 342.02,
-    "stock": 112,
+    "stock": 51,
     "category": "",
     "tags": null
   },
@@ -580,6 +958,15 @@
     "name": "Simulated Product b0b30d",
     "description": "Created by simulation script",
     "price": 310.7,
+    "stock": 46,
+    "category": "",
+    "tags": null
+  },
+  "prod_2c25feed-4d38-4928-afa3-b6ed87b4d993": {
+    "productID": "prod_2c25feed-4d38-4928-afa3-b6ed87b4d993",
+    "name": "Simulated Product b34083",
+    "description": "Created by simulation script",
+    "price": 147.9,
     "stock": 46,
     "category": "",
     "tags": null
@@ -607,7 +994,25 @@
     "name": "Simulated Product edb6b5",
     "description": "Created by simulation script",
     "price": 274.18,
-    "stock": 75,
+    "stock": 74,
+    "category": "",
+    "tags": null
+  },
+  "prod_2da074fb-077a-45d7-9e0b-823d5486bf84": {
+    "productID": "prod_2da074fb-077a-45d7-9e0b-823d5486bf84",
+    "name": "Simulated Product ce13de",
+    "description": "Created by simulation script",
+    "price": 316.53,
+    "stock": 18,
+    "category": "",
+    "tags": null
+  },
+  "prod_2dec3900-0f1c-454d-aa9a-329f332d3fa8": {
+    "productID": "prod_2dec3900-0f1c-454d-aa9a-329f332d3fa8",
+    "name": "Simulated Product 3a1c80",
+    "description": "Created by simulation script",
+    "price": 437.93,
+    "stock": 24,
     "category": "",
     "tags": null
   },
@@ -638,12 +1043,30 @@
     "category": "",
     "tags": null
   },
+  "prod_3073f788-b0ad-417e-8c6a-50482d07f850": {
+    "productID": "prod_3073f788-b0ad-417e-8c6a-50482d07f850",
+    "name": "Simulated Product dd7395",
+    "description": "Created by simulation script",
+    "price": 92.91,
+    "stock": 172,
+    "category": "",
+    "tags": null
+  },
+  "prod_30d2ad97-178b-4af6-ab84-2ab955363547": {
+    "productID": "prod_30d2ad97-178b-4af6-ab84-2ab955363547",
+    "name": "Simulated Product 85b5c4",
+    "description": "Created by simulation script",
+    "price": 448.7,
+    "stock": 10,
+    "category": "",
+    "tags": null
+  },
   "prod_3176de10-6600-4e31-9449-7f514c2a4b20": {
     "productID": "prod_3176de10-6600-4e31-9449-7f514c2a4b20",
     "name": "Simulated Product 872fb4",
     "description": "Created by simulation script",
     "price": 111.02,
-    "stock": 1,
+    "stock": 18,
     "category": "",
     "tags": null
   },
@@ -674,12 +1097,39 @@
     "category": "",
     "tags": null
   },
+  "prod_35f7d922-7357-4d89-9752-f07835c988ae": {
+    "productID": "prod_35f7d922-7357-4d89-9752-f07835c988ae",
+    "name": "Simulated Product 008e9d",
+    "description": "Created by simulation script",
+    "price": 30.27,
+    "stock": 179,
+    "category": "",
+    "tags": null
+  },
+  "prod_379775e6-b7f1-4215-ad9d-d13783ed027b": {
+    "productID": "prod_379775e6-b7f1-4215-ad9d-d13783ed027b",
+    "name": "Simulated Product 00ab05",
+    "description": "Created by simulation script",
+    "price": 225.52,
+    "stock": 79,
+    "category": "",
+    "tags": null
+  },
   "prod_38e64f3f-9104-4c48-bc19-1781807687c3": {
     "productID": "prod_38e64f3f-9104-4c48-bc19-1781807687c3",
     "name": "Simulated Product 980a62",
     "description": "Created by simulation script",
     "price": 407.17,
     "stock": 153,
+    "category": "",
+    "tags": null
+  },
+  "prod_393460e6-941d-40cf-8015-1d1bfc53b45a": {
+    "productID": "prod_393460e6-941d-40cf-8015-1d1bfc53b45a",
+    "name": "Simulated Product 6f99a6",
+    "description": "Created by simulation script",
+    "price": 322.65,
+    "stock": 37,
     "category": "",
     "tags": null
   },
@@ -706,7 +1156,7 @@
     "name": "Simulated Product b70568",
     "description": "Created by simulation script",
     "price": 348.93,
-    "stock": 91,
+    "stock": 36,
     "category": "",
     "tags": null
   },
@@ -715,7 +1165,7 @@
     "name": "Simulated Product 60f146",
     "description": "Created by simulation script",
     "price": 161.87,
-    "stock": 69,
+    "stock": 100,
     "category": "",
     "tags": null
   },
@@ -733,7 +1183,25 @@
     "name": "Simulated Product 9945b2",
     "description": "Created by simulation script",
     "price": 346,
-    "stock": 75,
+    "stock": 90,
+    "category": "",
+    "tags": null
+  },
+  "prod_3ce66db5-d1cd-4159-8cee-e46f1d2b1430": {
+    "productID": "prod_3ce66db5-d1cd-4159-8cee-e46f1d2b1430",
+    "name": "Simulated Product f89400",
+    "description": "Created by simulation script",
+    "price": 52.22,
+    "stock": 20,
+    "category": "",
+    "tags": null
+  },
+  "prod_3d114503-7162-4689-b33c-006b96013cfc": {
+    "productID": "prod_3d114503-7162-4689-b33c-006b96013cfc",
+    "name": "Simulated Product b5b078",
+    "description": "Created by simulation script",
+    "price": 274.37,
+    "stock": 40,
     "category": "",
     "tags": null
   },
@@ -751,7 +1219,25 @@
     "name": "Simulated Product 508ba0",
     "description": "Created by simulation script",
     "price": 215.17,
-    "stock": 189,
+    "stock": 17,
+    "category": "",
+    "tags": null
+  },
+  "prod_3ec9cc77-e07e-44c7-ac5e-7f33e97c56a4": {
+    "productID": "prod_3ec9cc77-e07e-44c7-ac5e-7f33e97c56a4",
+    "name": "Simulated Product dd1dac",
+    "description": "Created by simulation script",
+    "price": 187.52,
+    "stock": 65,
+    "category": "",
+    "tags": null
+  },
+  "prod_3f14e57f-bd25-46a0-921c-b0f1be5ef9cb": {
+    "productID": "prod_3f14e57f-bd25-46a0-921c-b0f1be5ef9cb",
+    "name": "Simulated Product 8ee380",
+    "description": "Created by simulation script",
+    "price": 35.44,
+    "stock": 81,
     "category": "",
     "tags": null
   },
@@ -760,7 +1246,16 @@
     "name": "Simulated Product 96d8af",
     "description": "Created by simulation script",
     "price": 92.47,
-    "stock": 6,
+    "stock": 30,
+    "category": "",
+    "tags": null
+  },
+  "prod_405d87ef-6097-428a-92bc-63ab02a2fde7": {
+    "productID": "prod_405d87ef-6097-428a-92bc-63ab02a2fde7",
+    "name": "Simulated Product 079205",
+    "description": "Created by simulation script",
+    "price": 401.24,
+    "stock": 95,
     "category": "",
     "tags": null
   },
@@ -769,7 +1264,16 @@
     "name": "Simulated Product 8604d7",
     "description": "Created by simulation script",
     "price": 141.53,
-    "stock": 58,
+    "stock": 65,
+    "category": "",
+    "tags": null
+  },
+  "prod_413dad31-d859-4f7b-82cf-68a4dff6a738": {
+    "productID": "prod_413dad31-d859-4f7b-82cf-68a4dff6a738",
+    "name": "Simulated Product c774dc",
+    "description": "Created by simulation script",
+    "price": 178.66,
+    "stock": 170,
     "category": "",
     "tags": null
   },
@@ -800,6 +1304,15 @@
     "category": "",
     "tags": null
   },
+  "prod_426d1e0e-3856-422a-ae44-7e151cae0dcf": {
+    "productID": "prod_426d1e0e-3856-422a-ae44-7e151cae0dcf",
+    "name": "Simulated Product 49902d",
+    "description": "Created by simulation script",
+    "price": 422.15,
+    "stock": 75,
+    "category": "",
+    "tags": null
+  },
   "prod_43b1d805-76ee-4153-a567-fd924c284b59": {
     "productID": "prod_43b1d805-76ee-4153-a567-fd924c284b59",
     "name": "Simulated Product 7ea0b2",
@@ -814,7 +1327,7 @@
     "name": "Simulated Product 754266",
     "description": "Created by simulation script",
     "price": 309.56,
-    "stock": 168,
+    "stock": 17,
     "category": "",
     "tags": null
   },
@@ -827,12 +1340,30 @@
     "category": "",
     "tags": null
   },
+  "prod_444aa16a-510c-44fc-b3b4-12a22cf3434c": {
+    "productID": "prod_444aa16a-510c-44fc-b3b4-12a22cf3434c",
+    "name": "Simulated Product b17ec0",
+    "description": "Created by simulation script",
+    "price": 327.57,
+    "stock": 58,
+    "category": "",
+    "tags": null
+  },
   "prod_445f9d0e-d70c-4945-b50a-7041009f80b2": {
     "productID": "prod_445f9d0e-d70c-4945-b50a-7041009f80b2",
     "name": "Simulated Product 6b984a",
     "description": "Created by simulation script",
     "price": 134.91,
-    "stock": 36,
+    "stock": 39,
+    "category": "",
+    "tags": null
+  },
+  "prod_462e3ada-f4e1-46eb-9999-9b0c5ddcc103": {
+    "productID": "prod_462e3ada-f4e1-46eb-9999-9b0c5ddcc103",
+    "name": "Simulated Product 6d6243",
+    "description": "Created by simulation script",
+    "price": 321.61,
+    "stock": 137,
     "category": "",
     "tags": null
   },
@@ -841,7 +1372,16 @@
     "name": "Simulated Product d1ea74",
     "description": "Created by simulation script",
     "price": 445.7,
-    "stock": 91,
+    "stock": 62,
+    "category": "",
+    "tags": null
+  },
+  "prod_466f4dae-b3bc-49ba-b511-481c646dd772": {
+    "productID": "prod_466f4dae-b3bc-49ba-b511-481c646dd772",
+    "name": "Simulated Product 1fb11f",
+    "description": "Created by simulation script",
+    "price": 10.66,
+    "stock": 144,
     "category": "",
     "tags": null
   },
@@ -854,12 +1394,30 @@
     "category": "",
     "tags": null
   },
+  "prod_46ac1338-0471-4362-b6cd-1826a20352a6": {
+    "productID": "prod_46ac1338-0471-4362-b6cd-1826a20352a6",
+    "name": "Simulated Product 6addb0",
+    "description": "Created by simulation script",
+    "price": 463.88,
+    "stock": 199,
+    "category": "",
+    "tags": null
+  },
   "prod_46b1b90c-4b08-498e-b4b5-5a5942dd4989": {
     "productID": "prod_46b1b90c-4b08-498e-b4b5-5a5942dd4989",
     "name": "Simulated Product 4d005a",
     "description": "Created by simulation script",
     "price": 431.61,
-    "stock": 189,
+    "stock": 9,
+    "category": "",
+    "tags": null
+  },
+  "prod_4709bc34-a14d-4515-9486-d299a8c5c4a3": {
+    "productID": "prod_4709bc34-a14d-4515-9486-d299a8c5c4a3",
+    "name": "Simulated Product 2d7a09",
+    "description": "Created by simulation script",
+    "price": 328.55,
+    "stock": 180,
     "category": "",
     "tags": null
   },
@@ -877,7 +1435,7 @@
     "name": "Simulated Product 3304cc",
     "description": "Created by simulation script",
     "price": 159.52,
-    "stock": 31,
+    "stock": 66,
     "category": "",
     "tags": null
   },
@@ -886,7 +1444,7 @@
     "name": "Simulated Product fd1d37",
     "description": "Created by simulation script",
     "price": 13.4,
-    "stock": 84,
+    "stock": 59,
     "category": "",
     "tags": null
   },
@@ -913,7 +1471,7 @@
     "name": "Simulated Product 1b8856",
     "description": "Created by simulation script",
     "price": 319.65,
-    "stock": 52,
+    "stock": 82,
     "category": "",
     "tags": null
   },
@@ -935,12 +1493,30 @@
     "category": "",
     "tags": null
   },
+  "prod_4c53c3de-fc51-4238-8330-92ad490f1f99": {
+    "productID": "prod_4c53c3de-fc51-4238-8330-92ad490f1f99",
+    "name": "Simulated Product 7d1380",
+    "description": "Created by simulation script",
+    "price": 499.42,
+    "stock": 165,
+    "category": "",
+    "tags": null
+  },
   "prod_4cd91f7e-20a3-4587-ac60-7fab49860648": {
     "productID": "prod_4cd91f7e-20a3-4587-ac60-7fab49860648",
     "name": "Simulated Product 95b869",
     "description": "Created by simulation script",
     "price": 333.15,
     "stock": 108,
+    "category": "",
+    "tags": null
+  },
+  "prod_4ceb3ee1-4591-4d67-8567-35ac5d4f52fa": {
+    "productID": "prod_4ceb3ee1-4591-4d67-8567-35ac5d4f52fa",
+    "name": "Simulated Product 8d1e19",
+    "description": "Created by simulation script",
+    "price": 206.59,
+    "stock": 47,
     "category": "",
     "tags": null
   },
@@ -953,12 +1529,21 @@
     "category": "",
     "tags": null
   },
+  "prod_4d56bd13-d886-4946-877c-6f4660bdc658": {
+    "productID": "prod_4d56bd13-d886-4946-877c-6f4660bdc658",
+    "name": "Simulated Product a2365c",
+    "description": "Created by simulation script",
+    "price": 251.74,
+    "stock": 99,
+    "category": "",
+    "tags": null
+  },
   "prod_4e6bbd71-9de6-460f-93ae-c2642b9adc15": {
     "productID": "prod_4e6bbd71-9de6-460f-93ae-c2642b9adc15",
     "name": "Simulated Product a1b615",
     "description": "Created by simulation script",
     "price": 215.62,
-    "stock": 45,
+    "stock": 29,
     "category": "",
     "tags": null
   },
@@ -977,6 +1562,33 @@
     "description": "Created by simulation script",
     "price": 130.61,
     "stock": 94,
+    "category": "",
+    "tags": null
+  },
+  "prod_4f12bf02-80c6-4422-b4f9-58683af8e386": {
+    "productID": "prod_4f12bf02-80c6-4422-b4f9-58683af8e386",
+    "name": "Simulated Product 236e2b",
+    "description": "Created by simulation script",
+    "price": 6.02,
+    "stock": 65,
+    "category": "",
+    "tags": null
+  },
+  "prod_4f637314-d951-4ddd-88fc-0f2b4b8e9db6": {
+    "productID": "prod_4f637314-d951-4ddd-88fc-0f2b4b8e9db6",
+    "name": "Simulated Product 7c5fdd",
+    "description": "Created by simulation script",
+    "price": 209.83,
+    "stock": 114,
+    "category": "",
+    "tags": null
+  },
+  "prod_4fd98886-bced-45c2-9c97-2be9d68265fb": {
+    "productID": "prod_4fd98886-bced-45c2-9c97-2be9d68265fb",
+    "name": "Simulated Product e2fe32",
+    "description": "Created by simulation script",
+    "price": 132.74,
+    "stock": 148,
     "category": "",
     "tags": null
   },
@@ -1004,6 +1616,15 @@
     "description": "Created by simulation script",
     "price": 24.67,
     "stock": 94,
+    "category": "",
+    "tags": null
+  },
+  "prod_512472d4-04b5-45e7-989b-6aec9785078c": {
+    "productID": "prod_512472d4-04b5-45e7-989b-6aec9785078c",
+    "name": "Simulated Product ca30a5",
+    "description": "Created by simulation script",
+    "price": 415.53,
+    "stock": 121,
     "category": "",
     "tags": null
   },
@@ -1048,7 +1669,16 @@
     "name": "Simulated Product a6aae5",
     "description": "Created by simulation script",
     "price": 389.42,
-    "stock": 85,
+    "stock": 80,
+    "category": "",
+    "tags": null
+  },
+  "prod_54d704f4-05e2-434a-aa26-d307020e31d7": {
+    "productID": "prod_54d704f4-05e2-434a-aa26-d307020e31d7",
+    "name": "Simulated Product 23100a",
+    "description": "Created by simulation script",
+    "price": 216.13,
+    "stock": 68,
     "category": "",
     "tags": null
   },
@@ -1057,7 +1687,7 @@
     "name": "Simulated Product 2a68c2",
     "description": "Created by simulation script",
     "price": 139.85,
-    "stock": 159,
+    "stock": 3,
     "category": "",
     "tags": null
   },
@@ -1066,7 +1696,16 @@
     "name": "Simulated Product 6b84ca",
     "description": "Created by simulation script",
     "price": 428.61,
-    "stock": 29,
+    "stock": 88,
+    "category": "",
+    "tags": null
+  },
+  "prod_579591e2-eb19-4a6d-8a2a-49470bfd7022": {
+    "productID": "prod_579591e2-eb19-4a6d-8a2a-49470bfd7022",
+    "name": "Simulated Product b5a74b",
+    "description": "Created by simulation script",
+    "price": 299.59,
+    "stock": 37,
     "category": "",
     "tags": null
   },
@@ -1075,7 +1714,7 @@
     "name": "Simulated Product 5856e4",
     "description": "Created by simulation script",
     "price": 270.14,
-    "stock": 141,
+    "stock": 17,
     "category": "",
     "tags": null
   },
@@ -1097,12 +1736,48 @@
     "category": "",
     "tags": null
   },
+  "prod_5ac50e6e-9989-4074-b3d6-1a22ddff37d3": {
+    "productID": "prod_5ac50e6e-9989-4074-b3d6-1a22ddff37d3",
+    "name": "Simulated Product 3f936e",
+    "description": "Created by simulation script",
+    "price": 453.3,
+    "stock": 195,
+    "category": "",
+    "tags": null
+  },
+  "prod_5b078ded-7e2d-4ea6-82ae-363443b167f8": {
+    "productID": "prod_5b078ded-7e2d-4ea6-82ae-363443b167f8",
+    "name": "Simulated Product b02f99",
+    "description": "Created by simulation script",
+    "price": 326.87,
+    "stock": 125,
+    "category": "",
+    "tags": null
+  },
+  "prod_5b4d88ac-72b7-4eb8-9b07-464038c8f37a": {
+    "productID": "prod_5b4d88ac-72b7-4eb8-9b07-464038c8f37a",
+    "name": "Simulated Product 1069c1",
+    "description": "Created by simulation script",
+    "price": 278.68,
+    "stock": 113,
+    "category": "",
+    "tags": null
+  },
+  "prod_5b770c90-099a-487a-b9da-78649cee60ce": {
+    "productID": "prod_5b770c90-099a-487a-b9da-78649cee60ce",
+    "name": "Simulated Product cd2c68",
+    "description": "Created by simulation script",
+    "price": 254.3,
+    "stock": 146,
+    "category": "",
+    "tags": null
+  },
   "prod_5b97bd99-e847-4a5f-ab32-cfddf7219ade": {
     "productID": "prod_5b97bd99-e847-4a5f-ab32-cfddf7219ade",
     "name": "Simulated Product 6d7229",
     "description": "Created by simulation script",
     "price": 20.35,
-    "stock": 29,
+    "stock": 40,
     "category": "",
     "tags": null
   },
@@ -1112,6 +1787,15 @@
     "description": "Created by simulation script",
     "price": 289.06,
     "stock": 61,
+    "category": "",
+    "tags": null
+  },
+  "prod_5c26ad1d-8269-43c7-b958-4b8787811d9f": {
+    "productID": "prod_5c26ad1d-8269-43c7-b958-4b8787811d9f",
+    "name": "Simulated Product d86e33",
+    "description": "Created by simulation script",
+    "price": 487.1,
+    "stock": 170,
     "category": "",
     "tags": null
   },
@@ -1133,12 +1817,48 @@
     "category": "",
     "tags": null
   },
+  "prod_5db5509a-fbef-4350-8f77-29ce522db703": {
+    "productID": "prod_5db5509a-fbef-4350-8f77-29ce522db703",
+    "name": "Simulated Product e41263",
+    "description": "Created by simulation script",
+    "price": 339.39,
+    "stock": 117,
+    "category": "",
+    "tags": null
+  },
+  "prod_5e322da5-af0a-41c6-8534-2fd3ecd15896": {
+    "productID": "prod_5e322da5-af0a-41c6-8534-2fd3ecd15896",
+    "name": "Simulated Product 9d762e",
+    "description": "Created by simulation script",
+    "price": 174.71,
+    "stock": 2,
+    "category": "",
+    "tags": null
+  },
   "prod_5ea96f1b-e28f-4d5d-9f27-4c96abf462f7": {
     "productID": "prod_5ea96f1b-e28f-4d5d-9f27-4c96abf462f7",
     "name": "Simulated Product 88cb65",
     "description": "Created by simulation script",
     "price": 136.69,
     "stock": 104,
+    "category": "",
+    "tags": null
+  },
+  "prod_5f1b142d-7539-4dd1-960a-09d5803fe3eb": {
+    "productID": "prod_5f1b142d-7539-4dd1-960a-09d5803fe3eb",
+    "name": "Simulated Product 89142a",
+    "description": "Created by simulation script",
+    "price": 243.73,
+    "stock": 198,
+    "category": "",
+    "tags": null
+  },
+  "prod_5f3d17bd-d68d-4fb2-8ce0-4a178d6c42c7": {
+    "productID": "prod_5f3d17bd-d68d-4fb2-8ce0-4a178d6c42c7",
+    "name": "Simulated Product 819469",
+    "description": "Created by simulation script",
+    "price": 146.13,
+    "stock": 26,
     "category": "",
     "tags": null
   },
@@ -1157,6 +1877,15 @@
     "description": "Created by simulation script",
     "price": 228.35,
     "stock": 44,
+    "category": "",
+    "tags": null
+  },
+  "prod_5f965fdf-3521-424a-adf6-f7f3d0c08246": {
+    "productID": "prod_5f965fdf-3521-424a-adf6-f7f3d0c08246",
+    "name": "Simulated Product f0fac7",
+    "description": "Created by simulation script",
+    "price": 76.78,
+    "stock": 38,
     "category": "",
     "tags": null
   },
@@ -1192,7 +1921,7 @@
     "name": "Simulated Product b01a00",
     "description": "Created by simulation script",
     "price": 217.74,
-    "stock": 19,
+    "stock": 100,
     "category": "",
     "tags": null
   },
@@ -1228,7 +1957,25 @@
     "name": "Simulated Product 151d07",
     "description": "Created by simulation script",
     "price": 152.94,
-    "stock": 60,
+    "stock": 30,
+    "category": "",
+    "tags": null
+  },
+  "prod_62128d98-ce0d-4e40-8832-433b8f8af59a": {
+    "productID": "prod_62128d98-ce0d-4e40-8832-433b8f8af59a",
+    "name": "Simulated Product a46aa9",
+    "description": "Created by simulation script",
+    "price": 345.52,
+    "stock": 161,
+    "category": "",
+    "tags": null
+  },
+  "prod_63707638-3792-496a-a897-c1d2e1d5b4e1": {
+    "productID": "prod_63707638-3792-496a-a897-c1d2e1d5b4e1",
+    "name": "Simulated Product e404aa",
+    "description": "Created by simulation script",
+    "price": 59.78,
+    "stock": 162,
     "category": "",
     "tags": null
   },
@@ -1238,6 +1985,33 @@
     "description": "Created by simulation script",
     "price": 481.04,
     "stock": 41,
+    "category": "",
+    "tags": null
+  },
+  "prod_63dadef3-36cf-4b2b-a6ef-7bff6a922514": {
+    "productID": "prod_63dadef3-36cf-4b2b-a6ef-7bff6a922514",
+    "name": "Simulated Product c2a8ca",
+    "description": "Created by simulation script",
+    "price": 486.1,
+    "stock": 28,
+    "category": "",
+    "tags": null
+  },
+  "prod_640d0a54-e38d-4d42-b122-b8419a8601be": {
+    "productID": "prod_640d0a54-e38d-4d42-b122-b8419a8601be",
+    "name": "Simulated Product dc0b20",
+    "description": "Created by simulation script",
+    "price": 100.21,
+    "stock": 47,
+    "category": "",
+    "tags": null
+  },
+  "prod_643e4b6f-943f-4a7c-988f-63dcf567fbcc": {
+    "productID": "prod_643e4b6f-943f-4a7c-988f-63dcf567fbcc",
+    "name": "Simulated Product ffc444",
+    "description": "Created by simulation script",
+    "price": 45.44,
+    "stock": 126,
     "category": "",
     "tags": null
   },
@@ -1259,12 +2033,21 @@
     "category": "",
     "tags": null
   },
+  "prod_65643731-fd70-47ac-855d-154a63ba54a6": {
+    "productID": "prod_65643731-fd70-47ac-855d-154a63ba54a6",
+    "name": "Simulated Product 81b80f",
+    "description": "Created by simulation script",
+    "price": 164.6,
+    "stock": 72,
+    "category": "",
+    "tags": null
+  },
   "prod_6589f921-a21b-4aae-8ae5-02f75374c1c1": {
     "productID": "prod_6589f921-a21b-4aae-8ae5-02f75374c1c1",
     "name": "Simulated Product e5b2f9",
     "description": "Created by simulation script",
     "price": 386.45,
-    "stock": 81,
+    "stock": 77,
     "category": "",
     "tags": null
   },
@@ -1282,7 +2065,7 @@
     "name": "Simulated Product fa4f1e",
     "description": "Created by simulation script",
     "price": 60.42,
-    "stock": 152,
+    "stock": 81,
     "category": "",
     "tags": null
   },
@@ -1300,7 +2083,7 @@
     "name": "Simulated Product f9bda8",
     "description": "Created by simulation script",
     "price": 15.49,
-    "stock": 138,
+    "stock": 71,
     "category": "",
     "tags": null
   },
@@ -1310,6 +2093,24 @@
     "description": "Created by simulation script",
     "price": 496.29,
     "stock": 169,
+    "category": "",
+    "tags": null
+  },
+  "prod_67b4495b-0b8c-4f22-a9f0-1f0bb42aeb1f": {
+    "productID": "prod_67b4495b-0b8c-4f22-a9f0-1f0bb42aeb1f",
+    "name": "Simulated Product b1dad9",
+    "description": "Created by simulation script",
+    "price": 358.73,
+    "stock": 29,
+    "category": "",
+    "tags": null
+  },
+  "prod_67dc0288-5e49-4717-8a37-5bfa7c75da3c": {
+    "productID": "prod_67dc0288-5e49-4717-8a37-5bfa7c75da3c",
+    "name": "Simulated Product 5cfbab",
+    "description": "Created by simulation script",
+    "price": 386.36,
+    "stock": 63,
     "category": "",
     "tags": null
   },
@@ -1327,7 +2128,7 @@
     "name": "Simulated Product 83c98d",
     "description": "Created by simulation script",
     "price": 403.27,
-    "stock": 61,
+    "stock": 41,
     "category": "",
     "tags": null
   },
@@ -1340,12 +2141,75 @@
     "category": "",
     "tags": null
   },
+  "prod_694902f8-669d-47e0-868b-ed17b3c93476": {
+    "productID": "prod_694902f8-669d-47e0-868b-ed17b3c93476",
+    "name": "Simulated Product e7fdf2",
+    "description": "Created by simulation script",
+    "price": 38.72,
+    "stock": 84,
+    "category": "",
+    "tags": null
+  },
+  "prod_694e93fe-8da4-44e5-8e88-df36080cc5eb": {
+    "productID": "prod_694e93fe-8da4-44e5-8e88-df36080cc5eb",
+    "name": "Simulated Product c48fec",
+    "description": "Created by simulation script",
+    "price": 149.17,
+    "stock": 176,
+    "category": "",
+    "tags": null
+  },
+  "prod_69812687-f821-41d6-a1b8-1e38441f9c6a": {
+    "productID": "prod_69812687-f821-41d6-a1b8-1e38441f9c6a",
+    "name": "Simulated Product 8b3cfa",
+    "description": "Created by simulation script",
+    "price": 309.44,
+    "stock": 46,
+    "category": "",
+    "tags": null
+  },
+  "prod_69ac5b40-6b9e-410f-9880-f43cd1405dc7": {
+    "productID": "prod_69ac5b40-6b9e-410f-9880-f43cd1405dc7",
+    "name": "Simulated Product fa6866",
+    "description": "Created by simulation script",
+    "price": 439.91,
+    "stock": 42,
+    "category": "",
+    "tags": null
+  },
+  "prod_6a21436f-1e3e-4e15-8cb2-5fce9fd44de1": {
+    "productID": "prod_6a21436f-1e3e-4e15-8cb2-5fce9fd44de1",
+    "name": "Simulated Product 6249f7",
+    "description": "Created by simulation script",
+    "price": 499.19,
+    "stock": 114,
+    "category": "",
+    "tags": null
+  },
   "prod_6a2b1a95-c7b1-4d71-b2c5-3e46e38cd858": {
     "productID": "prod_6a2b1a95-c7b1-4d71-b2c5-3e46e38cd858",
     "name": "Simulated Product 9b6b07",
     "description": "Created by simulation script",
     "price": 359.38,
     "stock": 100,
+    "category": "",
+    "tags": null
+  },
+  "prod_6ae80fb8-98c3-4615-83fe-7937bcff862f": {
+    "productID": "prod_6ae80fb8-98c3-4615-83fe-7937bcff862f",
+    "name": "Simulated Product 04967f",
+    "description": "Created by simulation script",
+    "price": 365.78,
+    "stock": 1,
+    "category": "",
+    "tags": null
+  },
+  "prod_6b599455-2d14-41f6-947d-b0c7901ce13e": {
+    "productID": "prod_6b599455-2d14-41f6-947d-b0c7901ce13e",
+    "name": "Simulated Product c55520",
+    "description": "Created by simulation script",
+    "price": 53.46,
+    "stock": 8,
     "category": "",
     "tags": null
   },
@@ -1367,6 +2231,15 @@
     "category": "",
     "tags": null
   },
+  "prod_6d474afd-88a9-4cdc-88b1-ed299601ab29": {
+    "productID": "prod_6d474afd-88a9-4cdc-88b1-ed299601ab29",
+    "name": "Simulated Product bb3ecf",
+    "description": "Created by simulation script",
+    "price": 112.83,
+    "stock": 133,
+    "category": "",
+    "tags": null
+  },
   "prod_6e9b4bb6-a739-4a91-9514-6a9ad7a8f593": {
     "productID": "prod_6e9b4bb6-a739-4a91-9514-6a9ad7a8f593",
     "name": "Simulated Product 996a66",
@@ -1381,7 +2254,7 @@
     "name": "Simulated Product e1fd6a",
     "description": "Created by simulation script",
     "price": 306.46,
-    "stock": 93,
+    "stock": 80,
     "category": "",
     "tags": null
   },
@@ -1403,6 +2276,24 @@
     "category": "",
     "tags": null
   },
+  "prod_6f39c4a3-e3da-48db-b508-e232fd95c152": {
+    "productID": "prod_6f39c4a3-e3da-48db-b508-e232fd95c152",
+    "name": "Simulated Product 0feee7",
+    "description": "Created by simulation script",
+    "price": 347.24,
+    "stock": 68,
+    "category": "",
+    "tags": null
+  },
+  "prod_6fe4c8f4-1605-4298-9c5d-fc9cd8ad0555": {
+    "productID": "prod_6fe4c8f4-1605-4298-9c5d-fc9cd8ad0555",
+    "name": "Simulated Product 1d4634",
+    "description": "Created by simulation script",
+    "price": 405.05,
+    "stock": 119,
+    "category": "",
+    "tags": null
+  },
   "prod_70386632-b798-46b4-be72-aa3c964c0f2f": {
     "productID": "prod_70386632-b798-46b4-be72-aa3c964c0f2f",
     "name": "Simulated Product 3d8221",
@@ -1418,6 +2309,33 @@
     "description": "Created by simulation script",
     "price": 197.64,
     "stock": 72,
+    "category": "",
+    "tags": null
+  },
+  "prod_7097b74e-ffb9-46e6-84df-d4149288b9f7": {
+    "productID": "prod_7097b74e-ffb9-46e6-84df-d4149288b9f7",
+    "name": "Simulated Product 20fa0d",
+    "description": "Created by simulation script",
+    "price": 32.14,
+    "stock": 176,
+    "category": "",
+    "tags": null
+  },
+  "prod_70d74e48-a4f2-48f2-89a7-70c455290fa0": {
+    "productID": "prod_70d74e48-a4f2-48f2-89a7-70c455290fa0",
+    "name": "Simulated Product e1ae42",
+    "description": "Created by simulation script",
+    "price": 271.7,
+    "stock": 168,
+    "category": "",
+    "tags": null
+  },
+  "prod_713e7626-2b92-48ee-8967-a01d24d361e0": {
+    "productID": "prod_713e7626-2b92-48ee-8967-a01d24d361e0",
+    "name": "Simulated Product f90b4d",
+    "description": "Created by simulation script",
+    "price": 346.96,
+    "stock": 107,
     "category": "",
     "tags": null
   },
@@ -1448,12 +2366,21 @@
     "category": "",
     "tags": null
   },
+  "prod_723513e9-d401-49e5-8e18-afd0c76cf246": {
+    "productID": "prod_723513e9-d401-49e5-8e18-afd0c76cf246",
+    "name": "Simulated Product a51eec",
+    "description": "Created by simulation script",
+    "price": 258.12,
+    "stock": 130,
+    "category": "",
+    "tags": null
+  },
   "prod_72a15eb0-b2a1-44ed-b039-3bccfcd22e63": {
     "productID": "prod_72a15eb0-b2a1-44ed-b039-3bccfcd22e63",
     "name": "Simulated Product b1ead5",
     "description": "Created by simulation script",
     "price": 88.21,
-    "stock": 86,
+    "stock": 79,
     "category": "",
     "tags": null
   },
@@ -1462,7 +2389,16 @@
     "name": "Simulated Product d146f1",
     "description": "Created by simulation script",
     "price": 308.46,
-    "stock": 94,
+    "stock": 80,
+    "category": "",
+    "tags": null
+  },
+  "prod_73366a30-7088-406f-b767-384f08cf8e74": {
+    "productID": "prod_73366a30-7088-406f-b767-384f08cf8e74",
+    "name": "Simulated Product bc9c36",
+    "description": "Created by simulation script",
+    "price": 297.82,
+    "stock": 177,
     "category": "",
     "tags": null
   },
@@ -1471,7 +2407,16 @@
     "name": "Simulated Product 63acb2",
     "description": "Created by simulation script",
     "price": 345.02,
-    "stock": 136,
+    "stock": 57,
+    "category": "",
+    "tags": null
+  },
+  "prod_73913529-2e7f-4659-ad99-b181316449f7": {
+    "productID": "prod_73913529-2e7f-4659-ad99-b181316449f7",
+    "name": "Simulated Product 605da6",
+    "description": "Created by simulation script",
+    "price": 362.21,
+    "stock": 80,
     "category": "",
     "tags": null
   },
@@ -1490,6 +2435,42 @@
     "description": "Created by simulation script",
     "price": 336.54,
     "stock": 42,
+    "category": "",
+    "tags": null
+  },
+  "prod_74714ff7-02f2-4cd2-a7de-4b1c014c9b39": {
+    "productID": "prod_74714ff7-02f2-4cd2-a7de-4b1c014c9b39",
+    "name": "Simulated Product 24205c",
+    "description": "Created by simulation script",
+    "price": 263.17,
+    "stock": 51,
+    "category": "",
+    "tags": null
+  },
+  "prod_74956cd7-66e9-4daa-93ad-c9ab5964c487": {
+    "productID": "prod_74956cd7-66e9-4daa-93ad-c9ab5964c487",
+    "name": "Simulated Product 179e86",
+    "description": "Created by simulation script",
+    "price": 371.5,
+    "stock": 62,
+    "category": "",
+    "tags": null
+  },
+  "prod_74c0940e-c219-4f9b-bf2f-8fd44009780d": {
+    "productID": "prod_74c0940e-c219-4f9b-bf2f-8fd44009780d",
+    "name": "Simulated Product f6b789",
+    "description": "Created by simulation script",
+    "price": 394.97,
+    "stock": 49,
+    "category": "",
+    "tags": null
+  },
+  "prod_7522ed7b-4ea5-45f4-9dbd-244849938ae7": {
+    "productID": "prod_7522ed7b-4ea5-45f4-9dbd-244849938ae7",
+    "name": "Simulated Product 88ed4d",
+    "description": "Created by simulation script",
+    "price": 205.51,
+    "stock": 90,
     "category": "",
     "tags": null
   },
@@ -1525,7 +2506,7 @@
     "name": "Simulated Product 4dc3c2",
     "description": "Created by simulation script",
     "price": 353.96,
-    "stock": 2,
+    "stock": 29,
     "category": "",
     "tags": null
   },
@@ -1538,12 +2519,39 @@
     "category": "",
     "tags": null
   },
+  "prod_7746a611-0f47-4d68-804e-a3e9e9b62893": {
+    "productID": "prod_7746a611-0f47-4d68-804e-a3e9e9b62893",
+    "name": "Simulated Product 2fd1e5",
+    "description": "Created by simulation script",
+    "price": 371.43,
+    "stock": 183,
+    "category": "",
+    "tags": null
+  },
+  "prod_774b077d-12ce-4c06-865f-61d114d75434": {
+    "productID": "prod_774b077d-12ce-4c06-865f-61d114d75434",
+    "name": "Simulated Product 627cc7",
+    "description": "Created by simulation script",
+    "price": 101.42,
+    "stock": 33,
+    "category": "",
+    "tags": null
+  },
   "prod_775c3e96-0fa0-4a89-a92f-464128a07be7": {
     "productID": "prod_775c3e96-0fa0-4a89-a92f-464128a07be7",
     "name": "Simulated Product c7ea05",
     "description": "Created by simulation script",
     "price": 41.52,
     "stock": 78,
+    "category": "",
+    "tags": null
+  },
+  "prod_77bbc444-f91b-457d-a124-0a25caa3e332": {
+    "productID": "prod_77bbc444-f91b-457d-a124-0a25caa3e332",
+    "name": "Simulated Product b9e039",
+    "description": "Created by simulation script",
+    "price": 214.63,
+    "stock": 7,
     "category": "",
     "tags": null
   },
@@ -1574,6 +2582,15 @@
     "category": "",
     "tags": null
   },
+  "prod_7a64cef0-7e73-4d3f-8008-7415c5c78fe7": {
+    "productID": "prod_7a64cef0-7e73-4d3f-8008-7415c5c78fe7",
+    "name": "Simulated Product 53ff90",
+    "description": "Created by simulation script",
+    "price": 400.27,
+    "stock": 193,
+    "category": "",
+    "tags": null
+  },
   "prod_7a8cc378-765d-42de-97b6-836cfe460763": {
     "productID": "prod_7a8cc378-765d-42de-97b6-836cfe460763",
     "name": "Simulated Product 6c48a8",
@@ -1583,12 +2600,48 @@
     "category": "",
     "tags": null
   },
+  "prod_7aa85462-0165-497c-aa79-84e5e12f4582": {
+    "productID": "prod_7aa85462-0165-497c-aa79-84e5e12f4582",
+    "name": "Simulated Product 20508e",
+    "description": "Created by simulation script",
+    "price": 70.83,
+    "stock": 190,
+    "category": "",
+    "tags": null
+  },
+  "prod_7aa93c00-9de3-4c8b-a106-b02be403f0c6": {
+    "productID": "prod_7aa93c00-9de3-4c8b-a106-b02be403f0c6",
+    "name": "Simulated Product 91f8ee",
+    "description": "Created by simulation script",
+    "price": 341.63,
+    "stock": 67,
+    "category": "",
+    "tags": null
+  },
+  "prod_7ad25d6d-586c-40b6-853e-534ec8baa9b1": {
+    "productID": "prod_7ad25d6d-586c-40b6-853e-534ec8baa9b1",
+    "name": "Simulated Product 052026",
+    "description": "Created by simulation script",
+    "price": 271.49,
+    "stock": 92,
+    "category": "",
+    "tags": null
+  },
   "prod_7c945f87-869c-42b7-8e50-b3e82525339a": {
     "productID": "prod_7c945f87-869c-42b7-8e50-b3e82525339a",
     "name": "Simulated Product d91c03",
     "description": "Created by simulation script",
     "price": 91.21,
-    "stock": 172,
+    "stock": 41,
+    "category": "",
+    "tags": null
+  },
+  "prod_7ca76652-f465-4629-b437-e6a9645bc620": {
+    "productID": "prod_7ca76652-f465-4629-b437-e6a9645bc620",
+    "name": "Simulated Product 639267",
+    "description": "Created by simulation script",
+    "price": 294.85,
+    "stock": 77,
     "category": "",
     "tags": null
   },
@@ -1597,7 +2650,7 @@
     "name": "Simulated Product 5dde51",
     "description": "Created by simulation script",
     "price": 479.57,
-    "stock": 64,
+    "stock": 30,
     "category": "",
     "tags": null
   },
@@ -1606,7 +2659,25 @@
     "name": "Simulated Product 96100f",
     "description": "Created by simulation script",
     "price": 465.9,
-    "stock": 2,
+    "stock": 85,
+    "category": "",
+    "tags": null
+  },
+  "prod_7e1261e5-c515-4e49-91ec-51c3e937f622": {
+    "productID": "prod_7e1261e5-c515-4e49-91ec-51c3e937f622",
+    "name": "Simulated Product 88ead4",
+    "description": "Created by simulation script",
+    "price": 381.38,
+    "stock": 176,
+    "category": "",
+    "tags": null
+  },
+  "prod_7e41d7ca-6e05-4e43-8f39-6b51dfe1e647": {
+    "productID": "prod_7e41d7ca-6e05-4e43-8f39-6b51dfe1e647",
+    "name": "Simulated Product 388199",
+    "description": "Created by simulation script",
+    "price": 112.94,
+    "stock": 170,
     "category": "",
     "tags": null
   },
@@ -1616,6 +2687,15 @@
     "description": "Created by simulation script",
     "price": 419.65,
     "stock": 186,
+    "category": "",
+    "tags": null
+  },
+  "prod_7e7b2272-765a-4ddb-aeb6-5d7fc1a64386": {
+    "productID": "prod_7e7b2272-765a-4ddb-aeb6-5d7fc1a64386",
+    "name": "Simulated Product 79c978",
+    "description": "Created by simulation script",
+    "price": 194.59,
+    "stock": 47,
     "category": "",
     "tags": null
   },
@@ -1642,7 +2722,7 @@
     "name": "Simulated Product 7141b2",
     "description": "Created by simulation script",
     "price": 328.09,
-    "stock": 16,
+    "stock": 62,
     "category": "",
     "tags": null
   },
@@ -1660,7 +2740,7 @@
     "name": "Simulated Product e4ce78",
     "description": "Created by simulation script",
     "price": 285.36,
-    "stock": 200,
+    "stock": 45,
     "category": "",
     "tags": null
   },
@@ -1678,7 +2758,16 @@
     "name": "Simulated Product cba283",
     "description": "Created by simulation script",
     "price": 241.37,
-    "stock": 2,
+    "stock": 29,
+    "category": "",
+    "tags": null
+  },
+  "prod_8233496e-3530-413e-9aa7-9e305d1b9794": {
+    "productID": "prod_8233496e-3530-413e-9aa7-9e305d1b9794",
+    "name": "Simulated Product 3ca6ac",
+    "description": "Created by simulation script",
+    "price": 215.61,
+    "stock": 143,
     "category": "",
     "tags": null
   },
@@ -1691,6 +2780,24 @@
     "category": "",
     "tags": null
   },
+  "prod_83033a5e-236d-4ab4-9d56-cbe0b92c5732": {
+    "productID": "prod_83033a5e-236d-4ab4-9d56-cbe0b92c5732",
+    "name": "Simulated Product 48d7a7",
+    "description": "Created by simulation script",
+    "price": 64.98,
+    "stock": 128,
+    "category": "",
+    "tags": null
+  },
+  "prod_83e09a21-bd32-45dc-a32c-7221f561eae8": {
+    "productID": "prod_83e09a21-bd32-45dc-a32c-7221f561eae8",
+    "name": "Simulated Product a6a1f8",
+    "description": "Created by simulation script",
+    "price": 7.1,
+    "stock": 86,
+    "category": "",
+    "tags": null
+  },
   "prod_8452173a-9dfe-42a5-af32-8ecf3a204056": {
     "productID": "prod_8452173a-9dfe-42a5-af32-8ecf3a204056",
     "name": "Simulated Product df30ba",
@@ -1700,12 +2807,48 @@
     "category": "",
     "tags": null
   },
+  "prod_846894f5-306c-4614-8ba9-d4e9602667fe": {
+    "productID": "prod_846894f5-306c-4614-8ba9-d4e9602667fe",
+    "name": "Simulated Product 71890c",
+    "description": "Created by simulation script",
+    "price": 11.42,
+    "stock": 114,
+    "category": "",
+    "tags": null
+  },
   "prod_849dab13-9034-43a7-97f2-6f629b72f232": {
     "productID": "prod_849dab13-9034-43a7-97f2-6f629b72f232",
     "name": "Simulated Product 53d46c",
     "description": "Created by simulation script",
     "price": 187.07,
     "stock": 100,
+    "category": "",
+    "tags": null
+  },
+  "prod_84c63f3d-6246-46c2-a2b6-bb30c5b0f00b": {
+    "productID": "prod_84c63f3d-6246-46c2-a2b6-bb30c5b0f00b",
+    "name": "Simulated Product 16d53f",
+    "description": "Created by simulation script",
+    "price": 296.57,
+    "stock": 59,
+    "category": "",
+    "tags": null
+  },
+  "prod_85c93dfc-12ee-4785-a8e4-8940c9392e02": {
+    "productID": "prod_85c93dfc-12ee-4785-a8e4-8940c9392e02",
+    "name": "Simulated Product f97b15",
+    "description": "Created by simulation script",
+    "price": 272.9,
+    "stock": 17,
+    "category": "",
+    "tags": null
+  },
+  "prod_85d81231-b895-4384-be8e-c029633c3e67": {
+    "productID": "prod_85d81231-b895-4384-be8e-c029633c3e67",
+    "name": "Simulated Product 269726",
+    "description": "Created by simulation script",
+    "price": 461.82,
+    "stock": 29,
     "category": "",
     "tags": null
   },
@@ -1727,6 +2870,24 @@
     "category": "",
     "tags": null
   },
+  "prod_86e39b95-04d4-4b3d-9079-36c85fdb105f": {
+    "productID": "prod_86e39b95-04d4-4b3d-9079-36c85fdb105f",
+    "name": "Simulated Product 73c468",
+    "description": "Created by simulation script",
+    "price": 45.59,
+    "stock": 106,
+    "category": "",
+    "tags": null
+  },
+  "prod_873cfee7-16d8-49f1-9049-8ad2c61f8896": {
+    "productID": "prod_873cfee7-16d8-49f1-9049-8ad2c61f8896",
+    "name": "Simulated Product 7ef4f5",
+    "description": "Created by simulation script",
+    "price": 29.44,
+    "stock": 96,
+    "category": "",
+    "tags": null
+  },
   "prod_88bb07b6-9bdd-4b2b-831a-840369f1dc7b": {
     "productID": "prod_88bb07b6-9bdd-4b2b-831a-840369f1dc7b",
     "name": "Simulated Product 1f2466",
@@ -1745,12 +2906,30 @@
     "category": "",
     "tags": null
   },
+  "prod_8928d483-7591-4cf7-a240-e7762b2814c1": {
+    "productID": "prod_8928d483-7591-4cf7-a240-e7762b2814c1",
+    "name": "Simulated Product 35baad",
+    "description": "Created by simulation script",
+    "price": 395.52,
+    "stock": 98,
+    "category": "",
+    "tags": null
+  },
+  "prod_8947522c-254d-42ef-9b55-556ce760f5c1": {
+    "productID": "prod_8947522c-254d-42ef-9b55-556ce760f5c1",
+    "name": "Simulated Product ea71c0",
+    "description": "Created by simulation script",
+    "price": 81.82,
+    "stock": 140,
+    "category": "",
+    "tags": null
+  },
   "prod_89d6c897-3f4c-48b6-aa6c-5b030dc9f502": {
     "productID": "prod_89d6c897-3f4c-48b6-aa6c-5b030dc9f502",
     "name": "Simulated Product 5abcd3",
     "description": "Created by simulation script",
     "price": 384.21,
-    "stock": 52,
+    "stock": 86,
     "category": "",
     "tags": null
   },
@@ -1760,6 +2939,24 @@
     "description": "Created by simulation script",
     "price": 463.3,
     "stock": 64,
+    "category": "",
+    "tags": null
+  },
+  "prod_8bb84258-b11c-4554-aac9-a58d6f6eb4f2": {
+    "productID": "prod_8bb84258-b11c-4554-aac9-a58d6f6eb4f2",
+    "name": "Simulated Product e99cf6",
+    "description": "Created by simulation script",
+    "price": 156.07,
+    "stock": 112,
+    "category": "",
+    "tags": null
+  },
+  "prod_8bbc6c55-29b5-4035-b21e-ec0cda7378d4": {
+    "productID": "prod_8bbc6c55-29b5-4035-b21e-ec0cda7378d4",
+    "name": "Simulated Product 7bb760",
+    "description": "Created by simulation script",
+    "price": 390.88,
+    "stock": 97,
     "category": "",
     "tags": null
   },
@@ -1781,12 +2978,30 @@
     "category": "",
     "tags": null
   },
+  "prod_8c1beb10-dc64-4e52-a14c-251f0d7b341f": {
+    "productID": "prod_8c1beb10-dc64-4e52-a14c-251f0d7b341f",
+    "name": "Simulated Product 51320f",
+    "description": "Created by simulation script",
+    "price": 354.67,
+    "stock": 183,
+    "category": "",
+    "tags": null
+  },
   "prod_8cbe26c8-69a9-4496-80aa-d33a7a48cac4": {
     "productID": "prod_8cbe26c8-69a9-4496-80aa-d33a7a48cac4",
     "name": "Simulated Product d02a78",
     "description": "Created by simulation script",
     "price": 479.41,
     "stock": 13,
+    "category": "",
+    "tags": null
+  },
+  "prod_8d4e1feb-271a-48c6-ab4c-2c5d2ac04f5c": {
+    "productID": "prod_8d4e1feb-271a-48c6-ab4c-2c5d2ac04f5c",
+    "name": "Simulated Product 003859",
+    "description": "Created by simulation script",
+    "price": 401.9,
+    "stock": 35,
     "category": "",
     "tags": null
   },
@@ -1805,6 +3020,15 @@
     "description": "Created by simulation script",
     "price": 492.34,
     "stock": 121,
+    "category": "",
+    "tags": null
+  },
+  "prod_8e4f349b-c530-481c-8021-fabab55c0464": {
+    "productID": "prod_8e4f349b-c530-481c-8021-fabab55c0464",
+    "name": "Simulated Product 160fb6",
+    "description": "Created by simulation script",
+    "price": 82.3,
+    "stock": 199,
     "category": "",
     "tags": null
   },
@@ -1831,7 +3055,7 @@
     "name": "Simulated Product 7bca6f",
     "description": "Created by simulation script",
     "price": 80.88,
-    "stock": 37,
+    "stock": 34,
     "category": "",
     "tags": null
   },
@@ -1850,6 +3074,15 @@
     "description": "Created by simulation script",
     "price": 160.12,
     "stock": 164,
+    "category": "",
+    "tags": null
+  },
+  "prod_90c2909c-5f86-42d5-9518-89428d37f5ed": {
+    "productID": "prod_90c2909c-5f86-42d5-9518-89428d37f5ed",
+    "name": "Simulated Product d208d9",
+    "description": "Created by simulation script",
+    "price": 338.85,
+    "stock": 45,
     "category": "",
     "tags": null
   },
@@ -1876,7 +3109,7 @@
     "name": "Simulated Product b29dab",
     "description": "Created by simulation script",
     "price": 329.81,
-    "stock": 152,
+    "stock": 94,
     "category": "",
     "tags": null
   },
@@ -1898,12 +3131,30 @@
     "category": "",
     "tags": null
   },
+  "prod_9396d8de-31a7-4005-9bda-d7deb115a059": {
+    "productID": "prod_9396d8de-31a7-4005-9bda-d7deb115a059",
+    "name": "Simulated Product 0a0389",
+    "description": "Created by simulation script",
+    "price": 274.91,
+    "stock": 39,
+    "category": "",
+    "tags": null
+  },
   "prod_93cd0569-d95e-4dca-8134-7922917d82a3": {
     "productID": "prod_93cd0569-d95e-4dca-8134-7922917d82a3",
     "name": "Simulated Product cab112",
     "description": "Created by simulation script",
     "price": 52.04,
     "stock": 191,
+    "category": "",
+    "tags": null
+  },
+  "prod_93dc40f7-e06a-4667-be58-d353e0b10a5e": {
+    "productID": "prod_93dc40f7-e06a-4667-be58-d353e0b10a5e",
+    "name": "Simulated Product 1b9e50",
+    "description": "Created by simulation script",
+    "price": 309.74,
+    "stock": 179,
     "category": "",
     "tags": null
   },
@@ -1916,12 +3167,21 @@
     "category": "",
     "tags": null
   },
+  "prod_9481768c-8095-48ee-a3b9-479bec960d08": {
+    "productID": "prod_9481768c-8095-48ee-a3b9-479bec960d08",
+    "name": "Simulated Product f0c0ea",
+    "description": "Created by simulation script",
+    "price": 335.57,
+    "stock": 133,
+    "category": "",
+    "tags": null
+  },
   "prod_9482c676-667e-4e27-a999-bc463ace0488": {
     "productID": "prod_9482c676-667e-4e27-a999-bc463ace0488",
     "name": "Simulated Product d1d71e",
     "description": "Created by simulation script",
     "price": 104.25,
-    "stock": 24,
+    "stock": 10,
     "category": "",
     "tags": null
   },
@@ -1934,12 +3194,30 @@
     "category": "",
     "tags": null
   },
+  "prod_965c9535-36a2-4c2c-aa3f-d427e05d00a8": {
+    "productID": "prod_965c9535-36a2-4c2c-aa3f-d427e05d00a8",
+    "name": "Simulated Product 837f92",
+    "description": "Created by simulation script",
+    "price": 460.07,
+    "stock": 101,
+    "category": "",
+    "tags": null
+  },
   "prod_9685da85-8b7a-48be-84c8-2972d1592bf0": {
     "productID": "prod_9685da85-8b7a-48be-84c8-2972d1592bf0",
     "name": "Simulated Product 7a880b",
     "description": "Created by simulation script",
     "price": 430.92,
-    "stock": 67,
+    "stock": 17,
+    "category": "",
+    "tags": null
+  },
+  "prod_96eff20c-93f3-4319-9bb8-5d912a497887": {
+    "productID": "prod_96eff20c-93f3-4319-9bb8-5d912a497887",
+    "name": "Simulated Product 380171",
+    "description": "Created by simulation script",
+    "price": 498.99,
+    "stock": 38,
     "category": "",
     "tags": null
   },
@@ -1975,7 +3253,7 @@
     "name": "Simulated Product 47e2b7",
     "description": "Created by simulation script",
     "price": 469.86,
-    "stock": 22,
+    "stock": 80,
     "category": "",
     "tags": null
   },
@@ -1985,6 +3263,24 @@
     "description": "Created by simulation script",
     "price": 338.8,
     "stock": 145,
+    "category": "",
+    "tags": null
+  },
+  "prod_99b4c9fc-c1c8-4adf-8b4f-964d88380ad8": {
+    "productID": "prod_99b4c9fc-c1c8-4adf-8b4f-964d88380ad8",
+    "name": "Simulated Product c68fc2",
+    "description": "Created by simulation script",
+    "price": 167.1,
+    "stock": 98,
+    "category": "",
+    "tags": null
+  },
+  "prod_9b796cf9-f9b2-487e-827d-e8d0f1e02147": {
+    "productID": "prod_9b796cf9-f9b2-487e-827d-e8d0f1e02147",
+    "name": "Simulated Product c01559",
+    "description": "Created by simulation script",
+    "price": 336.27,
+    "stock": 158,
     "category": "",
     "tags": null
   },
@@ -2006,12 +3302,66 @@
     "category": "",
     "tags": null
   },
+  "prod_9c404c70-ab11-47af-b6c6-6d461d082eba": {
+    "productID": "prod_9c404c70-ab11-47af-b6c6-6d461d082eba",
+    "name": "Simulated Product 123d27",
+    "description": "Created by simulation script",
+    "price": 379.08,
+    "stock": 93,
+    "category": "",
+    "tags": null
+  },
   "prod_9ccdaf65-2045-45da-93ec-9113c593081f": {
     "productID": "prod_9ccdaf65-2045-45da-93ec-9113c593081f",
     "name": "Simulated Product 2ae418",
     "description": "Created by simulation script",
     "price": 90.66,
     "stock": 11,
+    "category": "",
+    "tags": null
+  },
+  "prod_9d0f18f4-01de-4773-9ac4-6cd260a70838": {
+    "productID": "prod_9d0f18f4-01de-4773-9ac4-6cd260a70838",
+    "name": "Simulated Product cc5a4d",
+    "description": "Created by simulation script",
+    "price": 141.07,
+    "stock": 30,
+    "category": "",
+    "tags": null
+  },
+  "prod_9d3dcf65-ca7a-4a33-a458-9d90068edc9e": {
+    "productID": "prod_9d3dcf65-ca7a-4a33-a458-9d90068edc9e",
+    "name": "Simulated Product 049439",
+    "description": "Created by simulation script",
+    "price": 455.07,
+    "stock": 134,
+    "category": "",
+    "tags": null
+  },
+  "prod_9d42eb8f-e0b2-4f77-8a44-16b83749b89d": {
+    "productID": "prod_9d42eb8f-e0b2-4f77-8a44-16b83749b89d",
+    "name": "Simulated Product 38ec33",
+    "description": "Created by simulation script",
+    "price": 311.15,
+    "stock": 86,
+    "category": "",
+    "tags": null
+  },
+  "prod_9d636683-c440-4645-a533-d6b38cb0f91c": {
+    "productID": "prod_9d636683-c440-4645-a533-d6b38cb0f91c",
+    "name": "Simulated Product b85df4",
+    "description": "Created by simulation script",
+    "price": 126.91,
+    "stock": 30,
+    "category": "",
+    "tags": null
+  },
+  "prod_9d8f304b-72bc-4552-875d-17edfbf0fcac": {
+    "productID": "prod_9d8f304b-72bc-4552-875d-17edfbf0fcac",
+    "name": "Simulated Product 6a4213",
+    "description": "Created by simulation script",
+    "price": 288.71,
+    "stock": 14,
     "category": "",
     "tags": null
   },
@@ -2029,7 +3379,7 @@
     "name": "Simulated Product 408243",
     "description": "Created by simulation script",
     "price": 274.87,
-    "stock": 88,
+    "stock": 79,
     "category": "",
     "tags": null
   },
@@ -2038,7 +3388,16 @@
     "name": "Simulated Product e8b4cc",
     "description": "Created by simulation script",
     "price": 335.48,
-    "stock": 49,
+    "stock": 43,
+    "category": "",
+    "tags": null
+  },
+  "prod_a0137894-1fea-4f49-a8a2-07f9a4d02dec": {
+    "productID": "prod_a0137894-1fea-4f49-a8a2-07f9a4d02dec",
+    "name": "Simulated Product 678215",
+    "description": "Created by simulation script",
+    "price": 233.38,
+    "stock": 59,
     "category": "",
     "tags": null
   },
@@ -2056,7 +3415,16 @@
     "name": "Simulated Product d25359",
     "description": "Created by simulation script",
     "price": 177.21,
-    "stock": 51,
+    "stock": 81,
+    "category": "",
+    "tags": null
+  },
+  "prod_a0d69e2c-8814-4557-9a77-76b996aa3fe8": {
+    "productID": "prod_a0d69e2c-8814-4557-9a77-76b996aa3fe8",
+    "name": "Simulated Product d0c1bb",
+    "description": "Created by simulation script",
+    "price": 128.31,
+    "stock": 82,
     "category": "",
     "tags": null
   },
@@ -2101,7 +3469,7 @@
     "name": "Simulated Product 81bbbf",
     "description": "Created by simulation script",
     "price": 56.31,
-    "stock": 167,
+    "stock": 28,
     "category": "",
     "tags": null
   },
@@ -2110,7 +3478,16 @@
     "name": "Simulated Product ebe0c5",
     "description": "Created by simulation script",
     "price": 119.13,
-    "stock": 41,
+    "stock": 66,
+    "category": "",
+    "tags": null
+  },
+  "prod_a3a23412-ad3e-46d8-95d4-c792e22efef8": {
+    "productID": "prod_a3a23412-ad3e-46d8-95d4-c792e22efef8",
+    "name": "Simulated Product 5727d5",
+    "description": "Created by simulation script",
+    "price": 405.61,
+    "stock": 31,
     "category": "",
     "tags": null
   },
@@ -2129,6 +3506,15 @@
     "description": "Created by simulation script",
     "price": 353.83,
     "stock": 199,
+    "category": "",
+    "tags": null
+  },
+  "prod_a4c97f59-484b-466d-add9-ff69f220bfcb": {
+    "productID": "prod_a4c97f59-484b-466d-add9-ff69f220bfcb",
+    "name": "Simulated Product 53177e",
+    "description": "Created by simulation script",
+    "price": 16.76,
+    "stock": 28,
     "category": "",
     "tags": null
   },
@@ -2168,6 +3554,15 @@
     "category": "",
     "tags": null
   },
+  "prod_a602870b-2bd8-4be5-a8af-a03b6687a695": {
+    "productID": "prod_a602870b-2bd8-4be5-a8af-a03b6687a695",
+    "name": "Simulated Product 2eeca8",
+    "description": "Created by simulation script",
+    "price": 53.46,
+    "stock": 86,
+    "category": "",
+    "tags": null
+  },
   "prod_a64d63bc-0bb3-423e-9bb5-45f653e9a152": {
     "productID": "prod_a64d63bc-0bb3-423e-9bb5-45f653e9a152",
     "name": "Simulated Product 75e5e8",
@@ -2177,12 +3572,39 @@
     "category": "",
     "tags": null
   },
+  "prod_a7011543-5264-49f8-a3fc-0a5412dd51da": {
+    "productID": "prod_a7011543-5264-49f8-a3fc-0a5412dd51da",
+    "name": "Simulated Product 625d7f",
+    "description": "Created by simulation script",
+    "price": 303.76,
+    "stock": 33,
+    "category": "",
+    "tags": null
+  },
+  "prod_a7139bda-fb02-4ad1-b4ad-31bd0c18f795": {
+    "productID": "prod_a7139bda-fb02-4ad1-b4ad-31bd0c18f795",
+    "name": "Simulated Product e98a49",
+    "description": "Created by simulation script",
+    "price": 330.38,
+    "stock": 47,
+    "category": "",
+    "tags": null
+  },
+  "prod_a7d25fcb-0adc-4c53-8bad-1b383f917789": {
+    "productID": "prod_a7d25fcb-0adc-4c53-8bad-1b383f917789",
+    "name": "Simulated Product 5f966e",
+    "description": "Created by simulation script",
+    "price": 122.6,
+    "stock": 129,
+    "category": "",
+    "tags": null
+  },
   "prod_a7ea1b2d-0144-4be3-acc3-1712b8e003d2": {
     "productID": "prod_a7ea1b2d-0144-4be3-acc3-1712b8e003d2",
     "name": "Simulated Product ba4867",
     "description": "Created by simulation script",
     "price": 446.97,
-    "stock": 66,
+    "stock": 39,
     "category": "",
     "tags": null
   },
@@ -2200,7 +3622,7 @@
     "name": "Simulated Product eb9cfd",
     "description": "Created by simulation script",
     "price": 271.41,
-    "stock": 6,
+    "stock": 23,
     "category": "",
     "tags": null
   },
@@ -2218,7 +3640,16 @@
     "name": "Simulated Product fa828a",
     "description": "Created by simulation script",
     "price": 192.53,
-    "stock": 13,
+    "stock": 5,
+    "category": "",
+    "tags": null
+  },
+  "prod_a895b73c-3f8b-459d-a4ee-4b8ace98c711": {
+    "productID": "prod_a895b73c-3f8b-459d-a4ee-4b8ace98c711",
+    "name": "Simulated Product c91d42",
+    "description": "Created by simulation script",
+    "price": 130.88,
+    "stock": 123,
     "category": "",
     "tags": null
   },
@@ -2231,12 +3662,30 @@
     "category": "",
     "tags": null
   },
+  "prod_a94416fb-2a3c-47c8-aaf7-76f8bc40c16d": {
+    "productID": "prod_a94416fb-2a3c-47c8-aaf7-76f8bc40c16d",
+    "name": "Simulated Product b79651",
+    "description": "Created by simulation script",
+    "price": 400.74,
+    "stock": 11,
+    "category": "",
+    "tags": null
+  },
+  "prod_a973b3ab-3e71-4a56-adb3-aeadf58d7a0b": {
+    "productID": "prod_a973b3ab-3e71-4a56-adb3-aeadf58d7a0b",
+    "name": "Simulated Product d55472",
+    "description": "Created by simulation script",
+    "price": 158.86,
+    "stock": 61,
+    "category": "",
+    "tags": null
+  },
   "prod_a9ddff96-b85b-4796-9d3e-fe154bfdba12": {
     "productID": "prod_a9ddff96-b85b-4796-9d3e-fe154bfdba12",
     "name": "Simulated Product 78c6a5",
     "description": "Created by simulation script",
     "price": 443.53,
-    "stock": 153,
+    "stock": 66,
     "category": "",
     "tags": null
   },
@@ -2245,7 +3694,7 @@
     "name": "Simulated Product 3e31ec",
     "description": "Created by simulation script",
     "price": 326.75,
-    "stock": 40,
+    "stock": 29,
     "category": "",
     "tags": null
   },
@@ -2308,7 +3757,7 @@
     "name": "Simulated Product c4bdf1",
     "description": "Created by simulation script",
     "price": 56.34,
-    "stock": 5,
+    "stock": 41,
     "category": "",
     "tags": null
   },
@@ -2321,12 +3770,30 @@
     "category": "",
     "tags": null
   },
+  "prod_af732cc8-221c-4b41-8865-d4246d6148b7": {
+    "productID": "prod_af732cc8-221c-4b41-8865-d4246d6148b7",
+    "name": "Simulated Product 015c6a",
+    "description": "Created by simulation script",
+    "price": 126.89,
+    "stock": 13,
+    "category": "",
+    "tags": null
+  },
   "prod_affb4f13-4cfe-4e9f-a413-c3cb8fd744ae": {
     "productID": "prod_affb4f13-4cfe-4e9f-a413-c3cb8fd744ae",
     "name": "Simulated Product d604a7",
     "description": "Created by simulation script",
     "price": 104.03,
-    "stock": 19,
+    "stock": 50,
+    "category": "",
+    "tags": null
+  },
+  "prod_b0a94057-ff5c-4a2f-91c8-a5b4f71649c4": {
+    "productID": "prod_b0a94057-ff5c-4a2f-91c8-a5b4f71649c4",
+    "name": "Simulated Product 2a822d",
+    "description": "Created by simulation script",
+    "price": 347.57,
+    "stock": 50,
     "category": "",
     "tags": null
   },
@@ -2335,7 +3802,7 @@
     "name": "Simulated Product bb8c3a",
     "description": "Created by simulation script",
     "price": 35.75,
-    "stock": 60,
+    "stock": 17,
     "category": "",
     "tags": null
   },
@@ -2344,7 +3811,7 @@
     "name": "Simulated Product 1eadd6",
     "description": "Created by simulation script",
     "price": 483.27,
-    "stock": 109,
+    "stock": 1,
     "category": "",
     "tags": null
   },
@@ -2353,7 +3820,7 @@
     "name": "Simulated Product da077f",
     "description": "Created by simulation script",
     "price": 290.21,
-    "stock": 94,
+    "stock": 90,
     "category": "",
     "tags": null
   },
@@ -2371,7 +3838,7 @@
     "name": "Simulated Product 810ed5",
     "description": "Created by simulation script",
     "price": 358.26,
-    "stock": 108,
+    "stock": 51,
     "category": "",
     "tags": null
   },
@@ -2380,7 +3847,25 @@
     "name": "Simulated Product 9a8455",
     "description": "Created by simulation script",
     "price": 224.31,
-    "stock": 99,
+    "stock": 22,
+    "category": "",
+    "tags": null
+  },
+  "prod_b3f1e822-3c6a-4edc-bb4e-d2cb2cdbd787": {
+    "productID": "prod_b3f1e822-3c6a-4edc-bb4e-d2cb2cdbd787",
+    "name": "Simulated Product 05c666",
+    "description": "Created by simulation script",
+    "price": 252.95,
+    "stock": 191,
+    "category": "",
+    "tags": null
+  },
+  "prod_b4679cd5-896d-4b7a-b28d-2f219afa3488": {
+    "productID": "prod_b4679cd5-896d-4b7a-b28d-2f219afa3488",
+    "name": "Simulated Product 54f1c1",
+    "description": "Created by simulation script",
+    "price": 248.77,
+    "stock": 9,
     "category": "",
     "tags": null
   },
@@ -2393,6 +3878,24 @@
     "category": "",
     "tags": null
   },
+  "prod_b580d96e-2b1d-496f-9b96-b7bc8cdb6c84": {
+    "productID": "prod_b580d96e-2b1d-496f-9b96-b7bc8cdb6c84",
+    "name": "Simulated Product a7c96e",
+    "description": "Created by simulation script",
+    "price": 181.92,
+    "stock": 72,
+    "category": "",
+    "tags": null
+  },
+  "prod_b5c73c0b-9ab2-4eec-b5e7-5c47f253e549": {
+    "productID": "prod_b5c73c0b-9ab2-4eec-b5e7-5c47f253e549",
+    "name": "Simulated Product 1e948f",
+    "description": "Created by simulation script",
+    "price": 77.09,
+    "stock": 68,
+    "category": "",
+    "tags": null
+  },
   "prod_b61fe17b-6904-4ed0-afb0-15846650b77c": {
     "productID": "prod_b61fe17b-6904-4ed0-afb0-15846650b77c",
     "name": "Simulated Product 66986e",
@@ -2402,12 +3905,21 @@
     "category": "",
     "tags": null
   },
+  "prod_b6205b02-f6a7-42d8-90ad-db5638310ba6": {
+    "productID": "prod_b6205b02-f6a7-42d8-90ad-db5638310ba6",
+    "name": "Simulated Product 571a5d",
+    "description": "Created by simulation script",
+    "price": 311.84,
+    "stock": 18,
+    "category": "",
+    "tags": null
+  },
   "prod_b6953ccc-9ef9-4923-bbbe-d278af555840": {
     "productID": "prod_b6953ccc-9ef9-4923-bbbe-d278af555840",
     "name": "Simulated Product b1247e",
     "description": "Created by simulation script",
     "price": 41.62,
-    "stock": 53,
+    "stock": 37,
     "category": "",
     "tags": null
   },
@@ -2416,7 +3928,16 @@
     "name": "Simulated Product 24f484",
     "description": "Created by simulation script",
     "price": 76.65,
-    "stock": 14,
+    "stock": 43,
+    "category": "",
+    "tags": null
+  },
+  "prod_b7e9ad8e-66e1-4019-af23-d21e1acdef23": {
+    "productID": "prod_b7e9ad8e-66e1-4019-af23-d21e1acdef23",
+    "name": "Simulated Product b1b7a3",
+    "description": "Created by simulation script",
+    "price": 126.11,
+    "stock": 24,
     "category": "",
     "tags": null
   },
@@ -2447,6 +3968,15 @@
     "category": "",
     "tags": null
   },
+  "prod_b9b22d02-54d8-4a4b-b3d2-1c8f74d050ee": {
+    "productID": "prod_b9b22d02-54d8-4a4b-b3d2-1c8f74d050ee",
+    "name": "Simulated Product ceb02a",
+    "description": "Created by simulation script",
+    "price": 178.3,
+    "stock": 23,
+    "category": "",
+    "tags": null
+  },
   "prod_ba4a6049-4bc8-4913-9637-6d94e5641aa3": {
     "productID": "prod_ba4a6049-4bc8-4913-9637-6d94e5641aa3",
     "name": "Simulated Product 4c3915",
@@ -2465,12 +3995,30 @@
     "category": "",
     "tags": null
   },
+  "prod_bad1b77a-87af-4a8b-82cd-7f27135363cf": {
+    "productID": "prod_bad1b77a-87af-4a8b-82cd-7f27135363cf",
+    "name": "Simulated Product cddbe4",
+    "description": "Created by simulation script",
+    "price": 26.32,
+    "stock": 11,
+    "category": "",
+    "tags": null
+  },
+  "prod_bb60b08d-5995-4c96-8e87-9ce26946ab5e": {
+    "productID": "prod_bb60b08d-5995-4c96-8e87-9ce26946ab5e",
+    "name": "Simulated Product d3487e",
+    "description": "Created by simulation script",
+    "price": 432.59,
+    "stock": 77,
+    "category": "",
+    "tags": null
+  },
   "prod_bb73416b-325d-41a3-9aef-812acd17d428": {
     "productID": "prod_bb73416b-325d-41a3-9aef-812acd17d428",
     "name": "Simulated Product 25bc1f",
     "description": "Created by simulation script",
     "price": 495.65,
-    "stock": 6,
+    "stock": 15,
     "category": "",
     "tags": null
   },
@@ -2483,12 +4031,21 @@
     "category": "",
     "tags": null
   },
+  "prod_bc230ce5-35f2-450a-b834-e1bc339993db": {
+    "productID": "prod_bc230ce5-35f2-450a-b834-e1bc339993db",
+    "name": "Simulated Product 65b9a5",
+    "description": "Created by simulation script",
+    "price": 124.5,
+    "stock": 31,
+    "category": "",
+    "tags": null
+  },
   "prod_bc5c3739-475a-4324-8b72-8c629c32f8b2": {
     "productID": "prod_bc5c3739-475a-4324-8b72-8c629c32f8b2",
     "name": "Simulated Product e23842",
     "description": "Created by simulation script",
     "price": 416.13,
-    "stock": 80,
+    "stock": 32,
     "category": "",
     "tags": null
   },
@@ -2497,7 +4054,16 @@
     "name": "Simulated Product 4e7c27",
     "description": "Created by simulation script",
     "price": 53.39,
-    "stock": 93,
+    "stock": 41,
+    "category": "",
+    "tags": null
+  },
+  "prod_bd147f87-6401-4d28-b8d5-a82239ed28c0": {
+    "productID": "prod_bd147f87-6401-4d28-b8d5-a82239ed28c0",
+    "name": "Simulated Product 0afdac",
+    "description": "Created by simulation script",
+    "price": 44.03,
+    "stock": 84,
     "category": "",
     "tags": null
   },
@@ -2524,7 +4090,7 @@
     "name": "Simulated Product 3c8a3a",
     "description": "Created by simulation script",
     "price": 47.19,
-    "stock": 36,
+    "stock": 40,
     "category": "",
     "tags": null
   },
@@ -2533,7 +4099,16 @@
     "name": "Simulated Product bff9c3",
     "description": "Created by simulation script",
     "price": 360.76,
-    "stock": 46,
+    "stock": 0,
+    "category": "",
+    "tags": null
+  },
+  "prod_beaefd32-bfc4-4d69-9430-d9892db5aac3": {
+    "productID": "prod_beaefd32-bfc4-4d69-9430-d9892db5aac3",
+    "name": "Simulated Product 5c7eb2",
+    "description": "Created by simulation script",
+    "price": 141.94,
+    "stock": 24,
     "category": "",
     "tags": null
   },
@@ -2542,7 +4117,16 @@
     "name": "Simulated Product 5784bf",
     "description": "Created by simulation script",
     "price": 494.26,
-    "stock": 159,
+    "stock": 100,
+    "category": "",
+    "tags": null
+  },
+  "prod_bfb8216c-2d83-4e4e-b561-70a81664274e": {
+    "productID": "prod_bfb8216c-2d83-4e4e-b561-70a81664274e",
+    "name": "Simulated Product bce161",
+    "description": "Created by simulation script",
+    "price": 183.08,
+    "stock": 37,
     "category": "",
     "tags": null
   },
@@ -2552,6 +4136,15 @@
     "description": "Created by simulation script",
     "price": 204.5,
     "stock": 89,
+    "category": "",
+    "tags": null
+  },
+  "prod_c053c4a9-1458-4cdb-af65-70455db27540": {
+    "productID": "prod_c053c4a9-1458-4cdb-af65-70455db27540",
+    "name": "Simulated Product b81d7a",
+    "description": "Created by simulation script",
+    "price": 204.62,
+    "stock": 86,
     "category": "",
     "tags": null
   },
@@ -2569,7 +4162,7 @@
     "name": "Simulated Product 97e4bd",
     "description": "Created by simulation script",
     "price": 316.84,
-    "stock": 32,
+    "stock": 81,
     "category": "",
     "tags": null
   },
@@ -2578,7 +4171,7 @@
     "name": "Simulated Product 4e4adc",
     "description": "Created by simulation script",
     "price": 265.2,
-    "stock": 12,
+    "stock": 81,
     "category": "",
     "tags": null
   },
@@ -2591,12 +4184,39 @@
     "category": "",
     "tags": null
   },
+  "prod_c28ef9a7-c2c9-4bc0-9fbb-9de560e1d97a": {
+    "productID": "prod_c28ef9a7-c2c9-4bc0-9fbb-9de560e1d97a",
+    "name": "Simulated Product d80ba2",
+    "description": "Created by simulation script",
+    "price": 11.07,
+    "stock": 132,
+    "category": "",
+    "tags": null
+  },
+  "prod_c2de61d9-1337-4b93-bb44-749be77e64e0": {
+    "productID": "prod_c2de61d9-1337-4b93-bb44-749be77e64e0",
+    "name": "Simulated Product 3ca61e",
+    "description": "Created by simulation script",
+    "price": 364.57,
+    "stock": 86,
+    "category": "",
+    "tags": null
+  },
   "prod_c3149762-0c0c-4ab4-8a3a-8dac0a6499a7": {
     "productID": "prod_c3149762-0c0c-4ab4-8a3a-8dac0a6499a7",
     "name": "Simulated Product 1329bb",
     "description": "Created by simulation script",
     "price": 14.81,
-    "stock": 27,
+    "stock": 33,
+    "category": "",
+    "tags": null
+  },
+  "prod_c37784a6-9223-4bd2-bc4f-a3357b8e2e66": {
+    "productID": "prod_c37784a6-9223-4bd2-bc4f-a3357b8e2e66",
+    "name": "Simulated Product 1c0ac3",
+    "description": "Created by simulation script",
+    "price": 454.31,
+    "stock": 75,
     "category": "",
     "tags": null
   },
@@ -2609,12 +4229,30 @@
     "category": "",
     "tags": null
   },
+  "prod_c3e6a9ea-2b79-4aac-8941-dfc2ce61b7c5": {
+    "productID": "prod_c3e6a9ea-2b79-4aac-8941-dfc2ce61b7c5",
+    "name": "Simulated Product 48bedc",
+    "description": "Created by simulation script",
+    "price": 32.36,
+    "stock": 47,
+    "category": "",
+    "tags": null
+  },
+  "prod_c4613c11-4dd8-4400-b934-e3197dea1191": {
+    "productID": "prod_c4613c11-4dd8-4400-b934-e3197dea1191",
+    "name": "Simulated Product f7e9f2",
+    "description": "Created by simulation script",
+    "price": 244.69,
+    "stock": 137,
+    "category": "",
+    "tags": null
+  },
   "prod_c474178b-29e5-4a23-90b8-050b87a8d032": {
     "productID": "prod_c474178b-29e5-4a23-90b8-050b87a8d032",
     "name": "Simulated Product 55f65d",
     "description": "Created by simulation script",
     "price": 147.99,
-    "stock": 63,
+    "stock": 10,
     "category": "",
     "tags": null
   },
@@ -2623,7 +4261,16 @@
     "name": "Simulated Product 94f5a3",
     "description": "Created by simulation script",
     "price": 184.03,
-    "stock": 154,
+    "stock": 55,
+    "category": "",
+    "tags": null
+  },
+  "prod_c5b80369-a226-4a31-b0e3-70de7637c208": {
+    "productID": "prod_c5b80369-a226-4a31-b0e3-70de7637c208",
+    "name": "Simulated Product adb749",
+    "description": "Created by simulation script",
+    "price": 375.27,
+    "stock": 156,
     "category": "",
     "tags": null
   },
@@ -2641,7 +4288,7 @@
     "name": "Simulated Product 6b2ba3",
     "description": "Created by simulation script",
     "price": 13.09,
-    "stock": 95,
+    "stock": 3,
     "category": "",
     "tags": null
   },
@@ -2690,6 +4337,15 @@
     "category": "",
     "tags": null
   },
+  "prod_c7d2ae56-c474-4699-9749-387ce527fba0": {
+    "productID": "prod_c7d2ae56-c474-4699-9749-387ce527fba0",
+    "name": "Simulated Product 6f5c69",
+    "description": "Created by simulation script",
+    "price": 390.92,
+    "stock": 138,
+    "category": "",
+    "tags": null
+  },
   "prod_c8bcb880-3259-465f-a5e6-ccc19a879764": {
     "productID": "prod_c8bcb880-3259-465f-a5e6-ccc19a879764",
     "name": "Simulated Product 752bf7",
@@ -2713,7 +4369,7 @@
     "name": "Simulated Product 8ebbe5",
     "description": "Created by simulation script",
     "price": 223.28,
-    "stock": 63,
+    "stock": 0,
     "category": "",
     "tags": null
   },
@@ -2732,6 +4388,15 @@
     "description": "Created by simulation script",
     "price": 454.39,
     "stock": 78,
+    "category": "",
+    "tags": null
+  },
+  "prod_ca0b06a5-c2ab-45f9-8685-f17f2e9ae26c": {
+    "productID": "prod_ca0b06a5-c2ab-45f9-8685-f17f2e9ae26c",
+    "name": "Simulated Product 99729e",
+    "description": "Created by simulation script",
+    "price": 188.17,
+    "stock": 193,
     "category": "",
     "tags": null
   },
@@ -2758,7 +4423,34 @@
     "name": "Simulated Product b4c882",
     "description": "Created by simulation script",
     "price": 297.34,
-    "stock": 134,
+    "stock": 56,
+    "category": "",
+    "tags": null
+  },
+  "prod_cb3a6f29-5cff-42c9-b849-3e34bee71b24": {
+    "productID": "prod_cb3a6f29-5cff-42c9-b849-3e34bee71b24",
+    "name": "Simulated Product 355d31",
+    "description": "Created by simulation script",
+    "price": 184.43,
+    "stock": 191,
+    "category": "",
+    "tags": null
+  },
+  "prod_ccf6c57e-77a0-4a31-a6a8-de7f09379783": {
+    "productID": "prod_ccf6c57e-77a0-4a31-a6a8-de7f09379783",
+    "name": "Simulated Product 2e704f",
+    "description": "Created by simulation script",
+    "price": 323.01,
+    "stock": 60,
+    "category": "",
+    "tags": null
+  },
+  "prod_cdc0f47c-f604-46d8-8000-8252652a2438": {
+    "productID": "prod_cdc0f47c-f604-46d8-8000-8252652a2438",
+    "name": "Simulated Product 08d893",
+    "description": "Created by simulation script",
+    "price": 450.03,
+    "stock": 29,
     "category": "",
     "tags": null
   },
@@ -2768,6 +4460,15 @@
     "description": "Created by simulation script",
     "price": 418.7,
     "stock": 181,
+    "category": "",
+    "tags": null
+  },
+  "prod_cdf9bb37-061c-494e-b3d1-2bdd62dc1289": {
+    "productID": "prod_cdf9bb37-061c-494e-b3d1-2bdd62dc1289",
+    "name": "Simulated Product cf9134",
+    "description": "Created by simulation script",
+    "price": 110.42,
+    "stock": 6,
     "category": "",
     "tags": null
   },
@@ -2807,12 +4508,30 @@
     "category": "",
     "tags": null
   },
+  "prod_d08fd12e-64ad-4c18-b95c-0ce771d1ad4a": {
+    "productID": "prod_d08fd12e-64ad-4c18-b95c-0ce771d1ad4a",
+    "name": "Simulated Product 9d3ed2",
+    "description": "Created by simulation script",
+    "price": 156.86,
+    "stock": 136,
+    "category": "",
+    "tags": null
+  },
   "prod_d0b465eb-87dd-4f90-ab59-2689b6eb4b9e": {
     "productID": "prod_d0b465eb-87dd-4f90-ab59-2689b6eb4b9e",
     "name": "Simulated Product 94cd99",
     "description": "Created by simulation script",
     "price": 328.31,
-    "stock": 173,
+    "stock": 6,
+    "category": "",
+    "tags": null
+  },
+  "prod_d0f9df78-96a4-4957-9d3b-101a42adfc2b": {
+    "productID": "prod_d0f9df78-96a4-4957-9d3b-101a42adfc2b",
+    "name": "Simulated Product de4c34",
+    "description": "Created by simulation script",
+    "price": 163.06,
+    "stock": 159,
     "category": "",
     "tags": null
   },
@@ -2830,7 +4549,7 @@
     "name": "Simulated Product 486908",
     "description": "Created by simulation script",
     "price": 193.75,
-    "stock": 187,
+    "stock": 33,
     "category": "",
     "tags": null
   },
@@ -2839,7 +4558,16 @@
     "name": "Simulated Product 2b76bd",
     "description": "Created by simulation script",
     "price": 385.69,
-    "stock": 19,
+    "stock": 29,
+    "category": "",
+    "tags": null
+  },
+  "prod_d2259ddf-f30e-400e-b06d-b24f355543d6": {
+    "productID": "prod_d2259ddf-f30e-400e-b06d-b24f355543d6",
+    "name": "Simulated Product 15ff44",
+    "description": "Created by simulation script",
+    "price": 127.02,
+    "stock": 95,
     "category": "",
     "tags": null
   },
@@ -2849,6 +4577,15 @@
     "description": "Created by simulation script",
     "price": 308.65,
     "stock": 98,
+    "category": "",
+    "tags": null
+  },
+  "prod_d238ae22-ed42-4858-b319-808d488eb03a": {
+    "productID": "prod_d238ae22-ed42-4858-b319-808d488eb03a",
+    "name": "Simulated Product 694b59",
+    "description": "Created by simulation script",
+    "price": 207.76,
+    "stock": 62,
     "category": "",
     "tags": null
   },
@@ -2875,7 +4612,7 @@
     "name": "Simulated Product 473cc9",
     "description": "Created by simulation script",
     "price": 299.6,
-    "stock": 16,
+    "stock": 47,
     "category": "",
     "tags": null
   },
@@ -2888,12 +4625,21 @@
     "category": "",
     "tags": null
   },
+  "prod_d3d3e045-7b55-4b51-b8df-5ecae211b5ab": {
+    "productID": "prod_d3d3e045-7b55-4b51-b8df-5ecae211b5ab",
+    "name": "Simulated Product ca1893",
+    "description": "Created by simulation script",
+    "price": 402.93,
+    "stock": 0,
+    "category": "",
+    "tags": null
+  },
   "prod_d3f3aa91-6411-4dd5-b479-62aeac5de2f0": {
     "productID": "prod_d3f3aa91-6411-4dd5-b479-62aeac5de2f0",
     "name": "Simulated Product c17da4",
     "description": "Created by simulation script",
     "price": 440.87,
-    "stock": 106,
+    "stock": 50,
     "category": "",
     "tags": null
   },
@@ -2911,7 +4657,7 @@
     "name": "Simulated Product 253269",
     "description": "Created by simulation script",
     "price": 348.85,
-    "stock": 106,
+    "stock": 89,
     "category": "",
     "tags": null
   },
@@ -2978,6 +4724,15 @@
     "category": "",
     "tags": null
   },
+  "prod_d9b5c705-9f77-47c8-b0a9-566752db8d69": {
+    "productID": "prod_d9b5c705-9f77-47c8-b0a9-566752db8d69",
+    "name": "Simulated Product b71b2d",
+    "description": "Created by simulation script",
+    "price": 407.91,
+    "stock": 59,
+    "category": "",
+    "tags": null
+  },
   "prod_d9f20343-f23f-4edd-9362-763779a015bf": {
     "productID": "prod_d9f20343-f23f-4edd-9362-763779a015bf",
     "name": "Simulated Product 043839",
@@ -2993,6 +4748,33 @@
     "description": "Created by simulation script",
     "price": 178.2,
     "stock": 30,
+    "category": "",
+    "tags": null
+  },
+  "prod_dab72dc3-ea71-4e7b-a4ad-b8040cc59de5": {
+    "productID": "prod_dab72dc3-ea71-4e7b-a4ad-b8040cc59de5",
+    "name": "Simulated Product bad837",
+    "description": "Created by simulation script",
+    "price": 71.77,
+    "stock": 13,
+    "category": "",
+    "tags": null
+  },
+  "prod_dba44cb9-4add-4072-9f5d-5602a4a39d92": {
+    "productID": "prod_dba44cb9-4add-4072-9f5d-5602a4a39d92",
+    "name": "Simulated Product 692d8b",
+    "description": "Created by simulation script",
+    "price": 375.75,
+    "stock": 56,
+    "category": "",
+    "tags": null
+  },
+  "prod_dc0db603-4c07-4c14-8179-4d0367464e96": {
+    "productID": "prod_dc0db603-4c07-4c14-8179-4d0367464e96",
+    "name": "Simulated Product 115f76",
+    "description": "Created by simulation script",
+    "price": 58.5,
+    "stock": 38,
     "category": "",
     "tags": null
   },
@@ -3014,12 +4796,21 @@
     "category": "",
     "tags": null
   },
+  "prod_ddd7cb12-43b9-499e-921b-6139c8a47a2e": {
+    "productID": "prod_ddd7cb12-43b9-499e-921b-6139c8a47a2e",
+    "name": "Simulated Product 8ad2b0",
+    "description": "Created by simulation script",
+    "price": 184.9,
+    "stock": 93,
+    "category": "",
+    "tags": null
+  },
   "prod_ddfb832a-6750-4950-8e83-8af0841363b2": {
     "productID": "prod_ddfb832a-6750-4950-8e83-8af0841363b2",
     "name": "Simulated Product 1e14d6",
     "description": "Created by simulation script",
     "price": 465.46,
-    "stock": 64,
+    "stock": 85,
     "category": "",
     "tags": null
   },
@@ -3050,12 +4841,30 @@
     "category": "",
     "tags": null
   },
+  "prod_e06541ca-43c2-4fb9-8935-d893a8f9c03d": {
+    "productID": "prod_e06541ca-43c2-4fb9-8935-d893a8f9c03d",
+    "name": "Simulated Product a1f923",
+    "description": "Created by simulation script",
+    "price": 32.19,
+    "stock": 196,
+    "category": "",
+    "tags": null
+  },
+  "prod_e12f6b9c-6dde-4d6b-a5e8-4fe47847d0e4": {
+    "productID": "prod_e12f6b9c-6dde-4d6b-a5e8-4fe47847d0e4",
+    "name": "Simulated Product 5a4f5b",
+    "description": "Created by simulation script",
+    "price": 402.57,
+    "stock": 187,
+    "category": "",
+    "tags": null
+  },
   "prod_e14cab1d-2af2-4225-a2fc-f9a343dddf7f": {
     "productID": "prod_e14cab1d-2af2-4225-a2fc-f9a343dddf7f",
     "name": "Simulated Product 1a88b6",
     "description": "Created by simulation script",
     "price": 287.06,
-    "stock": 14,
+    "stock": 52,
     "category": "",
     "tags": null
   },
@@ -3068,12 +4877,21 @@
     "category": "",
     "tags": null
   },
+  "prod_e1c0fd39-3da7-4445-acd2-6d8c8f408fd8": {
+    "productID": "prod_e1c0fd39-3da7-4445-acd2-6d8c8f408fd8",
+    "name": "Simulated Product e9ffaf",
+    "description": "Created by simulation script",
+    "price": 451.05,
+    "stock": 84,
+    "category": "",
+    "tags": null
+  },
   "prod_e29062ed-b0ec-4ff6-a390-1451223b3642": {
     "productID": "prod_e29062ed-b0ec-4ff6-a390-1451223b3642",
     "name": "Simulated Product 00a5d8",
     "description": "Created by simulation script",
     "price": 308.99,
-    "stock": 9,
+    "stock": 53,
     "category": "",
     "tags": null
   },
@@ -3086,12 +4904,39 @@
     "category": "",
     "tags": null
   },
+  "prod_e367e622-3949-40e8-8f48-f704e7b9f87a": {
+    "productID": "prod_e367e622-3949-40e8-8f48-f704e7b9f87a",
+    "name": "Simulated Product 6bbb28",
+    "description": "Created by simulation script",
+    "price": 326.65,
+    "stock": 104,
+    "category": "",
+    "tags": null
+  },
+  "prod_e4588258-a68a-476f-8bea-e1340f995273": {
+    "productID": "prod_e4588258-a68a-476f-8bea-e1340f995273",
+    "name": "Simulated Product 9642cc",
+    "description": "Created by simulation script",
+    "price": 443.76,
+    "stock": 92,
+    "category": "",
+    "tags": null
+  },
+  "prod_e4c86356-06af-460f-8490-73baac99e37a": {
+    "productID": "prod_e4c86356-06af-460f-8490-73baac99e37a",
+    "name": "Simulated Product f3925b",
+    "description": "Created by simulation script",
+    "price": 377.27,
+    "stock": 123,
+    "category": "",
+    "tags": null
+  },
   "prod_e4fb2451-e344-4f96-b7c6-37255dcf92d4": {
     "productID": "prod_e4fb2451-e344-4f96-b7c6-37255dcf92d4",
     "name": "Simulated Product 09fe15",
     "description": "Created by simulation script",
     "price": 206.26,
-    "stock": 138,
+    "stock": 19,
     "category": "",
     "tags": null
   },
@@ -3104,12 +4949,30 @@
     "category": "",
     "tags": null
   },
+  "prod_e5637451-5f05-4c13-849a-f3062deab480": {
+    "productID": "prod_e5637451-5f05-4c13-849a-f3062deab480",
+    "name": "Simulated Product 0efb25",
+    "description": "Created by simulation script",
+    "price": 11.96,
+    "stock": 69,
+    "category": "",
+    "tags": null
+  },
   "prod_e5684307-521a-447c-93d8-5238325f1317": {
     "productID": "prod_e5684307-521a-447c-93d8-5238325f1317",
     "name": "Simulated Product 7c7155",
     "description": "Created by simulation script",
     "price": 78.87,
-    "stock": 150,
+    "stock": 87,
+    "category": "",
+    "tags": null
+  },
+  "prod_e5eae653-da19-4d77-95e7-a07851f3b7c0": {
+    "productID": "prod_e5eae653-da19-4d77-95e7-a07851f3b7c0",
+    "name": "Simulated Product 481ea9",
+    "description": "Created by simulation script",
+    "price": 468.09,
+    "stock": 41,
     "category": "",
     "tags": null
   },
@@ -3118,7 +4981,7 @@
     "name": "Simulated Product 333d2f",
     "description": "Created by simulation script",
     "price": 214,
-    "stock": 154,
+    "stock": 53,
     "category": "",
     "tags": null
   },
@@ -3127,7 +4990,7 @@
     "name": "Simulated Product 9cb512",
     "description": "Created by simulation script",
     "price": 337.96,
-    "stock": 47,
+    "stock": 83,
     "category": "",
     "tags": null
   },
@@ -3145,7 +5008,7 @@
     "name": "Simulated Product e16998",
     "description": "Created by simulation script",
     "price": 132.81,
-    "stock": 129,
+    "stock": 78,
     "category": "",
     "tags": null
   },
@@ -3158,12 +5021,21 @@
     "category": "",
     "tags": null
   },
+  "prod_e85cb0e9-6a79-4d8c-8fd1-a78426a7b772": {
+    "productID": "prod_e85cb0e9-6a79-4d8c-8fd1-a78426a7b772",
+    "name": "Simulated Product 56b435",
+    "description": "Created by simulation script",
+    "price": 458.97,
+    "stock": 97,
+    "category": "",
+    "tags": null
+  },
   "prod_e97b3cb4-e4da-4d3b-ba96-91bcc837d612": {
     "productID": "prod_e97b3cb4-e4da-4d3b-ba96-91bcc837d612",
     "name": "Simulated Product b5f2fc",
     "description": "Created by simulation script",
     "price": 199.21,
-    "stock": 2,
+    "stock": 98,
     "category": "",
     "tags": null
   },
@@ -3190,7 +5062,16 @@
     "name": "Simulated Product 9d8197",
     "description": "Created by simulation script",
     "price": 403.14,
-    "stock": 173,
+    "stock": 53,
+    "category": "",
+    "tags": null
+  },
+  "prod_eabac48c-2d37-4ea4-80e6-a68f41da9ff3": {
+    "productID": "prod_eabac48c-2d37-4ea4-80e6-a68f41da9ff3",
+    "name": "Simulated Product d03e18",
+    "description": "Created by simulation script",
+    "price": 199.67,
+    "stock": 69,
     "category": "",
     "tags": null
   },
@@ -3217,7 +5098,16 @@
     "name": "Simulated Product 7ccf76",
     "description": "Created by simulation script",
     "price": 12.31,
-    "stock": 16,
+    "stock": 65,
+    "category": "",
+    "tags": null
+  },
+  "prod_eba7f0d7-50a6-44df-ac6c-da1739a16202": {
+    "productID": "prod_eba7f0d7-50a6-44df-ac6c-da1739a16202",
+    "name": "Simulated Product a71b28",
+    "description": "Created by simulation script",
+    "price": 366.17,
+    "stock": 44,
     "category": "",
     "tags": null
   },
@@ -3226,7 +5116,25 @@
     "name": "Simulated Product a3bab1",
     "description": "Created by simulation script",
     "price": 97.69,
-    "stock": 32,
+    "stock": 44,
+    "category": "",
+    "tags": null
+  },
+  "prod_ebc45922-35c8-4e23-a9ea-c0c762bb12a7": {
+    "productID": "prod_ebc45922-35c8-4e23-a9ea-c0c762bb12a7",
+    "name": "Simulated Product 22a794",
+    "description": "Created by simulation script",
+    "price": 237.13,
+    "stock": 67,
+    "category": "",
+    "tags": null
+  },
+  "prod_ebd9ea90-1c1e-4ab5-9df9-54060a39d12e": {
+    "productID": "prod_ebd9ea90-1c1e-4ab5-9df9-54060a39d12e",
+    "name": "Simulated Product fc9353",
+    "description": "Created by simulation script",
+    "price": 68.77,
+    "stock": 138,
     "category": "",
     "tags": null
   },
@@ -3248,12 +5156,39 @@
     "category": "",
     "tags": null
   },
+  "prod_ec31d0ee-16d0-45c5-9a06-4fb30b80cb2f": {
+    "productID": "prod_ec31d0ee-16d0-45c5-9a06-4fb30b80cb2f",
+    "name": "Simulated Product 3ad2d0",
+    "description": "Created by simulation script",
+    "price": 204.76,
+    "stock": 79,
+    "category": "",
+    "tags": null
+  },
   "prod_ec722af6-5ae5-4116-bccf-809aa8813baf": {
     "productID": "prod_ec722af6-5ae5-4116-bccf-809aa8813baf",
     "name": "Simulated Product 539eae",
     "description": "Created by simulation script",
     "price": 383.86,
-    "stock": 8,
+    "stock": 31,
+    "category": "",
+    "tags": null
+  },
+  "prod_ee1bff17-b9c3-4a3c-92e2-c7282309f06b": {
+    "productID": "prod_ee1bff17-b9c3-4a3c-92e2-c7282309f06b",
+    "name": "Simulated Product afe508",
+    "description": "Created by simulation script",
+    "price": 247.58,
+    "stock": 52,
+    "category": "",
+    "tags": null
+  },
+  "prod_ee37014c-ab68-46cd-89b1-2cb7150e8c56": {
+    "productID": "prod_ee37014c-ab68-46cd-89b1-2cb7150e8c56",
+    "name": "Simulated Product f405eb",
+    "description": "Created by simulation script",
+    "price": 464.11,
+    "stock": 92,
     "category": "",
     "tags": null
   },
@@ -3262,7 +5197,7 @@
     "name": "Simulated Product ed00d2",
     "description": "Created by simulation script",
     "price": 441.27,
-    "stock": 0,
+    "stock": 97,
     "category": "",
     "tags": null
   },
@@ -3275,12 +5210,30 @@
     "category": "",
     "tags": null
   },
+  "prod_eebe49cb-c680-4431-8958-cffaa9cbe192": {
+    "productID": "prod_eebe49cb-c680-4431-8958-cffaa9cbe192",
+    "name": "Simulated Product 696f88",
+    "description": "Created by simulation script",
+    "price": 348.54,
+    "stock": 44,
+    "category": "",
+    "tags": null
+  },
   "prod_ef2210c7-2481-4de0-869c-b39a5a08d4db": {
     "productID": "prod_ef2210c7-2481-4de0-869c-b39a5a08d4db",
     "name": "Simulated Product 193ab3",
     "description": "Created by simulation script",
     "price": 135.9,
-    "stock": 29,
+    "stock": 37,
+    "category": "",
+    "tags": null
+  },
+  "prod_efbb68b0-1311-4cae-bdb3-c0cff6f81ece": {
+    "productID": "prod_efbb68b0-1311-4cae-bdb3-c0cff6f81ece",
+    "name": "Simulated Product d4f777",
+    "description": "Created by simulation script",
+    "price": 92.71,
+    "stock": 190,
     "category": "",
     "tags": null
   },
@@ -3311,6 +5264,24 @@
     "category": "",
     "tags": null
   },
+  "prod_f106f419-bf08-492d-bc2e-a1fc54a37f4f": {
+    "productID": "prod_f106f419-bf08-492d-bc2e-a1fc54a37f4f",
+    "name": "Simulated Product 91aa6b",
+    "description": "Created by simulation script",
+    "price": 380.96,
+    "stock": 93,
+    "category": "",
+    "tags": null
+  },
+  "prod_f183548e-1e47-4cfc-a1dd-75415369d837": {
+    "productID": "prod_f183548e-1e47-4cfc-a1dd-75415369d837",
+    "name": "Simulated Product 1d43a5",
+    "description": "Created by simulation script",
+    "price": 418.94,
+    "stock": 174,
+    "category": "",
+    "tags": null
+  },
   "prod_f1c19fd3-d249-4d9f-914b-39734103c958": {
     "productID": "prod_f1c19fd3-d249-4d9f-914b-39734103c958",
     "name": "Simulated Product 5cacf4",
@@ -3320,12 +5291,21 @@
     "category": "",
     "tags": null
   },
+  "prod_f1dccea8-e867-4959-85a4-1b799738222c": {
+    "productID": "prod_f1dccea8-e867-4959-85a4-1b799738222c",
+    "name": "Simulated Product a3c49f",
+    "description": "Created by simulation script",
+    "price": 27.74,
+    "stock": 197,
+    "category": "",
+    "tags": null
+  },
   "prod_f1e2b4b3-67f5-464e-ba0a-fde11d9d0e5b": {
     "productID": "prod_f1e2b4b3-67f5-464e-ba0a-fde11d9d0e5b",
     "name": "Simulated Product 159d1a",
     "description": "Created by simulation script",
     "price": 136.01,
-    "stock": 73,
+    "stock": 77,
     "category": "",
     "tags": null
   },
@@ -3338,12 +5318,21 @@
     "category": "",
     "tags": null
   },
+  "prod_f2524104-3f46-4f97-9bdd-0d3b620ddef0": {
+    "productID": "prod_f2524104-3f46-4f97-9bdd-0d3b620ddef0",
+    "name": "Simulated Product e79d54",
+    "description": "Created by simulation script",
+    "price": 400.48,
+    "stock": 111,
+    "category": "",
+    "tags": null
+  },
   "prod_f2cf81d0-8e6c-4391-b1ca-48b7823bc808": {
     "productID": "prod_f2cf81d0-8e6c-4391-b1ca-48b7823bc808",
     "name": "Simulated Product d19438",
     "description": "Created by simulation script",
     "price": 54.68,
-    "stock": 51,
+    "stock": 85,
     "category": "",
     "tags": null
   },
@@ -3352,7 +5341,7 @@
     "name": "Simulated Product 603e8d",
     "description": "Created by simulation script",
     "price": 95.41,
-    "stock": 151,
+    "stock": 93,
     "category": "",
     "tags": null
   },
@@ -3361,7 +5350,7 @@
     "name": "Simulated Product 58129f",
     "description": "Created by simulation script",
     "price": 325.63,
-    "stock": 55,
+    "stock": 12,
     "category": "",
     "tags": null
   },
@@ -3370,7 +5359,43 @@
     "name": "Simulated Product 8f84ce",
     "description": "Created by simulation script",
     "price": 247.84,
-    "stock": 34,
+    "stock": 98,
+    "category": "",
+    "tags": null
+  },
+  "prod_f4a63f27-19e6-42e6-9b94-7312a28b4a26": {
+    "productID": "prod_f4a63f27-19e6-42e6-9b94-7312a28b4a26",
+    "name": "Simulated Product ed0464",
+    "description": "Created by simulation script",
+    "price": 188.47,
+    "stock": 197,
+    "category": "",
+    "tags": null
+  },
+  "prod_f4af300d-d8cb-4882-a519-fb6224dccf98": {
+    "productID": "prod_f4af300d-d8cb-4882-a519-fb6224dccf98",
+    "name": "Simulated Product b0696a",
+    "description": "Created by simulation script",
+    "price": 19.2,
+    "stock": 21,
+    "category": "",
+    "tags": null
+  },
+  "prod_f4c70259-55a8-4c57-beea-2938fa6c59e1": {
+    "productID": "prod_f4c70259-55a8-4c57-beea-2938fa6c59e1",
+    "name": "Simulated Product 922296",
+    "description": "Created by simulation script",
+    "price": 292.74,
+    "stock": 161,
+    "category": "",
+    "tags": null
+  },
+  "prod_f4db6197-e626-4c04-b01a-d5ea311610bc": {
+    "productID": "prod_f4db6197-e626-4c04-b01a-d5ea311610bc",
+    "name": "Simulated Product 2d9e10",
+    "description": "Created by simulation script",
+    "price": 54.43,
+    "stock": 10,
     "category": "",
     "tags": null
   },
@@ -3379,7 +5404,34 @@
     "name": "Simulated Product 6af1d5",
     "description": "Created by simulation script",
     "price": 169.98,
-    "stock": 82,
+    "stock": 81,
+    "category": "",
+    "tags": null
+  },
+  "prod_f5adfb8e-1a1d-413d-b69b-ba846eb3d686": {
+    "productID": "prod_f5adfb8e-1a1d-413d-b69b-ba846eb3d686",
+    "name": "Simulated Product db8f89",
+    "description": "Created by simulation script",
+    "price": 230.87,
+    "stock": 26,
+    "category": "",
+    "tags": null
+  },
+  "prod_f60b1a19-cb01-4221-9f75-09aa6c95f28b": {
+    "productID": "prod_f60b1a19-cb01-4221-9f75-09aa6c95f28b",
+    "name": "Simulated Product c7f559",
+    "description": "Created by simulation script",
+    "price": 409.63,
+    "stock": 103,
+    "category": "",
+    "tags": null
+  },
+  "prod_f658b870-9a5d-4fa6-b730-9f89a55beced": {
+    "productID": "prod_f658b870-9a5d-4fa6-b730-9f89a55beced",
+    "name": "Simulated Product dc5f7c",
+    "description": "Created by simulation script",
+    "price": 443.81,
+    "stock": 165,
     "category": "",
     "tags": null
   },
@@ -3392,12 +5444,66 @@
     "category": "",
     "tags": null
   },
+  "prod_f6ccb6ca-9e77-4bb5-a1e6-283485378229": {
+    "productID": "prod_f6ccb6ca-9e77-4bb5-a1e6-283485378229",
+    "name": "Simulated Product 6c31b7",
+    "description": "Created by simulation script",
+    "price": 97.61,
+    "stock": 176,
+    "category": "",
+    "tags": null
+  },
+  "prod_f73c8867-4823-4e27-a754-dc762f11058b": {
+    "productID": "prod_f73c8867-4823-4e27-a754-dc762f11058b",
+    "name": "Simulated Product 825f9c",
+    "description": "Created by simulation script",
+    "price": 137.48,
+    "stock": 2,
+    "category": "",
+    "tags": null
+  },
+  "prod_f7aa2580-a0a2-4fb5-8e4d-6b29b432b955": {
+    "productID": "prod_f7aa2580-a0a2-4fb5-8e4d-6b29b432b955",
+    "name": "Simulated Product 9c9f70",
+    "description": "Created by simulation script",
+    "price": 407.78,
+    "stock": 55,
+    "category": "",
+    "tags": null
+  },
+  "prod_f7f38a59-8298-477f-b87a-75580a469ede": {
+    "productID": "prod_f7f38a59-8298-477f-b87a-75580a469ede",
+    "name": "Simulated Product 79d442",
+    "description": "Created by simulation script",
+    "price": 127.72,
+    "stock": 109,
+    "category": "",
+    "tags": null
+  },
+  "prod_f856e733-36a8-4d76-a00e-9ae2f59fdf2e": {
+    "productID": "prod_f856e733-36a8-4d76-a00e-9ae2f59fdf2e",
+    "name": "Simulated Product 259ec7",
+    "description": "Created by simulation script",
+    "price": 466.81,
+    "stock": 13,
+    "category": "",
+    "tags": null
+  },
   "prod_f8b9d20d-22d4-46b2-9415-71912b304592": {
     "productID": "prod_f8b9d20d-22d4-46b2-9415-71912b304592",
     "name": "Simulated Product 55e6de",
     "description": "Created by simulation script",
     "price": 337.75,
     "stock": 50,
+    "category": "",
+    "tags": null
+  },
+  "prod_f9cadf2f-36f9-4ea7-9800-4db8ab1223eb": {
+    "productID": "prod_f9cadf2f-36f9-4ea7-9800-4db8ab1223eb",
+    "name": "Simulated Product e94d91",
+    "description": "Created by simulation script",
+    "price": 401.76,
+    "stock": 153,
     "category": "",
     "tags": null
   },
@@ -3419,12 +5525,30 @@
     "category": "",
     "tags": null
   },
+  "prod_fa974adc-24ed-4ced-8621-e1a9768d2144": {
+    "productID": "prod_fa974adc-24ed-4ced-8621-e1a9768d2144",
+    "name": "Simulated Product e26551",
+    "description": "Created by simulation script",
+    "price": 219.27,
+    "stock": 27,
+    "category": "",
+    "tags": null
+  },
   "prod_faca2165-addb-4492-a99b-3d8b90105df3": {
     "productID": "prod_faca2165-addb-4492-a99b-3d8b90105df3",
     "name": "Simulated Product 336135",
     "description": "Created by simulation script",
     "price": 221.03,
     "stock": 170,
+    "category": "",
+    "tags": null
+  },
+  "prod_fb9f8e53-680d-4982-ae65-ee142579ee6d": {
+    "productID": "prod_fb9f8e53-680d-4982-ae65-ee142579ee6d",
+    "name": "Simulated Product c3fb46",
+    "description": "Created by simulation script",
+    "price": 22.81,
+    "stock": 77,
     "category": "",
     "tags": null
   },
@@ -3437,12 +5561,39 @@
     "category": "",
     "tags": null
   },
+  "prod_fc7d929e-befe-40be-b6b5-a47b354fdbe2": {
+    "productID": "prod_fc7d929e-befe-40be-b6b5-a47b354fdbe2",
+    "name": "Simulated Product e4106d",
+    "description": "Created by simulation script",
+    "price": 476.41,
+    "stock": 101,
+    "category": "",
+    "tags": null
+  },
+  "prod_fd9398fc-55a5-41bc-b15c-e6e71b8dce7a": {
+    "productID": "prod_fd9398fc-55a5-41bc-b15c-e6e71b8dce7a",
+    "name": "Simulated Product 6d9bf8",
+    "description": "Created by simulation script",
+    "price": 372.89,
+    "stock": 177,
+    "category": "",
+    "tags": null
+  },
+  "prod_fe0dd8cb-9037-42b1-9cef-071e95e07f4c": {
+    "productID": "prod_fe0dd8cb-9037-42b1-9cef-071e95e07f4c",
+    "name": "Simulated Product af6456",
+    "description": "Created by simulation script",
+    "price": 26.7,
+    "stock": 20,
+    "category": "",
+    "tags": null
+  },
   "prod_fe3f3b37-88cf-4180-862a-1cca1a8cdbe0": {
     "productID": "prod_fe3f3b37-88cf-4180-862a-1cca1a8cdbe0",
     "name": "Simulated Product d8b354",
     "description": "Created by simulation script",
     "price": 144.67,
-    "stock": 89,
+    "stock": 15,
     "category": "",
     "tags": null
   },
@@ -3455,12 +5606,21 @@
     "category": "",
     "tags": null
   },
+  "prod_ff8e4018-8d5d-48da-803f-5be42f33665d": {
+    "productID": "prod_ff8e4018-8d5d-48da-803f-5be42f33665d",
+    "name": "Simulated Product 36e25d",
+    "description": "Created by simulation script",
+    "price": 335.51,
+    "stock": 199,
+    "category": "",
+    "tags": null
+  },
   "prod_ffadb823-ab43-475a-a86f-d86a4f03f944": {
     "productID": "prod_ffadb823-ab43-475a-a86f-d86a4f03f944",
     "name": "Simulated Product 68f9da",
     "description": "Created by simulation script",
     "price": 335.28,
-    "stock": 98,
+    "stock": 70,
     "category": "",
     "tags": null
   }

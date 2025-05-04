@@ -2,7 +2,7 @@
 
 **Purpose:** Explain how to build the container images for the project services.
 **Audience:** Developers
-**Prerequisites:** Docker installed, ./Running_Locally_with_Docker_Compose.md
+**Prerequisites:** Docker installed, [Running Locally with Docker Compose](./Running_Locally_with_Docker_Compose.md)
 **Related Pages:** [`docker-compose.yml`](../../docker-compose.yml), `product-service/Dockerfile`, `tests/Dockerfile`
 
 ---
@@ -33,7 +33,7 @@ docker compose build product-service
 
 *   Docker Compose reads the `build:` context and `Dockerfile` specified for each service in `docker-compose.yml`.
 *   It caches layers, so subsequent builds are typically faster unless code or dependencies have changed.
-*   The `docker compose up --build` command (used in ../Quick_Start.md and ./Running_Locally_with_Docker_Compose.md) also performs a build automatically if images are missing or outdated before starting the containers.
+*   The `docker compose up --build` command (used in [Quick Start](../Quick_Start.md) and [Running Locally with Docker Compose](./Running_Locally_with_Docker_Compose.md)) also performs a build automatically if images are missing or outdated before starting the containers.
 
 ---
 

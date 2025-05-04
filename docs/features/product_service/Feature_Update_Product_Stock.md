@@ -2,7 +2,7 @@
 
 **Purpose:** This page details the `UpdateProductStock` feature, allowing clients to modify the stock level of a specific product.
 **Audience:** Developers, API Consumers, Students
-**Prerequisites:** ./Product_Service_API_Endpoints.md, ../../architecture/Data_Model_&_Persistence.md
+**Prerequisites:** [Product Service API Endpoints](./Product_Service_API_Endpoints.md), [Data Model & Persistence](../../architecture/Data_Model_&_Persistence.md)
 **Related Pages:** `product-service/src/handler.go`, `product-service/src/service.go`, `product-service/src/repository.go`
 
 ---
@@ -181,7 +181,7 @@ sequenceDiagram
 *   **Key Takeaway:** This feature demonstrates a typical API workflow BUT **critically fails** to implement necessary concurrency control (`sync.Mutex`) for its read-modify-write persistence logic, making it **unsafe for concurrent use**.
 *   **Demo Steps:**
     1.  Show the handler, service, and repository code for `UpdateStock`, **explicitly pointing out the MISSING mutex lock/unlock** calls around the read/modify/write section in the repository.
-    2.  Explain the race condition as described in ../../architecture/Data_Model_&_Persistence.md.
+    2.  Explain the race condition as described in [Data Model & Persistence](../../architecture/Data_Model_&_Persistence.md).
     3.  Use `curl` or a similar tool to send **multiple concurrent** `PATCH` requests to update the *same* product's stock quickly.
         ```bash
         # Example (run several times quickly)
