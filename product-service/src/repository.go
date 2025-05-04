@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"sync"
 
@@ -15,7 +13,6 @@ import (
 	commontrace "github.com/narender/common/telemetry/trace"
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 
 	"github.com/narender/common/globals"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
@@ -44,77 +41,6 @@ func NewProductRepository(dataFilePath string) ProductRepository {
 	}
 
 	return repo
-}
-
-// loadData reads the JSON file and populates the in-memory store.
-func (r *productRepository) loadData(ctx context.Context) (opErr error) {
-	operationName := utils.GetCallerFunctionName(2)
-	fileAttr := attribute.String("file.path", r.filePath)
-
-	mc := commonmetric.StartMetricsTimer()
-	defer mc.End(ctx, &opErr, fileAttr)
-
-	ctx, spanner := commontrace.StartSpan(ctx,
-		semconv.DBSystemKey.String("file"),
-		semconv.DBOperationKey.String("READ"),
-		fileAttr,
-	)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
-
-	debugutils.Simulate(ctx)
-
-	r.logger.InfoContext(ctx, "Repository: Loading data from file", slog.String("file_path", r.filePath), slog.String("operation", operationName))
-	spanner.AddEvent("Reading data file")
-	data, err := os.ReadFile(r.filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// If the file doesn't exist, log a warning but maybe it's okay to start empty?
-			r.logger.WarnContext(ctx, "Product data file does not exist, starting with empty repository", slog.String("file_path", r.filePath))
-			// Depending on requirements, you might want to return an error here
-			// opErr = fmt.Errorf("product data file not found '%s': %w", r.filePath, err)
-			return nil // Allow starting empty
-		} else {
-			opErr = fmt.Errorf("failed to read products file '%s': %w", r.filePath, err)
-			r.logger.ErrorContext(ctx, "Failed to read products file",
-				slog.String("layer", "repository"),
-				slog.String("operation", operationName),
-				slog.String("error", opErr.Error()),
-				slog.String("file.path", r.filePath),
-			)
-			spanner.SetStatus(codes.Error, opErr.Error())
-			return opErr
-		}
-	}
-	spanner.AddEvent("Data read successfully, unmarshalling...")
-
-	// Acquire write lock to modify internal state
-	spanner.AddEvent("Acquiring write lock for loadData")
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	spanner.AddEvent("Write lock acquired")
-
-	if err := json.Unmarshal(data, &r.products); err != nil {
-		opErr = fmt.Errorf("failed to unmarshal products data from '%s': %w", r.filePath, err)
-		r.logger.ErrorContext(ctx, "Failed to unmarshal products data",
-			slog.String("layer", "repository"),
-			slog.String("operation", operationName),
-			slog.String("error", opErr.Error()),
-			slog.String("file.path", r.filePath),
-		)
-		spanner.SetStatus(codes.Error, opErr.Error())
-		return opErr
-	}
-
-	// Populate the slice for GetAll
-	r.productsSlice = make([]Product, 0, len(r.products))
-	for _, p := range r.products {
-		r.productsSlice = append(r.productsSlice, p)
-	}
-	spanner.AddEvent("Data unmarshalled and cached successfully")
-	r.logger.InfoContext(ctx, "Repository: Data loaded successfully", slog.String("file_path", r.filePath), slog.Int("product_count", len(r.products)), slog.String("operation", operationName))
-	spanner.SetAttributes(attribute.Int("products.loaded.count", len(r.products)))
-
-	return nil
 }
 
 func (r *productRepository) GetAll(ctx context.Context) (products []Product, opErr error) {
@@ -167,9 +93,6 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (product Pro
 	debugutils.Simulate(ctx)
 
 	r.logger.InfoContext(ctx, "Repository: GetByID called", slog.String("product_id", id), slog.String("operation", operationName))
-
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 
 	product, exists := r.products[id]
 	if !exists {

@@ -85,4 +85,3 @@ func (s *productService) GetByID(ctx context.Context, productID string) (product
 	s.logger.InfoContext(ctx, "Service: GetByID completed successfully", slog.String("product_id", productID))
 	return product, nil
 }
-
