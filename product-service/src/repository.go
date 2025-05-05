@@ -16,14 +16,17 @@ import (
 
 	"github.com/narender/common/globals"
 	"go.opentelemetry.io/otel/trace"
+
+	// Import common errors package
+	apierrors "github.com/narender/common/apierrors"
 )
 
 // Updated Interface
 type ProductRepository interface {
-	GetAll(ctx context.Context) ([]Product, error)
-	GetByName(ctx context.Context, name string) (Product, error)
-	UpdateStock(ctx context.Context, name string, newStock int) error
-	GetByCategory(ctx context.Context, category string) ([]Product, error)
+	GetAll(ctx context.Context) ([]Product, *apierrors.AppError)
+	GetByName(ctx context.Context, name string) (Product, *apierrors.AppError)
+	UpdateStock(ctx context.Context, name string, newStock int) *apierrors.AppError
+	GetByCategory(ctx context.Context, category string) ([]Product, *apierrors.AppError)
 }
 
 type productRepository struct {
@@ -40,11 +43,20 @@ func NewProductRepository() ProductRepository {
 	return repo
 }
 
-func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, opErr error) {
+func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, appErr *apierrors.AppError) {
+	var opErr error
 	ctx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
-	defer commontrace.EndSpan(span, &opErr, nil)
 
-	debugutils.Simulate(ctx)
+	defer func() {
+		if appErr != nil && opErr == nil {
+			opErr = appErr
+		}
+		commontrace.EndSpan(span, &opErr, nil)
+	}()
+
+	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		return nil, simAppErr
+	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts uniform* Shop manager asked me to fetch ALL products from our inventory")
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to the back room* Let me check our master inventory ledger")
@@ -57,10 +69,11 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product
 			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
 			return []Product{}, nil
 		} else {
-			opErr = fmt.Errorf("failed to read products for GetAll using FileDatabase: %w", err)
-			r.logger.ErrorContext(ctx, "Stock Room Worker: *Distressed* I can't make sense of this inventory ledger! It's all smudged and unreadable! Error: "+opErr.Error())
-			span.SetStatus(codes.Error, opErr.Error())
-			return nil, opErr
+			errMsg := "Failed to read inventory ledger"
+			r.logger.ErrorContext(ctx, "Stock Room Worker: *Distressed* Cannot read inventory ledger!", slog.String("error", err.Error()))
+			span.SetStatus(codes.Error, errMsg)
+			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+			return nil, appErr
 		}
 	}
 
@@ -88,12 +101,20 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product
 }
 
 // Renamed from GetByID
-func (r *productRepository) GetByName(ctx context.Context, name string) (product Product, opErr error) {
+func (r *productRepository) GetByName(ctx context.Context, name string) (product Product, appErr *apierrors.AppError) {
 	productNameAttr := attribute.String("product.name", name)
 	ctx, span := commontrace.StartSpan(ctx, productNameAttr)
-	defer commontrace.EndSpan(span, &opErr, nil)
+	var opErr error
+	defer func() {
+		if appErr != nil && opErr == nil {
+			opErr = appErr
+		}
+		commontrace.EndSpan(span, &opErr, nil)
+	}()
 
-	debugutils.Simulate(ctx)
+	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		return Product{}, simAppErr
+	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Perks up* Shop manager needs me to find product with name: '"+name+"'")
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Grabs inventory clipboard* Let me check if we have '"+name+"' in stock")
@@ -101,20 +122,22 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
-		opErr = fmt.Errorf("failed to read products for GetByName using FileDatabase: %w", err)
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Frustrated* The inventory ledger pages are stuck together! Can't read anything! Error: "+opErr.Error())
-		span.SetStatus(codes.Error, opErr.Error())
-		return Product{}, opErr
+		errMsg := "Failed to read inventory data"
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Frustrated* Cannot read inventory ledger!", slog.String("error", err.Error()))
+		span.SetStatus(codes.Error, errMsg)
+		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+		return Product{}, appErr
 	}
 
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Runs finger down inventory list* Looking for product name '"+name+"'...")
 
 	product, exists := productsMap[name]
 	if !exists {
-		opErr = fmt.Errorf("product with name '%s' not found", name)
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Scratches head* Hmm, that's strange. We don't have any product named '"+name+"' anywhere in our stockroom!")
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Double-checks shelves* Nope, definitely not here. Must be discontinued or never existed")
-		return Product{}, opErr
+		errMsg := fmt.Sprintf("Product with name '%s' not found", name)
+		r.logger.WarnContext(ctx, "Stock Room Worker: Product not found", slog.String("product_name", name))
+		span.SetStatus(codes.Error, errMsg)
+		appErr = apierrors.NewAppError(apierrors.ErrCodeNotFound, errMsg, nil)
+		return Product{}, appErr
 	}
 
 	span.SetAttributes(attribute.String("product.category_found", product.Category))
@@ -126,15 +149,23 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 }
 
 // Updated signature: uses name instead of productID
-func (r *productRepository) UpdateStock(ctx context.Context, name string, newStock int) (opErr error) {
+func (r *productRepository) UpdateStock(ctx context.Context, name string, newStock int) (appErr *apierrors.AppError) {
 	productNameAttr := attribute.String("product.name", name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productNameAttr, newStockAttr}
 
 	ctx, span := commontrace.StartSpan(ctx, attrs...)
-	defer commontrace.EndSpan(span, &opErr, nil)
+	var opErr error
+	defer func() {
+		if appErr != nil && opErr == nil {
+			opErr = appErr
+		}
+		commontrace.EndSpan(span, &opErr, nil)
+	}()
 
-	debugutils.Simulate(ctx)
+	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		return simAppErr
+	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Nods* Shop manager wants me to update stock for product '"+name+"' to exactly "+strconv.Itoa(newStock)+" units")
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Rolls up sleeves* Time to adjust our physical inventory")
@@ -142,21 +173,23 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
-		opErr = fmt.Errorf("failed to read products for UpdateStock using FileDatabase: %w", err)
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Panics* I dropped the inventory ledger in a puddle! Can't read anything! Error: "+opErr.Error())
-		span.SetStatus(codes.Error, opErr.Error())
-		return opErr
+		errMsg := "Failed to read inventory data for update"
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Panics* Cannot read inventory ledger for update!", slog.String("error", err.Error()))
+		span.SetStatus(codes.Error, errMsg)
+		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+		return appErr
 	}
 
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Searches inventory* Let me find product '"+name+"' first...")
 
 	product, ok := productsMap[name]
 	if !ok {
-		opErr = fmt.Errorf("product with name '%s' not found for update", name)
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Confused* That's weird. I've checked every shelf and box but we don't have any product named '"+name+"' in our inventory!")
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Shrugs* Can't update stock for a product we don't carry")
+		errMsg := fmt.Sprintf("Product with name '%s' not found for stock update", name)
+		r.logger.WarnContext(ctx, "Stock Room Worker: Product not found for update", slog.String("product_name", name))
 		span.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
-		return opErr
+		span.SetStatus(codes.Error, errMsg)
+		appErr = apierrors.NewAppError(apierrors.ErrCodeNotFound, errMsg, nil)
+		return appErr
 	}
 
 	oldStock := product.Stock
@@ -178,10 +211,11 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	}
 
 	if writeErr := r.database.Write(ctx, productsMap); writeErr != nil {
-		opErr = fmt.Errorf("failed to write products for UpdateStock using FileDatabase: %w", writeErr)
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Spills coffee* No! I just spilled coffee all over the inventory ledger while updating it! Error: "+opErr.Error())
-		span.SetStatus(codes.Error, opErr.Error())
-		return opErr
+		errMsg := "Failed to write updated inventory data"
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Spills coffee* Cannot write updated inventory ledger!", slog.String("error", writeErr.Error()))
+		span.SetStatus(codes.Error, errMsg)
+		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, writeErr)
+		return appErr
 	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
@@ -192,12 +226,20 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 }
 
 // No signature change needed, but ensure internal logic is compatible
-func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []Product, opErr error) {
+func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []Product, appErr *apierrors.AppError) {
 	categoryAttr := attribute.String("product.category", category)
 	ctx, span := commontrace.StartSpan(ctx, categoryAttr)
-	defer commontrace.EndSpan(span, &opErr, nil)
+	var opErr error
+	defer func() {
+		if appErr != nil && opErr == nil {
+			opErr = appErr
+		}
+		commontrace.EndSpan(span, &opErr, nil)
+	}()
 
-	debugutils.Simulate(ctx)
+	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		return nil, simAppErr
+	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts name tag* Shop manager needs all products from the '"+category+"' category")
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to section "+category+"* Let me check what we have on these shelves")
@@ -206,14 +248,15 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.logger.WarnContext(ctx, "Stock Room Worker: *Worried* Strange, our inventory ledger is missing! I better tell shop manager we have no products in category '"+category+"'")
+			r.logger.WarnContext(ctx, "Stock Room Worker: *Worried* Strange, our inventory ledger is missing! I better tell shop manager we have no products in category '"+category+"'", slog.String("category", category))
 			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
 			return []Product{}, nil
 		} else {
-			opErr = fmt.Errorf("failed to read products for GetByCategory using FileDatabase: %w", err)
-			r.logger.ErrorContext(ctx, "Stock Room Worker: *Squints at pages* The inventory ledger is too faded to read! Error: "+opErr.Error())
-			span.SetStatus(codes.Error, opErr.Error())
-			return nil, opErr
+			errMsg := "Failed to read inventory data for category lookup"
+			r.logger.ErrorContext(ctx, "Stock Room Worker: *Squints* Cannot read inventory ledger!", slog.String("error", err.Error()))
+			span.SetStatus(codes.Error, errMsg)
+			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+			return nil, appErr
 		}
 	}
 

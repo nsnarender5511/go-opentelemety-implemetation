@@ -10,7 +10,7 @@
     "name": "Laptop Pro",
     "description": "High-end laptop",
     "price": 1500.99,
-    "stock": 0,
+    "stock": 50,
     "category": "Electronics"
   },
   "Office Chair": {

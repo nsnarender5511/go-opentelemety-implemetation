@@ -12,6 +12,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/narender/common/globals"
+	// Import new common packages
+	commonMiddleware "github.com/narender/common/middleware"
 )
 
 func main() {
@@ -32,28 +34,21 @@ func main() {
 	// --- Service Information Logging ---
 	logger.Info("Starting product-service")
 
-	// TO Enable preforking and concurenccy
-	// app := fiber.New(fiber.Config{
-	// 	Prefork: true,
-	// 	Concurrency: 3,
-	// })
-	app := fiber.New()
+	// --- Fiber App Initialization with Error Handler ---
+	app := fiber.New(fiber.Config{
+		ErrorHandler: commonMiddleware.ErrorHandler(),
+	})
 
 	// --- Middleware Configuration ---
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
-	app.Use(recover.New())
+	app.Use(recover.New())          // Recover from panics
 	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
 
 	// --- Route Definitions ---
-	app.Get("/health", handler.HealthCheck)
-	app.Get("/products", handler.GetAllProducts)
-	app.Get("/products/category", handler.GetProductsByCategory)
-	app.Post("/products/details", handler.GetProductByName)
-	app.Patch("/products/stock", handler.UpdateProductStock)
-	app.Post("/products/buy", handler.BuyProduct)
+	setupRoutes(app, handler)
 	logger.Info("Routes registered")
 
 	// --- Server Startup ---
@@ -64,4 +59,14 @@ func main() {
 		logger.Error("Server listener failed", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+// setupRoutes function to keep main clean
+func setupRoutes(app *fiber.App, handler *ProductHandler) {
+	app.Get("/health", handler.HealthCheck)
+	app.Get("/products", handler.GetAllProducts)
+	app.Get("/products/category", handler.GetProductsByCategory)
+	app.Post("/products/details", handler.GetProductByName)
+	app.Patch("/products/stock", handler.UpdateProductStock)
+	app.Post("/products/buy", handler.BuyProduct)
 }
