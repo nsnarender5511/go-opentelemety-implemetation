@@ -113,4 +113,3 @@ Screenshot: ![Sample Image](../assets/images/span_view.png)
 ---
 
 
-**Last Updated:** 2024-07-30

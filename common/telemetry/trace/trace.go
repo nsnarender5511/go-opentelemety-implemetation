@@ -22,6 +22,8 @@ func DefaultStatusMapper(err error) codes.Code {
 
 type StatusMapperFunc func(error) codes.Code
 
+// StartSpan begins a new OTel span, inferring the operation name from the caller.
+// It uses a static tracer name and adds standard code attributes.
 func StartSpan(ctx context.Context, initialAttrs ...attribute.KeyValue) (context.Context, trace.Span) {
 	operationName := utils.GetCallerFunctionName(3)
 	tracerName := "static-tracer-for-now"
@@ -49,6 +51,8 @@ func StartSpan(ctx context.Context, initialAttrs ...attribute.KeyValue) (context
 	return newCtx, span
 }
 
+// EndSpan concludes the given span, automatically recording errors and setting status.
+// It expects a pointer to an error variable to check for failures.
 func EndSpan(span trace.Span, errPtr *error, statusMapper StatusMapperFunc, options ...trace.SpanEndOption) {
 	defer span.End(options...)
 

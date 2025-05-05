@@ -162,4 +162,4 @@ Example Markdown:
 
 ---
 
-**Last Updated:** 2024-07-30
+

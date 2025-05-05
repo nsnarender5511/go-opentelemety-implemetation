@@ -67,4 +67,4 @@ docker compose down
 
 **Next Steps:** Explore the detailed documentation sections linked above to understand the architecture, features, and configuration in more depth.
 
-**Last Updated:** 2024-07-30
+

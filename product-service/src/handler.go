@@ -24,6 +24,7 @@ func NewProductHandler(svc ProductService) *ProductHandler {
 	}
 }
 
+// GetAllProducts handles requests to retrieve all products.
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	ctx := c.UserContext()
 
@@ -49,6 +50,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (opErr error) {
 	return c.Status(http.StatusOK).JSON(products)
 }
 
+// GetProductByID handles requests to retrieve a single product by its ID.
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	ctx := c.UserContext()
 	productID := c.Params("productId")
@@ -76,6 +78,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) (opErr error) {
 	return c.Status(http.StatusOK).JSON(product)
 }
 
+// HealthCheck provides a simple health endpoint.
 func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	const operation = "HealthCheckHandler"
 	h.logger.Info("Health check requested", slog.String("operation", operation))
@@ -97,6 +100,7 @@ type updateStockPayload struct {
 	Stock int `json:"stock"`
 }
 
+// UpdateProductStock handles requests to update the stock for a specific product.
 func (h *ProductHandler) UpdateProductStock(c *fiber.Ctx) error {
 	// Declare opErr early for the defer statement
 	var opErr error

@@ -13,10 +13,14 @@ import (
 var (
 	cfg    *config.Config
 	logger *slog.Logger
-	once   sync.Once
-	err    error
+	// once ensures that initialization logic runs exactly once.
+	once sync.Once
+	err  error
 )
 
+// Init initializes global configuration, logging, and telemetry setup.
+// It ensures this initialization happens only once using sync.Once.
+// Returns an error if any initialization step fails.
 func Init() error {
 	once.Do(func() {
 
@@ -57,6 +61,7 @@ func Init() error {
 	return err
 }
 
+// Cfg returns the loaded configuration, panicking if Init hasn't been successfully called.
 func Cfg() *config.Config {
 	if cfg == nil {
 		panic("configuration not initialized: call globals.Init() first and check error")
@@ -64,6 +69,7 @@ func Cfg() *config.Config {
 	return cfg
 }
 
+// Logger returns the initialized logger, panicking if Init hasn't been successfully called.
 func Logger() *slog.Logger {
 	if logger == nil {
 		panic("logger not initialized: call globals.Init() first and check error")
@@ -71,10 +77,12 @@ func Logger() *slog.Logger {
 	return logger
 }
 
+// GetCfg returns the loaded configuration, potentially nil if Init failed or wasn't called.
 func GetCfg() *config.Config {
 	return cfg
 }
 
+// GetLogger returns the initialized logger, potentially nil if Init failed or wasn't called.
 func GetLogger() *slog.Logger {
 	return logger
 }
