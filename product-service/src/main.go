@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
@@ -23,6 +22,7 @@ func main() {
 		panic(err)
 	}
 	logger := globals.Logger()
+	logger.Debug("data file located at ", slog.String("path", globals.Cfg().PRODUCT_DATA_FILE_PATH))
 
 	// --- Service and Handler Initialization ---
 	repo := NewProductRepository()
@@ -31,6 +31,12 @@ func main() {
 
 	// --- Service Information Logging ---
 	logger.Info("Starting product-service")
+
+	// TO Enable preforking and concurenccy
+	// app := fiber.New(fiber.Config{
+	// 	Prefork: true,
+	// 	Concurrency: 3,
+	// })
 	app := fiber.New()
 
 	// --- Middleware Configuration ---
@@ -42,15 +48,12 @@ func main() {
 	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
 
 	// --- Route Definitions ---
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.Status(http.StatusOK).JSON(fiber.Map{"status": "ok (minimal)"})
-	})
-
+	app.Get("/health", handler.HealthCheck)
 	app.Get("/products", handler.GetAllProducts)
-	app.Get("/products/:productId", handler.GetProductByID)
-	app.Get("/status", handler.HealthCheck)
-	app.Patch("/products/:productID/stock", handler.UpdateProductStock)
-	app.Post("/products", handler.CreateProduct)
+	app.Get("/products/category", handler.GetProductsByCategory)
+	app.Post("/products/details", handler.GetProductByName)
+	app.Patch("/products/stock", handler.UpdateProductStock)
+	app.Post("/products/buy", handler.BuyProduct)
 	logger.Info("Routes registered")
 
 	// --- Server Startup ---

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 
 	db "github.com/narender/common/db"
 	"github.com/narender/common/debugutils"
@@ -17,12 +18,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ProductRepository defines the interface for accessing product data.
+// Updated Interface
 type ProductRepository interface {
 	GetAll(ctx context.Context) ([]Product, error)
-	GetByID(ctx context.Context, id string) (Product, error)
-	UpdateStock(ctx context.Context, productID string, newStock int) error
-	Create(ctx context.Context, product Product) error
+	GetByName(ctx context.Context, name string) (Product, error)
+	UpdateStock(ctx context.Context, name string, newStock int) error
+	GetByCategory(ctx context.Context, category string) ([]Product, error)
 }
 
 type productRepository struct {
@@ -40,200 +41,201 @@ func NewProductRepository() ProductRepository {
 }
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, opErr error) {
-
-	mc := commonmetric.StartMetricsTimer()
-	defer mc.End(ctx, &opErr)
-
-	ctx, spanner := commontrace.StartSpan(ctx,
-		attribute.String("repository.operation", "GetAll"),
-	)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
+	ctx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
+	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
-	r.logger.InfoContext(ctx, "Repository: GetAll called - reading from FileDatabase")
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts uniform* Shop manager asked me to fetch ALL products from our inventory")
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to the back room* Let me check our master inventory ledger")
 
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.logger.WarnContext(ctx, "Product data file not found during GetAll, returning empty list")
-			spanner.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
-			return []Product{}, nil // Return empty slice, not an error
+			r.logger.WarnContext(ctx, "Stock Room Worker: *Panics* Oh no! The inventory ledger is missing! *Takes deep breath* I better tell the shop manager our shelves are empty")
+			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
+			return []Product{}, nil
 		} else {
 			opErr = fmt.Errorf("failed to read products for GetAll using FileDatabase: %w", err)
-			r.logger.ErrorContext(ctx, "Failed to read products for GetAll", slog.String("error", opErr.Error()))
-			spanner.SetStatus(codes.Error, opErr.Error())
+			r.logger.ErrorContext(ctx, "Stock Room Worker: *Distressed* I can't make sense of this inventory ledger! It's all smudged and unreadable! Error: "+opErr.Error())
+			span.SetStatus(codes.Error, opErr.Error())
 			return nil, opErr
 		}
 	}
 
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Flips through pages* Ah! Here's our complete inventory. Let me count everything...")
+
 	productsSlice = make([]Product, 0, len(productsMap))
 	for _, p := range productsMap {
 		productsSlice = append(productsSlice, p)
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Checks shelf* Product "+p.Name+" - we have "+strconv.Itoa(p.Stock)+" in stock")
 	}
 
-	// --- BEGIN: Update Product Stock Metric ---
-	// Prepare data for the observable gauge
 	stockLevels := make(map[string]int64, len(productsSlice))
 	for _, p := range productsSlice {
-		// Use ProductID as the key and Stock (converted to int64) as the value
-		stockLevels[p.ProductID] = int64(p.Stock)
+		stockLevels[p.Name] = int64(p.Stock)
 	}
-	// Call the metric update function (from common/telemetry/metric)
 	commonmetric.UpdateProductStockLevels(stockLevels)
-	r.logger.DebugContext(ctx, "Updated product stock levels metric after GetAll")
-	// --- END: Update Product Stock Metric ---
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Updates big inventory board* Just updated our stock level display board with current numbers")
 
-	spanner.SetAttributes(attribute.Int("products.returned.count", len(productsSlice)))
-	r.logger.InfoContext(ctx, "Repository: GetAll returning products read from file", slog.Int("count", len(productsSlice)))
+	productCount := len(productsSlice)
+	span.SetAttributes(attribute.Int("products.returned.count", productCount))
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Wipes brow* Phew! Counted all "+strconv.Itoa(productCount)+" products in our actual stock")
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Walks back to counter* Here's the complete inventory list for the shop manager")
+
 	return productsSlice, nil
 }
 
-func (r *productRepository) GetByID(ctx context.Context, id string) (product Product, opErr error) {
-	productIdAttr := attribute.String("product.id", id)
-
-	mc := commonmetric.StartMetricsTimer()
-	defer mc.End(ctx, &opErr, productIdAttr)
-
-	ctx, spanner := commontrace.StartSpan(ctx,
-		productIdAttr,
-	)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
+// Renamed from GetByID
+func (r *productRepository) GetByName(ctx context.Context, name string) (product Product, opErr error) {
+	productNameAttr := attribute.String("product.name", name)
+	ctx, span := commontrace.StartSpan(ctx, productNameAttr)
+	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
-	r.logger.InfoContext(ctx, "Repository: GetByID called - reading from FileDatabase", slog.String("product_id", id))
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Perks up* Shop manager needs me to find product with name: '"+name+"'")
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Grabs inventory clipboard* Let me check if we have '"+name+"' in stock")
 
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
-		opErr = fmt.Errorf("failed to read products for GetByID using FileDatabase: %w", err)
-		r.logger.ErrorContext(ctx, "Failed to read products for GetByID", slog.String("product_id", id), slog.String("error", opErr.Error()))
-		spanner.SetStatus(codes.Error, opErr.Error())
+		opErr = fmt.Errorf("failed to read products for GetByName using FileDatabase: %w", err)
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Frustrated* The inventory ledger pages are stuck together! Can't read anything! Error: "+opErr.Error())
+		span.SetStatus(codes.Error, opErr.Error())
 		return Product{}, opErr
 	}
 
-	product, exists := productsMap[id]
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Runs finger down inventory list* Looking for product name '"+name+"'...")
+
+	product, exists := productsMap[name]
 	if !exists {
-		opErr = fmt.Errorf("product with id '%s' not found", id)
-		r.logger.ErrorContext(ctx, "Product not found in file data", slog.String("error", opErr.Error()), slog.String("product_id", id))
+		opErr = fmt.Errorf("product with name '%s' not found", name)
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Scratches head* Hmm, that's strange. We don't have any product named '"+name+"' anywhere in our stockroom!")
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Double-checks shelves* Nope, definitely not here. Must be discontinued or never existed")
 		return Product{}, opErr
 	}
 
-	spanner.SetAttributes(attribute.String("product.name", product.Name))
-	r.logger.InfoContext(ctx, "Repository: GetByID found product in file data", slog.String("product_id", id))
+	span.SetAttributes(attribute.String("product.category_found", product.Category))
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Excited* Found it! Product '"+product.Name+"' is right here on shelf "+product.Category)
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Checks quantity* We have "+strconv.Itoa(product.Stock)+" units at $"+fmt.Sprintf("%.2f", product.Price)+" each")
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Hurries back* Here are the details for product '"+name+"' that shop manager asked for")
+
 	return product, nil
 }
 
-func (r *productRepository) UpdateStock(ctx context.Context, productID string, newStock int) (opErr error) {
-	productIdAttr := attribute.String("product.id", productID)
+// Updated signature: uses name instead of productID
+func (r *productRepository) UpdateStock(ctx context.Context, name string, newStock int) (opErr error) {
+	productNameAttr := attribute.String("product.name", name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
-	attrs := []attribute.KeyValue{productIdAttr, newStockAttr}
+	attrs := []attribute.KeyValue{productNameAttr, newStockAttr}
 
-	mc := commonmetric.StartMetricsTimer()
-	defer mc.End(ctx, &opErr, attrs...)
-
-	ctx, spanner := commontrace.StartSpan(ctx, attrs...)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
+	ctx, span := commontrace.StartSpan(ctx, attrs...)
+	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
-	r.logger.InfoContext(ctx, "Repository: UpdateStock called - requires read-modify-write on FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Nods* Shop manager wants me to update stock for product '"+name+"' to exactly "+strconv.Itoa(newStock)+" units")
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Rolls up sleeves* Time to adjust our physical inventory")
 
-	// 1. Read current data
 	var productsMap map[string]Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
 		opErr = fmt.Errorf("failed to read products for UpdateStock using FileDatabase: %w", err)
-		r.logger.ErrorContext(ctx, "Failed to read products for UpdateStock", slog.String("product_id", productID), slog.String("error", opErr.Error()))
-		spanner.SetStatus(codes.Error, opErr.Error())
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Panics* I dropped the inventory ledger in a puddle! Can't read anything! Error: "+opErr.Error())
+		span.SetStatus(codes.Error, opErr.Error())
 		return opErr
 	}
 
-	// 2. Modify data
-	product, ok := productsMap[productID]
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Searches inventory* Let me find product '"+name+"' first...")
+
+	product, ok := productsMap[name]
 	if !ok {
-		opErr = fmt.Errorf("product with id '%s' not found for update", productID)
-		r.logger.ErrorContext(ctx, "Product not found in file data for update", slog.String("error", opErr.Error()), slog.String("product_id", productID))
-		spanner.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
+		opErr = fmt.Errorf("product with name '%s' not found for update", name)
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Confused* That's weird. I've checked every shelf and box but we don't have any product named '"+name+"' in our inventory!")
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Shrugs* Can't update stock for a product we don't carry")
+		span.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
 		return opErr
 	}
 
 	oldStock := product.Stock
 	product.Stock = newStock
-	productsMap[productID] = product // Update the map
+	productsMap[name] = product
 
-	spanner.SetAttributes(attribute.Int("product.old_stock", oldStock))
-	r.logger.InfoContext(ctx, "Repository: Product stock updated in memory map (pre-save)", slog.String("product_id", productID), slog.Int("old_stock", oldStock), slog.Int("new_stock", newStock))
+	span.SetAttributes(attribute.Int("product.old_stock", oldStock))
 
-	// 3. Write modified data back
+	if newStock > oldStock {
+		added := newStock - oldStock
+		r.logger.InfoContext(ctx, "Stock Room Worker: *Unloading boxes* Adding "+strconv.Itoa(added)+" units of "+product.Name+" to the shelf")
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Arranges products* Making sure they're displayed nicely")
+	} else if newStock < oldStock {
+		removed := oldStock - newStock
+		r.logger.InfoContext(ctx, "Stock Room Worker: *Counts carefully* Removing "+strconv.Itoa(removed)+" units of "+product.Name+" from the shelf")
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Updates display* Making sure the remaining "+strconv.Itoa(newStock)+" units look presentable")
+	} else {
+		r.logger.DebugContext(ctx, "Stock Room Worker: *Puzzled* Stock count for "+product.Name+" is unchanged at "+strconv.Itoa(newStock)+". Just double-checking everything looks good")
+	}
+
 	if writeErr := r.database.Write(ctx, productsMap); writeErr != nil {
-		r.logger.ErrorContext(ctx, "Failed to persist stock update via FileDatabase", slog.String("error", opErr.Error()), slog.String("product_id", productID))
-		spanner.SetStatus(codes.Error, opErr.Error())
+		opErr = fmt.Errorf("failed to write products for UpdateStock using FileDatabase: %w", writeErr)
+		r.logger.ErrorContext(ctx, "Stock Room Worker: *Spills coffee* No! I just spilled coffee all over the inventory ledger while updating it! Error: "+opErr.Error())
+		span.SetStatus(codes.Error, opErr.Error())
 		return opErr
 	}
 
-	r.logger.InfoContext(ctx, "Repository: Product stock updated and saved via FileDatabase", slog.String("product_id", productID), slog.Int("new_stock", newStock))
-	mc.IncrementProductUpdated(ctx)
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Closes ledger* Also updated our inventory records to match the physical stock")
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Returns to counter* All done! Stock update completed for product '"+name+"'")
 
 	return nil
 }
 
-// Create adds a new product to the JSON file.
-func (repo *productRepository) Create(ctx context.Context, product Product) (opErr error) {
-	mc := commonmetric.StartMetricsTimer()
-	productIdAttr := attribute.String("product.id", product.ProductID)
-	defer mc.End(ctx, &opErr, productIdAttr)
-
-	ctx, spanner := commontrace.StartSpan(ctx, productIdAttr)
-	defer commontrace.EndSpan(spanner, &opErr, nil)
+// No signature change needed, but ensure internal logic is compatible
+func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []Product, opErr error) {
+	categoryAttr := attribute.String("product.category", category)
+	ctx, span := commontrace.StartSpan(ctx, categoryAttr)
+	defer commontrace.EndSpan(span, &opErr, nil)
 
 	debugutils.Simulate(ctx)
 
-	// NOTE: Assuming db.FileDatabase handles concurrency, so no explicit repo mutex needed here.
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts name tag* Shop manager needs all products from the '"+category+"' category")
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to section "+category+"* Let me check what we have on these shelves")
 
-	repo.logger.InfoContext(ctx, "Repository: Create called", slog.String("productID", product.ProductID))
-
-	// Load existing products using FileDatabase
 	var productsMap map[string]Product
-	err := repo.database.Read(ctx, &productsMap)
-	// Handle file not existing initially - create an empty map
-	if err != nil && os.IsNotExist(err) {
-		repo.logger.InfoContext(ctx, "Repository: data file not found during create, initializing empty map", slog.String("productID", product.ProductID))
-		productsMap = make(map[string]Product)
-		err = nil // Clear the IsNotExist error
-	} else if err != nil {
-		repo.logger.ErrorContext(ctx, "Repository: Failed to read products during create", slog.String("error", err.Error()))
-		if spanner != nil {
-			spanner.SetStatus(codes.Error, "failed to read products: "+err.Error())
-		}
-		opErr = fmt.Errorf("failed to read products during create: %w", err)
-		return opErr
-	}
-
-	// Check if product ID already exists in the map
-	if _, exists := productsMap[product.ProductID]; exists {
-		repo.logger.WarnContext(ctx, "Repository: Product ID already exists", slog.String("productID", product.ProductID))
-		opErr = fmt.Errorf("product with ID %s already exists", product.ProductID)
-		return opErr
-	}
-
-	// Add the new product to the map
-	productsMap[product.ProductID] = product
-
-	// Save updated products map using FileDatabase
-	err = repo.database.Write(ctx, productsMap)
+	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
-		repo.logger.ErrorContext(ctx, "Repository: Failed to save products after create", slog.String("productID", product.ProductID), slog.String("error", err.Error()))
-		if spanner != nil {
-			spanner.SetStatus(codes.Error, "failed to save products: "+err.Error())
+		if os.IsNotExist(err) {
+			r.logger.WarnContext(ctx, "Stock Room Worker: *Worried* Strange, our inventory ledger is missing! I better tell shop manager we have no products in category '"+category+"'")
+			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
+			return []Product{}, nil
+		} else {
+			opErr = fmt.Errorf("failed to read products for GetByCategory using FileDatabase: %w", err)
+			r.logger.ErrorContext(ctx, "Stock Room Worker: *Squints at pages* The inventory ledger is too faded to read! Error: "+opErr.Error())
+			span.SetStatus(codes.Error, opErr.Error())
+			return nil, opErr
 		}
-		opErr = fmt.Errorf("failed to save products after create: %w", err)
-		return opErr
 	}
 
-	repo.logger.InfoContext(ctx, "Repository: Product created successfully", slog.String("productID", product.ProductID))
-	mc.IncrementProductCreated(ctx)
-	return nil // Success
+	r.logger.DebugContext(ctx, "Stock Room Worker: *Searching shelves* Looking through our '"+category+"' section...")
+
+	filteredProducts = make([]Product, 0)
+	for _, p := range productsMap {
+		if p.Category == category {
+			filteredProducts = append(filteredProducts, p)
+			r.logger.DebugContext(ctx, "Stock Room Worker: *Picks up item* Found "+p.Name+" in the '"+category+"' section, we have "+strconv.Itoa(p.Stock)+" in stock")
+		}
+	}
+
+	productCount := len(filteredProducts)
+	span.SetAttributes(attribute.Int("products.returned.count", productCount))
+
+	if productCount == 0 {
+		r.logger.InfoContext(ctx, "Stock Room Worker: *Shrugs* We don't have any products in the '"+category+"' category right now")
+	} else {
+		r.logger.InfoContext(ctx, "Stock Room Worker: *Counts items* We have "+strconv.Itoa(productCount)+" different products in the '"+category+"' category")
+	}
+
+	r.logger.InfoContext(ctx, "Stock Room Worker: *Returns to counter* Here's the list of all our '"+category+"' products for the shop manager")
+	return filteredProducts, nil
 }

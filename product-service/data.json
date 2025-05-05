@@ -1,56 +1,30 @@
 {
-  "prod_2b4d5390-e041-4535-a20e-2f7cc0fe5498": {
-    "productID": "prod_2b4d5390-e041-4535-a20e-2f7cc0fe5498",
-    "name": "Simulated Product 434d0f",
-    "description": "Created by simulation script",
-    "price": 183.24,
-    "stock": 36,
-    "category": "",
-    "tags": null
+  "Coffee Mug": {
+    "name": "Coffee Mug",
+    "description": "Large ceramic mug",
+    "price": 12,
+    "stock": 75,
+    "category": "Kitchenware"
   },
-  "prod_639827b5-0c84-40a0-97a8-a7de44428052": {
-    "productID": "prod_639827b5-0c84-40a0-97a8-a7de44428052",
-    "name": "Simulated Product 2580ae",
-    "description": "Created by simulation script",
-    "price": 272.49,
-    "stock": 19,
-    "category": "",
-    "tags": null
+  "Laptop Pro": {
+    "name": "Laptop Pro",
+    "description": "High-end laptop",
+    "price": 1500.99,
+    "stock": 0,
+    "category": "Electronics"
   },
-  "prod_6797e8a2-c41e-417f-87d5-36386d7905b4": {
-    "productID": "prod_6797e8a2-c41e-417f-87d5-36386d7905b4",
-    "name": "Simulated Product 826412",
-    "description": "Created by simulation script",
-    "price": 462.03,
-    "stock": 116,
-    "category": "",
-    "tags": null
+  "Office Chair": {
+    "name": "Office Chair",
+    "description": "Ergonomic chair",
+    "price": 250.5,
+    "stock": 50,
+    "category": "Furniture"
   },
-  "prod_b1f64417-1ff4-4933-94a6-bb3cd46b42fa": {
-    "productID": "prod_b1f64417-1ff4-4933-94a6-bb3cd46b42fa",
-    "name": "Simulated Product 8a51a4",
-    "description": "Created by simulation script",
-    "price": 495.57,
-    "stock": 64,
-    "category": "",
-    "tags": null
-  },
-  "prod_bb357ae8-7378-4623-9039-5b4780c01012": {
-    "productID": "prod_bb357ae8-7378-4623-9039-5b4780c01012",
-    "name": "Simulated Product 743811",
-    "description": "Created by simulation script",
-    "price": 322.06,
-    "stock": 31,
-    "category": "",
-    "tags": null
-  },
-  "prod_d990b992-2f35-4115-9f9b-399855a6281f": {
-    "productID": "prod_d990b992-2f35-4115-9f9b-399855a6281f",
-    "name": "Simulated Product d86efe",
-    "description": "Created by simulation script",
-    "price": 320.1,
-    "stock": 103,
-    "category": "",
-    "tags": null
+  "Wireless Mouse": {
+    "name": "Wireless Mouse",
+    "description": "Silent click mouse",
+    "price": 25,
+    "stock": 100,
+    "category": "Electronics"
   }
 }

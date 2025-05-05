@@ -2,8 +2,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,13 +27,13 @@ func StartSpan(ctx context.Context, initialAttrs ...attribute.KeyValue) (context
 	tracerName := "static-tracer-for-now"
 	tracer := otel.Tracer(tracerName)
 
-	parentSpanContext := trace.SpanContextFromContext(ctx)
-	fmt.Printf("[DEBUG] StartSpan called | operation: %s | hasParent: %t | parentTraceID: %s | parentSpanID: %s\n",
-		operationName,
-		parentSpanContext.IsValid(),
-		parentSpanContext.TraceID().String(),
-		parentSpanContext.SpanID().String(),
-	)
+	// parentSpanContext := trace.SpanContextFromContext(ctx)
+	// fmt.Printf("[DEBUG] StartSpan called | operation: %s | hasParent: %t | parentTraceID: %s | parentSpanID: %s\n",
+	// 	operationName,
+	// 	parentSpanContext.IsValid(),
+	// 	parentSpanContext.TraceID().String(),
+	// 	parentSpanContext.SpanID().String(),
+	// )
 
 	opts := []trace.SpanStartOption{
 		trace.WithSpanKind(trace.SpanKindInternal),
