@@ -23,6 +23,12 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
     networks:
       - otel_internal-network
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 32M
 
     
   product-simulator:
