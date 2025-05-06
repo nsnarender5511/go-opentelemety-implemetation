@@ -18,6 +18,7 @@ func SetupOtlpMetricExporter(ctx context.Context, cfg *config.Config, connOpts [
 	metricExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(cfg.OTEL_ENDPOINT),
 		otlpmetricgrpc.WithDialOption(connOpts...),
+		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create OTLP metric exporter: %w", err)

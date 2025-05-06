@@ -3,6 +3,8 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
+        tls:
+          insecure: true
   docker_stats:
     endpoint: "unix:///var/run/docker.sock"
     collection_interval: 10s
@@ -16,17 +18,17 @@ processors:
   resource:
     attributes:
       - key: host.name
-        value: "testing_metrics"
+        value: "${OTEL_RESOURCE_HOST_NAME}"
         action: upsert
 
 
 exporters:
   otlp: 
-    endpoint: "ingest.in.signoz.cloud:443"
+    endpoint: "${SIGNOZ_ENDPOINT}"
     tls:
       insecure: false
     headers:
-      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+      signoz-ingestion-key: "${SIGNOZ_INGESTION_KEY}"
   debug:
     verbosity: detailed
 
@@ -45,15 +47,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [resource]
-      exporters: [otlp]
+      exporters: [otlp, debug]
     metrics:
-      receivers: [otlp, docker_stats]
+      receivers: [otlp]
       processors: [resource]
       exporters: [otlp, debug]
     logs:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [otlp]
+      exporters: [otlp, debug]
 
 
 

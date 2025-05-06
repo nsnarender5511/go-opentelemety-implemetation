@@ -11,12 +11,15 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+
+	"github.com/narender/common/config"
 )
 
-func SetupOtlpTraceExporter(ctx context.Context, endpoint string, connOpts []grpc.DialOption, res *resource.Resource) error {
+func SetupOtlpTraceExporter(ctx context.Context, cfg *config.Config, connOpts []grpc.DialOption, res *resource.Resource) error {
 	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithEndpoint(cfg.OTEL_ENDPOINT),
 		otlptracegrpc.WithDialOption(connOpts...),
+		otlptracegrpc.WithInsecure(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create OTLP trace exporter: %w", err)

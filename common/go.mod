@@ -33,8 +33,10 @@ require (
 )
 
 require (
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/joho/godotenv v1.5.1
 	github.com/lmittmann/tint v1.0.7
 	github.com/samber/slog-multi v1.4.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.10.0

@@ -8,27 +8,24 @@ services:
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
-    # expose:
-    #   - "8082"
     ports:
       - "8082:8082"
     volumes:
-      - ./product-service/data.json:/app/data.json
+      - ./product-service/data.json:/product-service/data.json
+    env_file:
+       - .env
     environment:
-      - ENVIRONMENT=production
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATA_FILE_PATH=/app/data.json
-      - OTEL_SERVICE_NAME=product-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+
     networks:
       - otel_internal-network
     deploy:
       replicas: 1
       resources:
         limits:
-          cpus: '0.25'
-          memory: 32M
+          cpus: '0.5'
+          memory: 128M
 
     
   product-simulator:
@@ -54,6 +51,10 @@ services:
       - "55679:55679"
     networks:
       - otel_internal-network
+    environment:
+      - OTEL_RESOURCE_HOST_NAME=${OTEL_RESOURCE_HOST_NAME}
+      - SIGNOZ_ENDPOINT=${SIGNOZ_ENDPOINT}
+      - SIGNOZ_INGESTION_KEY=${SIGNOZ_INGESTION_KEY}
 
 
 

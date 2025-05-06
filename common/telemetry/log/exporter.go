@@ -17,7 +17,9 @@ func SetupOtlpLogExporter(ctx context.Context, cfg *config.Config, connOpts []gr
 	logExporter, err := otlploggrpc.New(ctx,
 		otlploggrpc.WithEndpoint(cfg.OTEL_ENDPOINT),
 		otlploggrpc.WithDialOption(connOpts...),
+		otlploggrpc.WithInsecure(),
 	)
+	fmt.Println("OTEL_ENDPOINT :: ", cfg.OTEL_ENDPOINT)
 	if err != nil {
 		return fmt.Errorf("failed to create OTLP log exporter: %w", err)
 	}
