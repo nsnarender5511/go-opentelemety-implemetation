@@ -19,7 +19,7 @@ processors:
     attributes:
       - key: host.name
         value: "${OTEL_RESOURCE_HOST_NAME}"
-        action: upsert
+        action: update
 
 
 exporters:
@@ -47,15 +47,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [resource]
-      exporters: [otlp, debug]
+      exporters: [otlp]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, docker_stats]
       processors: [resource]
-      exporters: [otlp, debug]
+      exporters: [otlp]
     logs:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [otlp, debug]
+      exporters: [otlp]
 
 
 

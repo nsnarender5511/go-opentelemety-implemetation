@@ -44,18 +44,19 @@ func NewProductRepository() ProductRepository {
 }
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product, appErr *apierrors.AppError) {
-	var opErr error
-	ctx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
-
+	newCtx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
+	ctx = newCtx // Update ctx if StartSpan modifies it
 	defer func() {
-		if appErr != nil && opErr == nil {
-			opErr = appErr
+		var telemetryErr error
+		if appErr != nil {
+			telemetryErr = appErr
 		}
-		commontrace.EndSpan(span, &opErr, nil)
+		commontrace.EndSpan(span, &telemetryErr, nil)
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		return nil, simAppErr
+		appErr = simAppErr
+		return nil, appErr
 	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts uniform* Shop manager asked me to fetch ALL products from our inventory")
@@ -71,7 +72,9 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product
 		} else {
 			errMsg := "Failed to read inventory ledger"
 			r.logger.ErrorContext(ctx, "Stock Room Worker: *Distressed* Cannot read inventory ledger!", slog.String("error", err.Error()))
-			span.SetStatus(codes.Error, errMsg)
+			if span != nil {
+				span.SetStatus(codes.Error, errMsg)
+			}
 			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
 			return nil, appErr
 		}
@@ -97,23 +100,25 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []Product
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Wipes brow* Phew! Counted all "+strconv.Itoa(productCount)+" products in our actual stock")
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Walks back to counter* Here's the complete inventory list for the shop manager")
 
-	return productsSlice, nil
+	return productsSlice, appErr // appErr is nil here if successful
 }
 
 // Renamed from GetByID
 func (r *productRepository) GetByName(ctx context.Context, name string) (product Product, appErr *apierrors.AppError) {
 	productNameAttr := attribute.String("product.name", name)
-	ctx, span := commontrace.StartSpan(ctx, productNameAttr)
-	var opErr error
+	newCtx, span := commontrace.StartSpan(ctx, productNameAttr)
+	ctx = newCtx // Update ctx
 	defer func() {
-		if appErr != nil && opErr == nil {
-			opErr = appErr
+		var telemetryErr error
+		if appErr != nil {
+			telemetryErr = appErr
 		}
-		commontrace.EndSpan(span, &opErr, nil)
+		commontrace.EndSpan(span, &telemetryErr, nil)
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		return Product{}, simAppErr
+		appErr = simAppErr
+		return Product{}, appErr
 	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Perks up* Shop manager needs me to find product with name: '"+name+"'")
@@ -124,7 +129,9 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 	if err != nil {
 		errMsg := "Failed to read inventory data"
 		r.logger.ErrorContext(ctx, "Stock Room Worker: *Frustrated* Cannot read inventory ledger!", slog.String("error", err.Error()))
-		span.SetStatus(codes.Error, errMsg)
+		if span != nil {
+			span.SetStatus(codes.Error, errMsg)
+		}
 		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
 		return Product{}, appErr
 	}
@@ -135,7 +142,9 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 	if !exists {
 		errMsg := fmt.Sprintf("Product with name '%s' not found", name)
 		r.logger.WarnContext(ctx, "Stock Room Worker: Product not found", slog.String("product_name", name))
-		span.SetStatus(codes.Error, errMsg)
+		if span != nil {
+			span.SetStatus(codes.Error, errMsg)
+		}
 		appErr = apierrors.NewAppError(apierrors.ErrCodeNotFound, errMsg, nil)
 		return Product{}, appErr
 	}
@@ -145,7 +154,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Checks quantity* We have "+strconv.Itoa(product.Stock)+" units at $"+fmt.Sprintf("%.2f", product.Price)+" each")
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Hurries back* Here are the details for product '"+name+"' that shop manager asked for")
 
-	return product, nil
+	return product, appErr // appErr is nil here if successful
 }
 
 // Updated signature: uses name instead of productID
@@ -228,17 +237,19 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 // No signature change needed, but ensure internal logic is compatible
 func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []Product, appErr *apierrors.AppError) {
 	categoryAttr := attribute.String("product.category", category)
-	ctx, span := commontrace.StartSpan(ctx, categoryAttr)
-	var opErr error
+	newCtx, span := commontrace.StartSpan(ctx, categoryAttr)
+	ctx = newCtx // Update ctx
 	defer func() {
-		if appErr != nil && opErr == nil {
-			opErr = appErr
+		var telemetryErr error
+		if appErr != nil {
+			telemetryErr = appErr
 		}
-		commontrace.EndSpan(span, &opErr, nil)
+		commontrace.EndSpan(span, &telemetryErr, nil)
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		return nil, simAppErr
+		appErr = simAppErr
+		return nil, appErr
 	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts name tag* Shop manager needs all products from the '"+category+"' category")
@@ -254,7 +265,9 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 		} else {
 			errMsg := "Failed to read inventory data for category lookup"
 			r.logger.ErrorContext(ctx, "Stock Room Worker: *Squints* Cannot read inventory ledger!", slog.String("error", err.Error()))
-			span.SetStatus(codes.Error, errMsg)
+			if span != nil {
+				span.SetStatus(codes.Error, errMsg)
+			}
 			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
 			return nil, appErr
 		}
@@ -280,5 +293,5 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	}
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Returns to counter* Here's the list of all our '"+category+"' products for the shop manager")
-	return filteredProducts, nil
+	return filteredProducts, appErr // appErr is nil here if successful
 }

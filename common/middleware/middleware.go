@@ -51,7 +51,6 @@ func ErrorHandler() fiber.ErrorHandler {
 			logger.ErrorContext(c.UserContext(), "API Unhandled Error",
 				slog.String("type", fmt.Sprintf("%T", err)),
 				slog.String("error", err.Error()),
-
 			)
 			message = "An internal server error occurred."
 		}
