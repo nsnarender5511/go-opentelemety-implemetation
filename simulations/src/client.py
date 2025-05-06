@@ -42,11 +42,11 @@ def make_request(relative_endpoint, method="GET", json_payload=None):
 
 # --- Initial Data Fetch ---
 def fetch_product_ids_from_api():
-    """Fetches product IDs by calling the GET /products endpoint.
-    Returns a list of product IDs, or an empty list if fetch fails or no products exist.
-    Exits if the API response is fundamentally malformed (not list, JSON error).
+    """Fetches product dictionaries by calling the GET /products endpoint.
+    Returns a list of product dictionaries, or an empty list if fetch fails or no products exist.
+    Exits if the API response is fundamentally malformed (not list/dict, JSON error).
     """
-    logging.info(f"Attempting to fetch product IDs from {BASE_URL}/products...")
+    logging.info(f"Attempting to fetch product dictionaries from {BASE_URL}/products...")
     response = make_request("products", method="GET")
 
     if response is None:
@@ -55,24 +55,28 @@ def fetch_product_ids_from_api():
 
     try:
         data = response.json()
-        if not isinstance(data, list):
-            logging.error(f"Expected a list from /products, got {type(data)}. Exiting.")
+        # Check if the top-level structure contains a 'data' key or is a direct list
+        product_list = []
+        if isinstance(data, dict) and 'data' in data and isinstance(data['data'], list):
+            product_list = data['data']
+        elif isinstance(data, list): # Handle potential direct list response just in case
+            product_list = data
+        else:
+            logging.error(f"Unexpected response structure from /products: {type(data)}. Expected dict with 'data' list or direct list. Exiting.")
             exit(1) # Exit here, as it indicates a significant API contract issue
+
+        # Filter for valid product dictionaries containing 'name'
+        products = [item for item in product_list if isinstance(item, dict) and 'name' in item]
         
-        ids = [item['productID'] for item in data if isinstance(item, dict) and 'productID' in item]
-        
-        if not ids:
-            logging.warning("No product IDs found in the response from /products. Starting with empty list.")
+        if not products:
+            logging.warning("No valid products found in the response from /products. Starting with empty list.")
             return [] # Return empty list
         
-        logging.info(f"Successfully fetched {len(ids)} product IDs from API.")
-        return ids
+        logging.info(f"Successfully fetched {len(products)} products from API.")
+        return products # Return list of product dictionaries
 
     except json.JSONDecodeError:
         logging.error("Failed to decode JSON response from /products. Exiting.")
-        exit(1) # Exit here, critical error
-    except KeyError:
-        logging.error("Response items from /products missing 'productID' key. Exiting.")
         exit(1) # Exit here, critical error
     except Exception as e:
         logging.error(f"An unexpected error occurred processing /products response: {e}. Exiting.", exc_info=True)

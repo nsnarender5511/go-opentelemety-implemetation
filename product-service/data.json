@@ -3,28 +3,28 @@
     "name": "Coffee Mug",
     "description": "Large ceramic mug",
     "price": 12,
-    "stock": 75,
+    "stock": 74,
     "category": "Kitchenware"
   },
   "Laptop Pro": {
     "name": "Laptop Pro",
     "description": "High-end laptop",
     "price": 1500.99,
-    "stock": 49,
+    "stock": 39,
     "category": "Electronics"
   },
   "Office Chair": {
     "name": "Office Chair",
     "description": "Ergonomic chair",
     "price": 250.5,
-    "stock": 50,
+    "stock": 54,
     "category": "Furniture"
   },
   "Wireless Mouse": {
     "name": "Wireless Mouse",
     "description": "Silent click mouse",
     "price": 25,
-    "stock": 100,
+    "stock": 61,
     "category": "Electronics"
   }
 }

@@ -30,7 +30,7 @@ services:
     
   product-simulator:
     build:
-      context: ./tests
+      context: ./simulations
       dockerfile: Dockerfile
     environment:
       - PRODUCT_SERVICE_URL=http://product-service:8082
