@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/narender/common/debugutils"
+	"github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"github.com/narender/product-service/src/models" // Corrected path
 	"go.opentelemetry.io/otel/attribute"
@@ -62,11 +63,10 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 		r.logger.DebugContext(ctx, "Stock Room Worker: *Checks shelf* Product "+p.Name+" - we have "+strconv.Itoa(p.Stock)+" in stock")
 	}
 
-	stockLevels := make(map[string]int64, len(productsSlice))
+	// Update product stock levels for telemetry
 	for _, p := range productsSlice {
-		stockLevels[p.Name] = int64(p.Stock)
+		metric.UpdateProductStockLevels(p.Name, int64(p.Stock))
 	}
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Updates big inventory board* Just updated our stock level display board with current numbers")
 
 	productCount := len(productsSlice)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))

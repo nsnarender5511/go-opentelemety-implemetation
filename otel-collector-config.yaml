@@ -32,7 +32,7 @@ processors:
         action: insert
       - key: host.name
         value: "narenders-local-host"
-        action: insert
+        action: update
 
 
 exporters:
@@ -62,7 +62,7 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [nginx]
+      receivers: [nginx, docker_stats, hostmetrics, otlp]
       processors: [resource]
       exporters: [otlp, debug]
     logs:

@@ -49,7 +49,7 @@ services:
       - OTEL_ENDPOINT=otel-collector:4317
       - PRODUCT_DATA_FILE_PATH=/product-service/data.json
       - SERVICE_NAME=store_1
-      - SERVICE_VERSION=v1
+      - SERVICE_VERSION=v5
     networks:
       - otel_internal-network
     deploy:
@@ -72,7 +72,7 @@ services:
       - OTEL_ENDPOINT=otel-collector:4317
       - PRODUCT_DATA_FILE_PATH=/data.json
       - SERVICE_NAME=store_2
-      - SERVICE_VERSION=v2
+      - SERVICE_VERSION=v5
     networks:
       - otel_internal-network
     deploy:

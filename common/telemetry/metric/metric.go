@@ -68,83 +68,6 @@ func init() {
 
 // --- Public Functions / Constructors ---
 
-func StartMetricsTimer() MetricsController {
-	return &metricsControllerImpl{
-		startTime: time.Now(),
-	}
-}
-
-// UpdateProductStockLevels provides the latest snapshot of product stock levels.
-// This should be called periodically or after operations that change stock levels
-// (e.g., after fetching all products).
-// The provided map should contain product ID -> current stock count.
-func UpdateProductStockLevels(newStockLevels map[string]int64) {
-	latestProductStockMutex.Lock()
-	defer latestProductStockMutex.Unlock()
-
-	// Clear the old map before populating with new data
-	clear(latestProductStock)
-
-	// Populate with the new stock levels
-	for id, stock := range newStockLevels {
-		latestProductStock[id] = stock
-	}
-	// Optional: Log that levels were updated
-	slog.Debug("Updated product stock levels for metrics", slog.Int("product_count", len(latestProductStock)))
-}
-
-// --- Methods for metricsControllerImpl ---
-
-func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additionalAttrs ...attribute.KeyValue) {
-	duration := time.Since(mc.startTime)
-	durationMs := float64(duration.Microseconds()) / 1000.0
-
-	isError := errPtr != nil && *errPtr != nil
-
-	baseAttrs := []attribute.KeyValue{
-		attribute.Bool("app.error", isError),
-	}
-	attrs := append(baseAttrs, additionalAttrs...)
-
-	opt := metric.WithAttributes(attrs...)
-
-	if operationsTotal, ok := counters[TotalOperationsMetric]; ok { // TotalOperationsMetric is defined in custom_metrics.go
-		operationsTotal.Add(ctx, 1, opt)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalOperationsMetric+"' not found or initialized")
-	}
-
-	if durationMillis, ok := histograms[DurationMsMetric]; ok { // DurationMsMetric is defined in custom_metrics.go
-		durationMillis.Record(ctx, durationMs, opt)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+DurationMsMetric+"' not found or initialized")
-	}
-
-	if isError {
-		if errorsTotal, ok := counters[ErrorsTotalMetric]; ok { // ErrorsTotalMetric is defined in custom_metrics.go
-			errorsTotal.Add(ctx, 1, opt)
-		} else {
-			slog.WarnContext(ctx, "Metric '"+ErrorsTotalMetric+"' not found or initialized")
-		}
-	}
-}
-
-func (mc *metricsControllerImpl) IncrementProductCreated(ctx context.Context) {
-	if productCreationCounter, ok := counters[TotalProductCreationsMetric]; ok { // TotalProductCreationsMetric is defined in custom_metrics.go
-		productCreationCounter.Add(ctx, 1)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalProductCreationsMetric+"' not found or initialized")
-	}
-}
-
-func (mc *metricsControllerImpl) IncrementProductUpdated(ctx context.Context) {
-	if productUpdateCounter, ok := counters[TotalProductUpdatesMetric]; ok { // TotalProductUpdatesMetric is defined in custom_metrics.go
-		productUpdateCounter.Add(ctx, 1)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalProductUpdatesMetric+"' not found or initialized")
-	}
-}
-
 // --- Helper Functions ---
 
 func createInt64Counter(name, description, unit string) metric.Int64Counter {
@@ -201,10 +124,17 @@ func observeProductStock(ctx context.Context, observer metric.Observer) error {
 
 	for productID, stock := range latestProductStock {
 		// Observe the current stock level for this product ID
-		productAttribute := attribute.String("product.id", productID)
-		observer.ObserveInt64(gauge, stock, metric.WithAttributes(productAttribute))
+		productIDAttribute := attribute.String("product.id", productID)
+		observer.ObserveInt64(gauge, stock, metric.WithAttributes(productIDAttribute))
 	}
-
-	// slog.DebugContext(ctx, "observeProductStock called - placeholder implementation") // Placeholder log removed
 	return nil
+}
+
+// UpdateProductStockLevels updates the in-memory store of product stock levels.
+// This function is called when new stock data is available.
+func UpdateProductStockLevels(productID string, stockLevel int64) {
+	latestProductStockMutex.Lock()
+	defer latestProductStockMutex.Unlock()
+	latestProductStock[productID] = stockLevel
+	slog.Debug("Updated product stock level", slog.String("product.id", productID), slog.Int64("stock.level", stockLevel))
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/narender/common/debugutils"
+	"github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"github.com/narender/product-service/src/models" // Corrected path
 	"go.opentelemetry.io/otel/attribute"
@@ -85,6 +86,9 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, writeErr)
 		return appErr
 	}
+
+	// Update product stock level for telemetry
+	metric.UpdateProductStockLevels(product.Name, int64(newStock))
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Closes ledger* Also updated our inventory records to match the physical stock")
