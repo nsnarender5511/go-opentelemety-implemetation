@@ -14,6 +14,11 @@ import (
 	"github.com/narender/common/globals"
 	// Import new common packages
 	commonMiddleware "github.com/narender/common/middleware"
+
+	// Import new structured packages
+	"github.com/narender/product-service/src/handlers"
+	"github.com/narender/product-service/src/repositories"
+	"github.com/narender/product-service/src/services"
 )
 
 func main() {
@@ -26,10 +31,10 @@ func main() {
 	logger := globals.Logger()
 	logger.Debug("data file located at ", slog.String("path", globals.Cfg().PRODUCT_DATA_FILE_PATH))
 
-	// --- Service and Handler Initialization ---
-	repo := NewProductRepository()
-	service := NewProductService(repo)
-	handler := NewProductHandler(service)
+	// --- Service and Handler Initialization with new packages ---
+	repo := repositories.NewProductRepository()
+	service := services.NewProductService(repo)
+	handler := handlers.NewProductHandler(service)
 
 	// --- Service Information Logging ---
 	logger.Info("Starting product-service")
@@ -62,7 +67,7 @@ func main() {
 }
 
 // setupRoutes function to keep main clean
-func setupRoutes(app *fiber.App, handler *ProductHandler) {
+func setupRoutes(app *fiber.App, handler *handlers.ProductHandler) {
 	app.Get("/health", handler.HealthCheck)
 	app.Get("/products", handler.GetAllProducts)
 	app.Get("/products/category", handler.GetProductsByCategory)

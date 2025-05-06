@@ -17,6 +17,8 @@ receivers:
       disk:
       network:
       filesystem:
+  nginx:
+    endpoint: "http://localhost:80/nginx_status"
 
 
 processors:
