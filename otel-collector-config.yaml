@@ -18,7 +18,7 @@ receivers:
       network:
       filesystem:
   nginx:
-    endpoint: "http://localhost:80/nginx_status"
+    endpoint: "http://nginx:80/nginx_status"
 
 
 processors:
@@ -62,7 +62,7 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [otlp, docker_stats, hostmetrics]
+      receivers: [nginx]
       processors: [resource]
       exporters: [otlp, debug]
     logs:
