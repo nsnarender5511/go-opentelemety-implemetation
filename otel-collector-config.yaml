@@ -3,23 +3,34 @@ receivers:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
-        tls:
-          insecure: true
   docker_stats:
     endpoint: "unix:///var/run/docker.sock"
     collection_interval: 10s
     timeout: 100s
     api_version: "1.47"
+  hostmetrics:
+    collection_interval: 10s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      network:
+      filesystem:
 
 
 processors:
-  batch: {}
-
   resource:
     attributes:
+      - key: service.name
+        value: "${SERVICE_NAME}"
+        action: insert
+      - key: service.version
+        value: "${SERVICE_VERSION}"
+        action: insert
       - key: host.name
-        value: "${OTEL_RESOURCE_HOST_NAME}"
-        action: update
+        value: "narenders-local-host"
+        action: insert
 
 
 exporters:
@@ -49,12 +60,12 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [otlp, docker_stats]
+      receivers: [otlp, docker_stats, hostmetrics]
       processors: [resource]
-      exporters: [otlp]
+      exporters: [otlp, debug]
     logs:
       receivers: [otlp]
-      processors: [batch, resource]
+      processors: [resource]
       exporters: [otlp]
 
 

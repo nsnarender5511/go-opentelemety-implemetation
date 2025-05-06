@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
@@ -16,7 +17,8 @@ func NewResource(ctx context.Context) (*resource.Resource, error) {
 		resource.WithProcess(),
 		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String("product-service"),
+			semconv.ServiceNameKey.String(os.Getenv("SERVICE_NAME")),
+			semconv.ServiceVersionKey.String(os.Getenv("SERVICE_VERSION")),
 		),
 	)
 	if err != nil {

@@ -13,7 +13,6 @@ type Config struct {
 	// Default endpoint suitable for local development; override in Docker.
 	OTEL_ENDPOINT            string `env:"OTEL_ENDPOINT,required" envDefault:"localhost:4317"`
 	OTEL_SERVICE_NAME        string `env:"OTEL_SERVICE_NAME" envDefault:"product-service"`
-	OTEL_RESOURCE_ATTRIBUTES string `env:"OTEL_RESOURCE_ATTRIBUTES" envDefault:"deployment.environment=development,service.version=0.1.0-local"`
 
 	// Debug/Simulation Settings
 	SimulateDelayEnabled bool `env:"SIMULATE_DELAY_ENABLED" envDefault:"false"`

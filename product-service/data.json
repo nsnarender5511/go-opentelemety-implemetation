@@ -3,14 +3,14 @@
     "name": "Coffee Mug",
     "description": "Large ceramic mug",
     "price": 12,
-    "stock": 74,
+    "stock": 70,
     "category": "Kitchenware"
   },
   "Laptop Pro": {
     "name": "Laptop Pro",
     "description": "High-end laptop",
     "price": 1500.99,
-    "stock": 39,
+    "stock": 30,
     "category": "Electronics"
   },
   "Office Chair": {
