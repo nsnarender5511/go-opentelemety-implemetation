@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	// "github.com/gofiber/contrib/otelfiber/v2"
+	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -50,7 +50,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 	app.Use(recover.New())          // Recover from panics
-	// app.Use(otelfiber.Middleware()) // otelfiber instrumentation
+	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
 
 	// --- Route Definitions ---
 	setupRoutes(app, handler)

@@ -26,13 +26,13 @@ processors:
     attributes:
       - key: service.name
         value: "${SERVICE_NAME}"
-        action: insert
+        action: upsert
       - key: service.version
         value: "${SERVICE_VERSION}"
-        action: insert
+        action: upsert
       - key: host.name
         value: "narenders-local-host"
-        action: update
+        action: upsert
 
 
 exporters:
@@ -60,7 +60,7 @@ service:
       processors: [resource]
       exporters: [otlp]
     metrics:
-      receivers: [otlp]
+      receivers: [docker_stats, hostmetrics, nginx, otlp]
       processors: [resource]
       exporters: [otlp, debug]
     logs:
