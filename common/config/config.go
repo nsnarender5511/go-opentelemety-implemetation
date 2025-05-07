@@ -3,11 +3,14 @@ package config
 // Config defines the application configuration structure using environment variables.
 type Config struct {
 	// Core App Settings
-	ENVIRONMENT          string `env:"ENVIRONMENT,required" envDefault:"development"`
-	PRODUCT_SERVICE_PORT string `env:"PRODUCT_SERVICE_PORT,required" envDefault:"8082"`
-	LOG_LEVEL            string `env:"LOG_LEVEL" envDefault:"info"`
+	ENVIRONMENT               string `env:"ENVIRONMENT,required" envDefault:"development"`
+	PRODUCT_SERVICE_PORT      string `env:"PRODUCT_SERVICE_PORT,required" envDefault:"8082"`
+	MASTER_STORE_SERVICE_PORT string `env:"MASTER_STORE_SERVICE_PORT,required" envDefault:"8083"`
+	LOG_LEVEL                 string `env:"LOG_LEVEL" envDefault:"info"`
 	// Default path set for container environment; override for local dev using .env or env var.
 	PRODUCT_DATA_FILE_PATH string `env:"PRODUCT_DATA_FILE_PATH,required" envDefault:"/product-service/data.json"`
+	// URL for the product service API
+	PRODUCT_SERVICE_URL string `env:"PRODUCT_SERVICE_URL" envDefault:"http://product-service:8082"`
 
 	// Telemetry Settings
 	// Default endpoint suitable for local development; override in Docker.

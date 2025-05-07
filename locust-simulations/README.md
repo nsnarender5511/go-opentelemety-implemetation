@@ -1,10 +1,14 @@
 # Locust Simulations
 
-This directory contains the Locust load testing simulations for the product service API.
+This directory contains the Locust load testing simulations for the product service API and master-store API.
 
 ## Overview
 
-This simulation uses a single, unified `SimulationUser` class that contains all possible tasks. The tasks can be configured with maximum execution counts through the Locust class picker UI, giving you fine-grained control over test scenarios.
+This simulation uses two main user classes:
+1. `SimulationUser` - Contains tasks for testing the product service endpoints
+2. `MasterStoreUser` - Contains tasks for testing the master-store endpoints
+
+Both classes can be configured with maximum execution counts through the Locust class picker UI, giving you fine-grained control over test scenarios.
 
 ## Features
 
@@ -90,6 +94,7 @@ To select a load shape, click on the "Load Shape" link in the Locust web UI.
 
 ## Available Tasks
 
+### SimulationUser Tasks
 The `SimulationUser` class includes the following tasks, each with configurable execution limits:
 
 ### Browsing Tasks
@@ -109,6 +114,26 @@ The `SimulationUser` class includes the following tasks, each with configurable 
 ### Utility Tasks
 
 - **Health Check** (`max_health_check`): Perform a health check (GET /health)
+
+### MasterStoreUser Tasks
+The `MasterStoreUser` class includes the following tasks for testing the master-store API:
+
+- **Master Health Check** (`max_master_health_check`): Perform a health check on master-store (GET /health)
+- **Master Browse Products** (`max_master_browse_products`): Browse all products from master-store (GET /products)
+- **Master Buy Product** (`max_master_buy_product`): Purchase a product from master-store (POST /products/update-stock)
+
+### Master Store Configuration
+
+The master-store tests can be configured with the following parameters:
+
+- `--max_master_health_check`: Maximum number of health check requests to send to master-store (-1 for unlimited, 0 to disable)
+- `--max_master_browse_products`: Maximum number of product browsing requests to send to master-store
+- `--max_master_buy_product`: Maximum number of product purchase requests to send to master-store
+- `--use_nginx_proxy`: When enabled, routes requests through the nginx proxy path (/master/)
+
+By default, the environment variables in docker-compose.yml are set to:
+- `MASTER_STORE_URL=http://nginx:80/master`
+- `USE_NGINX_PROXY=true`
 
 ## Architecture
 
@@ -151,6 +176,31 @@ To simulate a mixed workload with limited admin operations:
 5. Start the test
 
 This configuration ensures the API receives a realistic mix of customer traffic with a controlled number of administrative operations.
+
+### Example 3: Master Store Testing
+
+To create a test that specifically targets the master-store API:
+
+1. Start Locust with `--class-picker`
+2. In the class picker UI, select the `MasterStoreUser` class
+3. Set the maximum counts for master-store tasks:
+   - `max_master_browse_products: 50`
+   - `max_master_buy_product: 20`
+   - `max_master_health_check: 5`
+4. Start the test
+
+The master-store API will receive exactly 50 product list requests, 20 product purchase requests, and 5 health check requests.
+
+### Example 4: Simulating Both Services Simultaneously
+
+To simulate load on both the product service and master-store:
+
+1. Start Locust with `--class-picker`
+2. In the class picker UI, select both `SimulationUser` and `MasterStoreUser` classes
+3. Configure task limits for both classes
+4. Start the test
+
+This configuration allows testing both services simultaneously, simulating real-world traffic patterns where both services receive requests concurrently.
 
 ## Troubleshooting
 

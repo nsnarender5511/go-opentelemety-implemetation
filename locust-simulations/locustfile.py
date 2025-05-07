@@ -16,6 +16,8 @@ import json
 # Assuming these are still relevant and in the correct path after consolidation
 from src.utils.shared_data import SharedData
 from src.utils.http_validation import validate_response, check_status_code, check_content_type, check_products_list_schema
+# Import the MasterStoreUser class
+from src.master_store_user import MasterStoreUser
 
 # Configure logging
 logging.basicConfig(
@@ -388,6 +390,16 @@ def _(parser):
     parser.add_argument("--max-buy-product", type=int, env_var="LOCUST_MAX_BUY_PRODUCT", default=0, help="Max executions for buy_product (-1=unlimited, 0=disabled)")
     parser.add_argument("--max-health-check", type=int, env_var="LOCUST_MAX_HEALTH_CHECK", default=0, help="Max executions for health_check (-1=unlimited, 0=disabled)")
     parser.add_argument("--possible-categories-list", type=str, env_var="LOCUST_POSSIBLE_CATEGORIES_LIST", default="Electronics,Books,Clothing,Kitchenware,Furniture,Apparel", help="Comma-separated list of possible categories")
+    
+    # Add master-store specific parameters
+    parser.add_argument("--max_master_health_check", type=int, default=-1,
+                      help="Maximum number of master health check executions (-1 for unlimited, 0 to disable)")
+    parser.add_argument("--max_master_browse_products", type=int, default=-1,
+                      help="Maximum number of master browse products executions (-1 for unlimited, 0 to disable)")
+    parser.add_argument("--max_master_buy_product", type=int, default=-1,
+                      help="Maximum number of master buy product executions (-1 for unlimited, 0 to disable)")
+    parser.add_argument("--use_nginx_proxy", action="store_true", default=False,
+                      help="Use nginx proxy paths (/master/) for master-store endpoints")
 
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):

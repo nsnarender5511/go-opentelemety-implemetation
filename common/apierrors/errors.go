@@ -4,11 +4,13 @@ import "fmt"
 
 // Application-specific error codes
 const (
-	ErrCodeUnknown           = "UNKNOWN_ERROR"
-	ErrCodeNotFound          = "RESOURCE_NOT_FOUND" // Will be PRODUCT_NOT_FOUND later
-	ErrCodeValidation        = "VALIDATION_ERROR"
-	ErrCodeInsufficientStock = "INSUFFICIENT_STOCK"
-	ErrCodeDatabase          = "DATABASE_ERROR" // Will be INVENTORY_ACCESS_ERROR later
+	ErrCodeUnknown            = "UNKNOWN_ERROR"
+	ErrCodeNotFound           = "RESOURCE_NOT_FOUND" // Will be PRODUCT_NOT_FOUND later
+	ErrCodeValidation         = "VALIDATION_ERROR"
+	ErrCodeInsufficientStock  = "INSUFFICIENT_STOCK"
+	ErrCodeDatabase           = "DATABASE_ERROR" // Will be INVENTORY_ACCESS_ERROR later
+	ErrCodeInternal           = "INTERNAL_ERROR"
+	ErrCodeServiceUnavailable = "SERVICE_UNAVAILABLE"
 	// Add more codes as needed ✍️
 )
 

@@ -2,10 +2,11 @@
 FROM golang:1.24-alpine AS builder
 WORKDIR /build
 
-# Copy Go module files first for better caching
+# Copy all Go module files first for better caching
 COPY go.work go.work.sum ./
 COPY common/go.mod common/go.sum ./common/
 COPY product-service/go.mod product-service/go.sum ./product-service/
+COPY master-store/go.mod master-store/go.sum ./master-store/
 
 # Download dependencies
 RUN go mod download
