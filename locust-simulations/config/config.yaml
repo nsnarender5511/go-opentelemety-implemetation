@@ -1,0 +1,51 @@
+# Service Configuration
+service:
+  base_url: "http://localhost:8082"  # Target product-service URL (can be overridden by env var)
+  request_timeout_seconds: 10
+
+# Telemetry Configuration
+telemetry:
+  enabled: false  # Set to true to enable OpenTelemetry integration
+  endpoint: ""    # Will use OTEL_ENDPOINT env var if set, or this value otherwise
+
+# Test Data
+test_data:
+  non_existent_product_name: "ProductThatWillNeverExist123"
+  possible_categories:
+    - "Electronics" 
+    - "Apparel"
+    - "Books"
+    - "Kitchenware"
+    - "Furniture"
+    - "NonExistentCategory"  # For testing empty response
+
+# Load Profile
+load_profile:
+  stages:
+    - duration_seconds: 60
+      users: 10
+      spawn_rate: 10
+    - duration_seconds: 300
+      users: 50
+      spawn_rate: 10
+    - duration_seconds: 600
+      users: 50
+      spawn_rate: 10
+    - duration_seconds: 120
+      users: 0
+      spawn_rate: 10
+
+# Scenario Weights (used within HttpUser classes to determine task frequency)
+scenario_weights:
+  browse_all_products: 10
+  get_products_by_category: 8
+  get_product_details: 10
+  buy_product: 7
+  update_stock: 3
+  hit_invalid_path: 1
+  health_check: 2
+
+# User Type Weights
+user_type_weights:
+  browser_user: 3
+  admin_user: 1 

@@ -7,14 +7,20 @@ services:
   product-simulator:
     container_name: simulator-service
     build:
-      context: ./simulations
+      context: ./locust-simulations
       dockerfile: Dockerfile
     environment:
       - PRODUCT_SERVICE_URL=http://nginx:80
+      - LOAD_SHAPE=stages
+      - OTEL_ENDPOINT=otel-collector:4317
+      - OTEL_ENABLED=false
+      - SERVICE_NAME=product-simulator
     networks:
       - otel_internal-network
     depends_on:
       - nginx
+    volumes:
+      - ./locust-simulations/results:/app/results
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0

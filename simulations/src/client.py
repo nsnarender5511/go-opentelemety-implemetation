@@ -62,8 +62,8 @@ def fetch_product_ids_from_api():
         elif isinstance(data, list): # Handle potential direct list response just in case
             product_list = data
         else:
-            logging.error(f"Unexpected response structure from /products: {type(data)}. Expected dict with 'data' list or direct list. Exiting.")
-            exit(1) # Exit here, as it indicates a significant API contract issue
+            logging.error(f"Unexpected response structure from /products: {type(data)}. Expected dict with 'data' list or direct list. Returning empty list.")
+            return [] # Return empty list instead of exiting
 
         # Filter for valid product dictionaries containing 'name'
         products = [item for item in product_list if isinstance(item, dict) and 'name' in item]
@@ -76,8 +76,8 @@ def fetch_product_ids_from_api():
         return products # Return list of product dictionaries
 
     except json.JSONDecodeError:
-        logging.error("Failed to decode JSON response from /products. Exiting.")
-        exit(1) # Exit here, critical error
+        logging.error("Failed to decode JSON response from /products. Returning empty list.")
+        return [] # Return empty list instead of exiting
     except Exception as e:
-        logging.error(f"An unexpected error occurred processing /products response: {e}. Exiting.", exc_info=True)
-        exit(1) # Exit on other unexpected errors during initial fetch 
+        logging.error(f"An unexpected error occurred processing /products response: {e}. Returning empty list.", exc_info=True)
+        return [] # Return empty list instead of exiting 

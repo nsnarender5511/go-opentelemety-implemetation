@@ -17,23 +17,14 @@ REQUEST_TIMEOUT = 10 # Seconds
 # Define actions with function placeholders (will be replaced in simulate.py)
 # arg_generator placeholders (will be created in simulate.py where known_product_ids exists)
 BASE_ACTION_CONFIG = {
-    'GET_ALL':        {'func': None, 'count': 0, 'arg_generator': lambda: ([], {})},
-    'GET_ONE_OK':     {'func': None, 'count': 0, 'arg_generator': lambda: (["placeholder_id"], {})}, # Placeholder ID
-    'GET_ONE_404':    {'func': None, 'count': 0, 'arg_generator': lambda: (["placeholder_non_existing_id"], {})}, # Placeholder ID
-    'GET_ONE_INVALID':{'func': None, 'count': 0, 'arg_generator': lambda: ([INVALID_FORMAT_PRODUCT_ID], {})},
-    'UPDATE_STOCK':   {'func': None, 'count': 0, 'arg_generator': lambda: (["placeholder_id", 0], {})}, # Placeholder ID and stock
-    'CREATE_PRODUCT': {'func': None, 'count': 0, 'arg_generator': lambda: (
-        [
-            f"Simulated Product {uuid.uuid4().hex[:6]}",
-            "Created by simulation script",
-            round(random.uniform(5.0, 500.0), 2),
-            random.randint(1, 200)
-        ],
-        {}
-    )},
-    'BAD_PATH':       {'func': None, 'count': 0, 'arg_generator': lambda: ([], {})},
-    'STATUS_CHECK':   {'func': None, 'count': 0, 'arg_generator': lambda: ([], {})},
-    'HEALTH_CHECK':   {'func': None, 'count': 0, 'arg_generator': lambda: ([], {})},
+    'GET_ALL':        {'weight': 0.15, 'count': 0, 'func': None, 'arg_generator': lambda: ([], {})},
+    'GET_BY_CATEGORY':{'weight': 0.15, 'count': 0, 'func': None, 'arg_generator': None},
+    'GET_BY_NAME':    {'weight': 0.15, 'count': 0, 'func': None, 'arg_generator': None},
+    'UPDATE_STOCK':   {'weight': 0.15, 'count': 0, 'func': None, 'arg_generator': None},
+    'BUY_PRODUCT':    {'weight': 0.15, 'count': 0, 'func': None, 'arg_generator': None},
+    'BAD_PATH':       {'weight': 0.10, 'count': 0, 'func': None, 'arg_generator': lambda: ([], {})},
+    'STATUS_CHECK':   {'weight': 0.05, 'count': 0, 'func': None, 'arg_generator': lambda: ([], {})},
+    'HEALTH_CHECK':   {'weight': 0.10, 'count': 0, 'func': None, 'arg_generator': lambda: ([], {})},
 }
 
 

@@ -22,7 +22,7 @@ known_products = []
 
 # Generate a non-existing ID for this run (still potentially useful for testing 404s if we had such an endpoint)
 NON_EXISTING_PRODUCT_ID = f"prod_{uuid.uuid4()}" # Example, might not be used now
-POSSIBLE_CATEGORIES = ['Electronics', 'Home Goods', 'Apparel', 'Books', 'Grocery', 'Toys'] # Example categories
+POSSIBLE_CATEGORIES = ['Electronics', 'Apparel', 'Books', 'Kitchenware', 'Furniture', 'NonExistentCategory'] # Updated categories
 
 # --- Base Action Configuration (Modify this in config.py ideally, but showing here) ---
 # REMOVED: GET_ONE_OK, GET_ONE_404, GET_ONE_INVALID, CREATE_PRODUCT
