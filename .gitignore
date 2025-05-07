@@ -14,11 +14,7 @@
 # Anomalous src file if generated
 product-service/src/src
 
-# Go Build Artifacts
-product-service/product-service
-bin/
 
-*/data.json
 
 
 

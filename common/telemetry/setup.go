@@ -17,7 +17,7 @@ import (
 
 func InitTelemetry(cfg *config.Config) error {
 
-	res, err := otelemetryResource.NewResource(context.Background())
+	res, err := otelemetryResource.NewResource(context.Background(), cfg.SERVICE_NAME, cfg.SERVICE_VERSION)
 	if err != nil {
 
 		log.Printf("ERROR: Failed to create OTel resource: %v\n", err)

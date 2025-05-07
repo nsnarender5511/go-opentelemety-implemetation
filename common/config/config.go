@@ -11,8 +11,9 @@ type Config struct {
 
 	// Telemetry Settings
 	// Default endpoint suitable for local development; override in Docker.
-	OTEL_ENDPOINT     string `env:"OTEL_ENDPOINT,required" envDefault:"localhost:4317"`
-	OTEL_SERVICE_NAME string `env:"OTEL_SERVICE_NAME" envDefault:"product-service"`
+	OTEL_ENDPOINT   string `env:"OTEL_ENDPOINT,required" envDefault:"localhost:4317"`
+	SERVICE_NAME    string `env:"SERVICE_NAME" envDefault:"product-service"`
+	SERVICE_VERSION string `env:"SERVICE_VERSION" envDefault:"unknown"`
 
 	// Debug/Simulation Settings
 	SimulateDelayEnabled bool `env:"SIMULATE_DELAY_ENABLED" envDefault:"false"`

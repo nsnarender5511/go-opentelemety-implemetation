@@ -5,6 +5,7 @@ networks:
 
 services:    
   product-simulator:
+    container_name: simulator-service
     build:
       context: ./simulations
       dockerfile: Dockerfile
@@ -17,7 +18,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
-    container_name: otel-collector
+    container_name: local-otel-collector
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
@@ -38,6 +39,7 @@ services:
 
 
   product-service-1:
+    container_name: ${SERVICE_NAME}-1
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
@@ -48,7 +50,7 @@ services:
     environment:
       - OTEL_ENDPOINT=otel-collector:4317
       - PRODUCT_DATA_FILE_PATH=/product-service/data.json
-      - SERVICE_NAME=store_1
+      - SERVICE_NAME=${SERVICE_NAME}-1
       - SERVICE_VERSION=v5
     networks:
       - otel_internal-network
@@ -61,6 +63,7 @@ services:
 
   
   product-service-2:
+    container_name: ${SERVICE_NAME}-2
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
@@ -71,7 +74,7 @@ services:
     environment:
       - OTEL_ENDPOINT=otel-collector:4317
       - PRODUCT_DATA_FILE_PATH=/data.json
-      - SERVICE_NAME=store_2
+      - SERVICE_NAME=${SERVICE_NAME}-2
       - SERVICE_VERSION=v5
     networks:
       - otel_internal-network
@@ -83,6 +86,7 @@ services:
           memory: 128M
 
   nginx:
+    container_name: nginx
     image: nginx:latest
     ports:
       - "8080:80"

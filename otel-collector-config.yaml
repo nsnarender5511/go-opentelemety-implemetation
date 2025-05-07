@@ -22,17 +22,21 @@ receivers:
 
 
 processors:
-  resource:
-    attributes:
-      - key: service.name
-        value: "${SERVICE_NAME}"
-        action: upsert
-      - key: service.version
-        value: "${SERVICE_VERSION}"
-        action: upsert
-      - key: host.name
-        value: "narenders-local-host"
-        action: upsert
+  # resource:
+  #   attributes:
+  #     - key: service.name
+  #       value: "${SERVICE_NAME}"
+  #       action: upsert
+  #     - key: service.version
+  #       value: "${SERVICE_VERSION}"
+  #       action: upsert
+  #     - key: host.name
+  #       value: "narenders-local-host"
+  #       action: upsert
+  resourcedetection:
+    detectors: [env, docker]
+    timeout: 2s
+    # override: false # uncomment if you want SDK attributes to always take precedence
 
 
 exporters:
@@ -57,15 +61,15 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resource]
+      processors: [resourcedetection]
       exporters: [otlp]
     metrics:
       receivers: [docker_stats, hostmetrics, nginx, otlp]
-      processors: [resource]
+      processors: [resourcedetection]
       exporters: [otlp, debug]
     logs:
       receivers: [otlp]
-      processors: [resource]
+      processors: [resourcedetection]
       exporters: [otlp]
 
 
