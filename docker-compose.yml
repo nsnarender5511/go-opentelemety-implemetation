@@ -19,6 +19,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
     container_name: local-otel-collector
+    user: "0:0"
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
