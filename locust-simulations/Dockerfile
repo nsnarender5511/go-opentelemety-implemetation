@@ -2,6 +2,14 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# Install system dependencies for building Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    libev-dev \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -12,5 +20,7 @@ COPY . .
 # Make script executable
 RUN chmod +x scripts/run_tests.sh
 
-# Default command runs in headless mode with environment variables
-CMD ["./scripts/run_tests.sh", "headless", "10", "10", "300", "${PRODUCT_SERVICE_URL}", "stages"] 
+# Expose the Locust web interface port
+EXPOSE 8089
+
+# Default command will be overridden by docker-compose 

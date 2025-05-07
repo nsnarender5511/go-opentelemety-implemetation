@@ -14,6 +14,13 @@
 # Anomalous src file if generated
 product-service/src/src
 
+# Locust logs and results 
+locust-simulations/locust.log
+locust-simulations/results/custom_stats_*.csv
+locust-simulations/results/response_times_*.csv
+locust-simulations/venv/
+locust-simulations/results/
+
 
 
 

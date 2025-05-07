@@ -9,6 +9,8 @@ services:
     build:
       context: ./locust-simulations
       dockerfile: Dockerfile
+    ports:
+      - "8089:8089"
     environment:
       - PRODUCT_SERVICE_URL=http://nginx:80
       - LOAD_SHAPE=stages
@@ -21,6 +23,7 @@ services:
       - nginx
     volumes:
       - ./locust-simulations/results:/app/results
+    command: ["./scripts/run_tests.sh", "ui", "10", "10", "300", "${PRODUCT_SERVICE_URL}", "stages"]
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
