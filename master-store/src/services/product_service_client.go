@@ -12,6 +12,7 @@ import (
 	apierrors "github.com/narender/common/apierrors"
 	"github.com/narender/common/globals"
 	commontrace "github.com/narender/common/telemetry/trace"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -94,9 +95,10 @@ func getProductFromProductService(ctx context.Context, name string) (*ProductDet
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create HTTP client with timeout
+	// Create HTTP client with auto-instrumentation
 	client := &http.Client{
-		Timeout: 5 * time.Second, // Shorter timeout for read operations
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   50 * time.Second, // Shorter timeout for read operations
 	}
 
 	// Send request
@@ -193,9 +195,10 @@ func updateProductStockInProductService(ctx context.Context, name string, newSto
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create HTTP client with timeout
+	// Create HTTP client with auto-instrumentation
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   10 * time.Second,
 	}
 
 	// Send request

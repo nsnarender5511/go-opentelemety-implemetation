@@ -21,41 +21,35 @@ def check_master_store_products_schema(response) -> bool:
     try:
         data = response.json()
         
-        # The master-store returns an object with product names as keys
-        if not isinstance(data, dict):
-            if isinstance(data, dict) and "data" in data:
-                # It might be wrapped in a data field
-                data = data["data"]
-                if not isinstance(data, dict):
-                    logger.warning(f"Expected a dictionary in data field, got: {type(data)}")
+        # First check if we have a standard API response format with data field
+        if isinstance(data, dict) and "data" in data and "status" in data:
+            # Extract the actual data
+            data = data["data"]
+        
+        # Master-store returns an array of products
+        if isinstance(data, list):
+            # Empty response is valid
+            if not data:
+                return True
+                
+            # Check first product
+            if len(data) > 0:
+                first_product = data[0]
+                if not isinstance(first_product, dict):
+                    logger.warning(f"Expected product to be a dictionary, got {type(first_product)}")
                     return False
-            else:
-                logger.warning(f"Expected a dictionary response, got: {type(data)}")
-                return False
-        
-        # Empty response is valid
-        if not data:
-            return True
-            
-        # Get first product to check schema
-        try:
-            first_product_name = next(iter(data))
-            first_product = data[first_product_name]
-        except StopIteration:
-            return True  # Empty dict is valid
-        
-        if not isinstance(first_product, dict):
-            logger.warning(f"Expected product to be a dictionary")
+                    
+                # Check required product fields
+                required_fields = ["name", "description", "price", "stock", "category"]
+                for field in required_fields:
+                    if field not in first_product:
+                        logger.warning(f"Master store product missing required field: {field}")
+                        return False
+                
+                return True
+        else:
+            logger.warning(f"Expected an array of products, got {type(data)}")
             return False
-            
-        # Check required product fields
-        required_fields = ["name", "description", "price", "stock", "category"]
-        for field in required_fields:
-            if field not in first_product:
-                logger.warning(f"Master store product missing required field: {field}")
-                return False
-        
-        return True
         
     except Exception as e:
         logger.warning(f"Master store products schema validation error: {e}")
