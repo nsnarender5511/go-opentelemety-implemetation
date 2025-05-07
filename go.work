@@ -4,4 +4,5 @@ go 1.24.1 // Match module Go version
 use (
 	./common
 	./product-service
+	./master-store
 )
