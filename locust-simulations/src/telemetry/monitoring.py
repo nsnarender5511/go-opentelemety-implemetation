@@ -17,43 +17,32 @@ try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource, SERVICE_NAME
     
-    def setup_opentelemetry(config=None):
-        """Initialize OpenTelemetry if enabled in config or OTEL_ENABLED=true."""
+    def setup_opentelemetry():
+        """Initialize OpenTelemetry based on environment variables."""
         global otel_initialized
         
         # Only initialize once
         if otel_initialized:
             return
             
-        # Check if telemetry is explicitly enabled in config
-        telemetry_enabled = False
-        otel_endpoint = None
-        
-        # First check configuration
-        if config and "telemetry" in config:
-            telemetry_enabled = config["telemetry"].get("enabled", False)
-            otel_endpoint = config["telemetry"].get("endpoint", "")
-            
-        # Then check environment variables (these take precedence)
-        if os.environ.get("OTEL_ENABLED", "").lower() in ("true", "1", "yes"):
-            telemetry_enabled = True
-            
-        if os.environ.get("OTEL_ENDPOINT"):
-            otel_endpoint = os.environ.get("OTEL_ENDPOINT")
+        # Check environment variables for enablement and endpoint
+        telemetry_enabled = os.environ.get("OTEL_ENABLED", "").lower() in ("true", "1", "yes")
+        otel_endpoint = os.environ.get("OTEL_ENDPOINT")
             
         # If not enabled or no endpoint provided, don't initialize
         if not telemetry_enabled:
-            logger.info("OpenTelemetry integration disabled")
+            logger.info("OpenTelemetry integration disabled (OTEL_ENABLED is not true)")
             return
             
         if not otel_endpoint:
-            logger.info("OpenTelemetry endpoint not configured, integration disabled")
+            logger.info("OpenTelemetry endpoint not configured (OTEL_ENDPOINT missing), integration disabled")
             return
             
         try:
             # Create resource with service info
+            service_name = os.environ.get("SERVICE_NAME", "locust-load-tester")
             resource = Resource(attributes={
-                SERVICE_NAME: os.environ.get("SERVICE_NAME", "locust-load-tester")
+                SERVICE_NAME: service_name
             })
             
             # Set up tracer provider
@@ -65,7 +54,7 @@ try:
             span_processor = BatchSpanProcessor(otlp_exporter)
             tracer_provider.add_span_processor(span_processor)
             
-            logger.info(f"OpenTelemetry initialized with endpoint: {otel_endpoint}")
+            logger.info(f"OpenTelemetry initialized for service '{service_name}' with endpoint: {otel_endpoint}")
             otel_initialized = True
             
             # Register Locust event handlers for telemetry
@@ -133,6 +122,6 @@ except ImportError:
     # If OpenTelemetry packages are not available, provide stub functions
     logger.warning("OpenTelemetry packages not installed, telemetry features disabled")
     
-    def setup_opentelemetry(config=None):
+    def setup_opentelemetry():
         """Stub function when OpenTelemetry is not available."""
         logger.warning("OpenTelemetry packages not installed, telemetry features disabled") 

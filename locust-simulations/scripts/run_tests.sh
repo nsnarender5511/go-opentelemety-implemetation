@@ -8,12 +8,18 @@
 # HOST: target host URL (default: http://localhost:8082 or from env var)
 # SHAPE: load shape to use (stages, spike, multiple_spikes, ramping)
 
+# Load persisted settings if file exists
+if [ -f "/app/settings.env" ]; then
+    echo "Loading settings from settings.env"
+    source /app/settings.env
+fi
+
 MODE=${1:-ui}
 USERS=${2:-10}
 SPAWN_RATE=${3:-10}
 DURATION=${4:-300}
 HOST=${PRODUCT_SERVICE_URL:-${5:-http://localhost:8082}}
-SHAPE=${6:-""}
+SHAPE=${LOAD_SHAPE:-${6:-""}}
 
 # Move to the directory containing this script
 cd "$(dirname "$0")/.."
@@ -31,17 +37,17 @@ echo "Running tests in $MODE mode with $USERS users for $DURATION seconds agains
 
 case $MODE in
     ui)
-        # Start Locust with web UI
-        locust -f locustfile.py --host=$HOST
+        # Start Locust with web UI and class-picker enabled
+        locust -f locustfile.py --host=$HOST --class-picker
         ;;
     headless)
-        # Run Locust in headless mode
-        locust -f locustfile.py --headless -u $USERS -r $SPAWN_RATE -t ${DURATION}s --host=$HOST --html=results/report.html --csv=results/stats
+        # Run Locust in headless mode with class-picker enabled
+        locust -f locustfile.py --headless -u $USERS -r $SPAWN_RATE -t ${DURATION}s --host=$HOST --html=results/report.html --csv=results/stats --class-picker
         echo "Test complete, results in results/ directory"
         ;;
     distributed-master)
-        # Run as distributed master
-        locust -f locustfile.py --master --host=$HOST
+        # Run as distributed master with class-picker enabled
+        locust -f locustfile.py --master --host=$HOST --class-picker
         ;;
     distributed-worker)
         # Run as distributed worker

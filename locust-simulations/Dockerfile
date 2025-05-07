@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Consider upgrading pip first
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy the simulation code
 COPY . .
@@ -23,4 +25,5 @@ RUN chmod +x scripts/run_tests.sh
 # Expose the Locust web interface port
 EXPOSE 8089
 
-# Default command will be overridden by docker-compose 
+# Default command using class-picker
+CMD ["locust", "-f", "locustfile.py", "--class-picker"] 
