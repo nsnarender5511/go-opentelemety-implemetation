@@ -58,14 +58,16 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Flips through pages* Ah! Here's our complete inventory. Let me count everything...")
 
 	productsSlice = make([]models.Product, 0, len(productsMap))
-	for _, p := range productsMap {
+	// var productID string // Removed unused productID variable and its assignment loop
+	for _, p := range productsMap { // Iterate once to populate productsSlice
 		productsSlice = append(productsSlice, p)
 		r.logger.DebugContext(ctx, "Stock Room Worker: *Checks shelf* Product "+p.Name+" - we have "+strconv.Itoa(p.Stock)+" in stock")
 	}
 
 	// Update product stock levels for telemetry
-	for _, p := range productsSlice {
-		metric.UpdateProductStockLevels(p.Name, int64(p.Stock))
+	// const storeID = "default-store" // Removed storeID
+	for _, p := range productsSlice { // Iterate productsSlice, p.Name is the identifier
+		metric.UpdateProductStockLevels(p.Name, p.Category, int64(p.Stock))
 	}
 
 	productCount := len(productsSlice)

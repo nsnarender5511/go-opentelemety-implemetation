@@ -10,21 +10,133 @@
     "name": "Laptop Pro",
     "description": "High-end laptop",
     "price": 1500.99,
-    "stock": 66,
+    "stock": 55,
     "category": "Electronics"
   },
   "Office Chair": {
     "name": "Office Chair",
     "description": "Ergonomic chair",
     "price": 250.5,
-    "stock": 54,
+    "stock": 50,
     "category": "Furniture"
   },
   "Wireless Mouse": {
     "name": "Wireless Mouse",
     "description": "Silent click mouse",
     "price": 25,
-    "stock": 61,
+    "stock": 59,
     "category": "Electronics"
+  },
+  "Smart Speaker": {
+    "name": "Smart Speaker",
+    "description": "Voice-activated smart speaker",
+    "price": 79.99,
+    "stock": 150,
+    "category": "Electronics"
+  },
+  "Gaming Console": {
+    "name": "Gaming Console",
+    "description": "Next-gen gaming console",
+    "price": 499.99,
+    "stock": 75,
+    "category": "Electronics"
+  },
+  "Blender Pro": {
+    "name": "Blender Pro",
+    "description": "High-speed blender for smoothies",
+    "price": 89.50,
+    "stock": 120,
+    "category": "Kitchenware"
+  },
+  "Toaster Oven": {
+    "name": "Toaster Oven",
+    "description": "Compact toaster oven",
+    "price": 55.00,
+    "stock": 90,
+    "category": "Kitchenware"
+  },
+  "Standing Desk": {
+    "name": "Standing Desk",
+    "description": "Adjustable height standing desk",
+    "price": 350.00,
+    "stock": 60,
+    "category": "Furniture"
+  },
+  "Bookshelf Unit": {
+    "name": "Bookshelf Unit",
+    "description": "5-tier bookshelf",
+    "price": 120.75,
+    "stock": 80,
+    "category": "Furniture"
+  },
+  "Men's T-Shirt": {
+    "name": "Men's T-Shirt",
+    "description": "Cotton crew-neck t-shirt",
+    "price": 19.99,
+    "stock": 200,
+    "category": "Apparel"
+  },
+  "Women's Jeans": {
+    "name": "Women's Jeans",
+    "description": "Slim fit denim jeans",
+    "price": 49.95,
+    "stock": 150,
+    "category": "Apparel"
+  },
+  "Running Shoes": {
+    "name": "Running Shoes",
+    "description": "Lightweight running shoes",
+    "price": 85.00,
+    "stock": 120,
+    "category": "Apparel"
+  },
+  "Winter Jacket": {
+    "name": "Winter Jacket",
+    "description": "Insulated winter jacket",
+    "price": 120.00,
+    "stock": 90,
+    "category": "Apparel"
+  },
+  "Mystery Novel Vol. 1": {
+    "name": "Mystery Novel Vol. 1",
+    "description": "A thrilling mystery",
+    "price": 14.99,
+    "stock": 300,
+    "category": "Books"
+  },
+  "Sci-Fi Saga Part 1": {
+    "name": "Sci-Fi Saga Part 1",
+    "description": "Epic space adventure",
+    "price": 18.50,
+    "stock": 250,
+    "category": "Books"
+  },
+  "History of Ancient Rome": {
+    "name": "History of Ancient Rome",
+    "description": "Comprehensive historical account",
+    "price": 29.95,
+    "stock": 180,
+    "category": "Books"
+  },
+  "Cookbook: Global Cuisine": {
+    "name": "Cookbook: Global Cuisine",
+    "description": "Recipes from around the world",
+    "price": 24.99,
+    "stock": 220,
+    "category": "Books"
+  },
+  "Children's Picture Book": {
+    "name": "Children's Picture Book",
+    "description": "Colorful illustrated book for kids",
+    "price": 9.99,
+    "stock": 400,
+    "category": "Books"
+  },
+  "Self-Help Guide": {
+    "name": "Self-Help Guide",
+    "description": "A guide to personal development",
+    "price": 16.75,
+    "stock": 280,
+    "category": "Books"
   }
 }

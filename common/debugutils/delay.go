@@ -31,13 +31,13 @@ func Simulate(ctx context.Context) *apierrors.AppError {
 	// --- New Simple Error Simulation Logic --- (No config needed for this version)
 	// Seed again just in case delay wasn't enabled/run
 	// Note: Seeding frequently is okay for this debug purpose, not ideal for crypto.
-	source := rand.NewSource(time.Now().UnixNano() + 1) // Add offset to avoid same seed as delay potentially
-	rng := rand.New(source)
+	// source := rand.NewSource(time.Now().UnixNano() + 1) // Add offset to avoid same seed as delay potentially
+	// rng := rand.New(source)
 
-	if rng.Intn(5) == 0 { // Approx 20% chance
-		// Return a predefined AppError directly
-		return apierrors.NewAppError(apierrors.ErrCodeUnknown, "Simulated debug error from Simulate()", nil)
-	}
+	// if rng.Intn(5) == 0 { // Approx 20% chance
+	// 	// Return a predefined AppError directly
+	// 	return apierrors.NewAppError(apierrors.ErrCodeUnknown, "Simulated debug error from Simulate()", nil)
+	// }
 
 	// If no error simulated, return nil
 	return nil

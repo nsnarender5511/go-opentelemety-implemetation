@@ -8,9 +8,12 @@ const (
 	counterType         metricType = "counter"
 	histogramType       metricType = "histogram"
 	observableGaugeType metricType = "observable_gauge"
+	floatCounterType    metricType = "float_counter"
 
 	// Define metric names as constants for type safety and easier refactoring
-	ProductInventoryCountMetric = "product.stock.count"
+	ProductStockCountMetric = "app.product.stock.count"
+	AppRevenueTotalMetric   = "app.revenue.total"
+	AppItemsSoldCountMetric = "app.items.sold.count"
 )
 
 // --- Metric Configuration Types ---
@@ -25,9 +28,19 @@ type metricConfig struct {
 
 // Centralized definition for all metrics using constants
 var metricDefinitions = map[string]metricConfig{
-	ProductInventoryCountMetric: {
-		Description: "Current count of items in inventory for each product",
+	ProductStockCountMetric: {
+		Description: "Current count of items in inventory for each product. Attributes: product.name, product.category",
 		Unit:        "{item}",
 		Type:        observableGaugeType,
+	},
+	AppRevenueTotalMetric: {
+		Description: "Total revenue generated from product sales. Attributes: product.name, product.category, currency_code",
+		Unit:        "1",
+		Type:        floatCounterType,
+	},
+	AppItemsSoldCountMetric: {
+		Description: "Total number of items sold. Attributes: product.name, product.category",
+		Unit:        "{item}",
+		Type:        counterType,
 	},
 }

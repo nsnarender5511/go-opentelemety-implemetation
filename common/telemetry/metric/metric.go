@@ -3,34 +3,32 @@ package metric
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"sync"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
-type MetricsController interface {
-	End(ctx context.Context, err *error, additionalAttrs ...attribute.KeyValue)
-	IncrementProductCreated(ctx context.Context)
-	IncrementProductUpdated(ctx context.Context)
+// productStockDetail holds the stock level and associated attributes for a product.
+// This is used as the value in the latestProductStock map.
+type productStockDetail struct {
+	StockLevel      int64
+	ProductName     string
+	ProductCategory string
 }
-
-type metricsControllerImpl struct {
-	startTime time.Time
-}
-
-// --- Global Variables ---
 
 var (
-	meter      = otel.Meter("common/telemetry/metric")
-	counters   = make(map[string]metric.Int64Counter)
-	histograms = make(map[string]metric.Float64Histogram)
-	gauges     = make(map[string]metric.Int64ObservableGauge)
+	meter           = otel.Meter("common/telemetry/metric")
+	counters        = make(map[string]metric.Int64Counter)
+	float64Counters = make(map[string]metric.Float64Counter)
+	histograms      = make(map[string]metric.Float64Histogram)
+	gauges          = make(map[string]metric.Int64ObservableGauge)
 
 	// Storage for latest product stock levels for the observable gauge
-	latestProductStock      = make(map[string]int64)
+	// Key is productName
+	latestProductStock      = make(map[string]productStockDetail)
 	latestProductStockMutex sync.RWMutex
 )
 
@@ -53,12 +51,17 @@ func init() {
 			gauge := createInt64ObservableGauge(name, cfg.Description, cfg.Unit)
 			if gauge != nil {
 				gauges[name] = gauge
-				if name == ProductInventoryCountMetric {
+				if name == ProductStockCountMetric {
 					_, err := meter.RegisterCallback(observeProductStock, gauge)
 					if err != nil {
 						slog.Error("Failed to register callback for gauge", slog.String("metric", name), slog.Any("error", err))
 					}
 				}
+			}
+		case floatCounterType: // New case
+			counter := createFloat64Counter(name, cfg.Description, cfg.Unit)
+			if counter != nil {
+				float64Counters[name] = counter
 			}
 		default:
 			slog.Warn("Unknown metric type in configuration", slog.String("metric", name), slog.String("type", string(cfg.Type)))
@@ -106,6 +109,18 @@ func createInt64ObservableGauge(name, description, unit string) metric.Int64Obse
 	return gauge
 }
 
+func createFloat64Counter(name, description, unit string) metric.Float64Counter {
+	counter, err := meter.Float64Counter(
+		name,
+		metric.WithDescription(description),
+		metric.WithUnit(unit),
+	)
+	if err != nil {
+		slog.Error("Failed to initialize float64 counter", slog.String("metric", name), slog.Any("error", err))
+	}
+	return counter
+}
+
 // --- Callback Functions ---
 
 // observeProductStock is the callback function for the product inventory gauge.
@@ -114,27 +129,69 @@ func observeProductStock(ctx context.Context, observer metric.Observer) error {
 	latestProductStockMutex.RLock()
 	defer latestProductStockMutex.RUnlock()
 
-	gauge, ok := gauges[ProductInventoryCountMetric]
+	gauge, ok := gauges[ProductStockCountMetric]
 	if !ok {
-		slog.ErrorContext(ctx, "Failed to find gauge instrument in callback", slog.String("metric", ProductInventoryCountMetric))
-		// Returning an error might stop further callbacks depending on the SDK implementation,
-		// so we log and return nil to be safe.
+		slog.ErrorContext(ctx, "Failed to find gauge instrument in callback", slog.String("metric", ProductStockCountMetric))
 		return nil
 	}
 
-	for productID, stock := range latestProductStock {
+	for productNameKey, detail := range latestProductStock {
 		// Observe the current stock level for this product ID
-		productIDAttribute := attribute.String("product.id", productID)
-		observer.ObserveInt64(gauge, stock, metric.WithAttributes(productIDAttribute))
+		attrs := attribute.NewSet(
+			attribute.String("product.name", productNameKey),
+			attribute.String("product.category", detail.ProductCategory),
+			attribute.String("custom.metric", "true"),
+		)
+		observer.ObserveInt64(gauge, detail.StockLevel, metric.WithAttributeSet(attrs))
 	}
 	return nil
 }
 
 // UpdateProductStockLevels updates the in-memory store of product stock levels.
 // This function is called when new stock data is available.
-func UpdateProductStockLevels(productID string, stockLevel int64) {
+// productName is the map key and also stored in the detail struct.
+func UpdateProductStockLevels(productName, productCategory string, stockLevel int64) {
 	latestProductStockMutex.Lock()
 	defer latestProductStockMutex.Unlock()
-	latestProductStock[productID] = stockLevel
-	slog.Debug("Updated product stock level", slog.String("product.id", productID), slog.Int64("stock.level", stockLevel))
+	latestProductStock[productName] = productStockDetail{
+		StockLevel:      stockLevel,
+		ProductName:     productName,
+		ProductCategory: productCategory,
+		
+	}
+	slog.Debug("Updated product stock level",
+		slog.String("product.name", productName),
+		slog.String("product.category", productCategory),
+		slog.Int64("stock.level", stockLevel),
+		
+	)
+}
+
+func IncrementRevenueTotal(ctx context.Context, revenue float64, productName, productCategory, currencyCode string) {
+	counter, ok := float64Counters[AppRevenueTotalMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppRevenueTotalMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String("product.bill.amount", strconv.FormatFloat(revenue, 'f', -1, 64)),
+		attribute.String("product.name", productName),
+		attribute.String("product.category", productCategory),
+		attribute.String("custom.metric", "true"),
+	)
+	counter.Add(ctx, revenue, metric.WithAttributeSet(attrs))
+}
+
+func IncrementItemsSoldCount(ctx context.Context, quantity int64, productName, productCategory string) {
+	counter, ok := counters[AppItemsSoldCountMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppItemsSoldCountMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String("product.name", productName),
+		attribute.String("product.category", productCategory),
+		attribute.String("custom.metric", "true"),
+	)
+	counter.Add(ctx, quantity, metric.WithAttributeSet(attrs))
 }

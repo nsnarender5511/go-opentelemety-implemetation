@@ -88,7 +88,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	}
 
 	// Update product stock level for telemetry
-	metric.UpdateProductStockLevels(product.Name, int64(newStock))
+	metric.UpdateProductStockLevels(product.Name, product.Category, int64(newStock)) // product.Name is the identifier
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Closes ledger* Also updated our inventory records to match the physical stock")

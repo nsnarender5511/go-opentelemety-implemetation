@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -71,6 +72,17 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 
 	remainingStock = newStock
 	span.SetAttributes(attribute.Int("product.remaining_stock", remainingStock))
+
+	// --- Metrics Reporting for Sale ---
+	// Assuming currencyCode for now. This might come from config or request context in a real scenario.
+	const currencyCode = "USD"
+	revenue := product.Price * float64(quantity)
+
+	metric.IncrementRevenueTotal(ctx, revenue, product.Name, product.Category, currencyCode)
+	metric.IncrementItemsSoldCount(ctx, int64(quantity), product.Name, product.Category)
+	s.logger.InfoContext(ctx, "Shop Manager: Sales metrics reported", slog.String("product_name", product.Name), slog.Float64("revenue", revenue), slog.Int("quantity_sold", quantity))
+	// --- End Metrics Reporting ---
+
 	s.logger.InfoContext(ctx, "Shop Manager: Purchase processed successfully", slog.String("product_name", name), slog.Int("remaining_stock", remainingStock))
 
 	return remainingStock, appErr
