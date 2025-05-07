@@ -6,19 +6,22 @@ and custom command-line arguments for task execution limits.
 import os
 import logging
 import random
+import time
 from typing import Dict, Any, List, Optional
 
 from locust import HttpUser, task, between, tag, events
 from locust.clients import ResponseContextManager
+import json
 
 # Assuming these are still relevant and in the correct path after consolidation
 from src.utils.shared_data import SharedData
-from src.utils.validators import validate_response, check_status_code, check_content_type, check_products_list_schema
+from src.utils.http_validation import validate_response, check_status_code, check_content_type, check_products_list_schema
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler("locust.log"), logging.StreamHandler()]
 )
 logger = logging.getLogger("locustfile") # Changed logger name for clarity
 
@@ -43,12 +46,9 @@ class SimulationUser(HttpUser):
         self.task_counts = {
             "browse_all_products": 0,
             "get_products_by_category": 0,
-            "search_products": 0,
-            "view_product_details": 0,
-            "add_to_cart": 0,
-            "checkout": 0,
-            "update_inventory": 0,
-            "view_analytics": 0,
+            "get_product_by_name": 0,
+            "update_product_stock": 0,
+            "buy_product": 0,
             "health_check": 0
         }
     
@@ -59,59 +59,154 @@ class SimulationUser(HttpUser):
         self._initialize_test_data_params()
     
     def _initialize_test_data_params(self):
-        self.possible_categories = getattr(self.environment.parsed_options, "possible_categories_list", 
-                                           ["Electronics", "Books", "Clothing"])
-        self.search_terms = getattr(self.environment.parsed_options, "search_terms_list", 
-                                    ["phone", "laptop", "shirt", "book"])
-        if isinstance(self.possible_categories, str):
-            self.possible_categories = [cat.strip() for cat in self.possible_categories.split(',') if cat.strip()]
-        if isinstance(self.search_terms, str):
-            self.search_terms = [term.strip() for term in self.search_terms.split(',') if term.strip()]
-
+        # Get parameters from environment or CLI args
+        self.possible_categories = self.environment.parsed_options.possible_categories_list.split(",") if hasattr(self.environment, "parsed_options") else []
+    
     def _can_execute_task(self, task_name):
-        if task_name not in self.task_counts:
+        """Return True if the task can be executed, False otherwise"""
+        # Parse max executions from command-line args
+        max_executions_arg = f"max_{task_name}"
+        max_executions = getattr(self.environment.parsed_options, max_executions_arg, -1) if hasattr(self.environment, "parsed_options") else -1
+        
+        # Disabled if max executions is 0
+        if max_executions == 0:
+            return False
+        
+        # No limit if max executions is negative
+        if max_executions < 0:
             return True
-        max_count_attr_name = f"max_{task_name}"
-        max_count = getattr(self.environment.parsed_options, max_count_attr_name, -1)
-        if max_count < 0:
-            return True
-        return self.task_counts[task_name] < max_count
+            
+        # Check if we've reached the limit
+        current_count = self.task_counts.get(task_name, 0)
+        return current_count < max_executions
     
     def _increment_task_count(self, task_name):
-        if task_name in self.task_counts:
-            self.task_counts[task_name] += 1
-            return self.task_counts[task_name]
-        return 0
+        """Increment the task count and return the new value"""
+        self.task_counts[task_name] = self.task_counts.get(task_name, 0) + 1
+        return self.task_counts[task_name]
     
     def _load_initial_products(self):
-        with self.client.get("/products", name="Initial_Product_Load") as response:
-            if response.status_code == 200:
-                products = self._extract_products(response)
-                if products:
-                    self.shared_data.update_products(products)
-                    logger.info(f"Loaded initial product data: {len(products)} products")
-                else:
-                    logger.warning("No products found in initial data load")
-            else:
-                logger.error(f"Failed to load initial product data: {response.status_code}")
+        """Load initial product data if needed with retry logic"""
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                with self.client.get("/products", name=f"Initial_Products_Load (Attempt {attempt+1})", catch_response=True) as response:
+                    logger.info(f"Initial product load response: {response.status_code}")
+                    logger.info(f"Initial product load response: {response.text}")
+                    if response.status_code == 200:
+                        products = self._extract_products(response)
+                        if products:
+                            self.shared_data.update_products(products)
+                            logger.info(f"Loaded initial product data: {len(products)} products")
+                            return True
+                        else:
+                            logger.warning("No products found in initial data load")
+                    else:
+                        logger.warning(f"Failed to load initial product data: {response.status_code} (Attempt {attempt+1}/{max_retries})")
+                
+                if attempt < max_retries - 1:  # Don't sleep after the last attempt
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5  # Increase delay with each retry
+            
+            except Exception as e:
+                logger.error(f"Error during initial product load attempt {attempt+1}: {str(e)}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5
+        
+        logger.error(f"Failed to load initial product data after {max_retries} attempts")
+        return False
     
     def _extract_products(self, response: ResponseContextManager) -> List[Dict[str, Any]]:
         try:
             data = response.json()
-            if isinstance(data, dict) and "data" in data:
+            
+            # Case 1: Object where each key is a product name
+            if isinstance(data, dict) and not "data" in data:
+                # Convert object with product names as keys to a list of products
+                products_list = []
+                for product_name, product_data in data.items():
+                    if isinstance(product_data, dict) and "name" in product_data:
+                        products_list.append(product_data)
+                    elif not isinstance(product_data, dict) and product_name == "error":
+                        # Skip error messages
+                        logger.warning(f"API error response: {product_data}")
+                        continue
+                    else:
+                        logger.warning(f"Unexpected product data format: {type(product_data)}")
+                return products_list
+                
+            # Case 2: Response has a "data" field containing the products
+            elif isinstance(data, dict) and "data" in data:
                 products_list = data["data"]
+                # If data is an object with product names as keys, convert to list
+                if isinstance(products_list, dict):
+                    return [product for _, product in products_list.items() if isinstance(product, dict)]
+                return products_list
+                
+            # Case 3: Response is a direct list of products
             elif isinstance(data, list):
                 products_list = data
+                return products_list
+                
             else:
                 logger.warning(f"Unexpected response structure from API: {type(data)}")
                 return []
-            return [
-                item for item in products_list 
-                if isinstance(item, dict) and "productID" in item and "name" in item
-            ]
         except Exception as e:
             logger.error(f"Error extracting products: {e}")
             return []
+    
+    def _retry_request(self, request_func, name, validators=None, max_retries=3):
+        """
+        Helper to retry API requests with exponential backoff
+        
+        Args:
+            request_func: Function that performs the actual request (should return response object)
+            name: Name to use for the request (for reporting)
+            validators: List of validator functions to run on the response
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            Response object if successful, None otherwise
+        """
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                response = request_func()
+                
+                # If status code is 5xx (server error), retry
+                if 500 <= response.status_code < 600:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"{name} failed with status {response.status_code}, retrying in {retry_delay}s ({attempt+1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                
+                # Validate response if validators are provided
+                if validators:
+                    valid = validate_response(response, validators)
+                    if not valid and attempt < max_retries - 1:
+                        logger.warning(f"{name} validation failed, retrying in {retry_delay}s ({attempt+1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                
+                return response
+            
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.error(f"Error during {name} (attempt {attempt+1}): {str(e)}")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"Final error during {name} after {max_retries} attempts: {str(e)}")
+        
+        return None
     
     @task(70)
     @tag("browse")
@@ -120,12 +215,21 @@ class SimulationUser(HttpUser):
         if not self._can_execute_task(task_name):
             return
         count = self._increment_task_count(task_name)
-        with self.client.get("/products", name=f"Get_All_Products (#{count})", catch_response=True) as response:
-            valid = validate_response(response, [check_status_code(200), check_content_type(), check_products_list_schema])
-            if valid:
-                products = self._extract_products(response)
-                if products:
-                    self.shared_data.update_products(products)
+        
+        def request_func():
+            with self.client.get("/products", name=f"Get_All_Products (#{count})", catch_response=True) as response:
+                return response
+        
+        response = self._retry_request(
+            request_func, 
+            f"Get_All_Products (#{count})",
+            validators=[check_status_code(200), check_content_type(), check_products_list_schema]
+        )
+        
+        if response and response.status_code == 200:
+            products = self._extract_products(response)
+            if products:
+                self.shared_data.update_products(products)
     
     @task(50)
     @tag("browse", "category")
@@ -136,90 +240,93 @@ class SimulationUser(HttpUser):
         count = self._increment_task_count(task_name)
         possible_categories = self.possible_categories if self.possible_categories else ["Electronics"]
         category = random.choice(possible_categories)
-        with self.client.get(f"/products/category", params={"category": category}, name=f"Get_Products_By_Category (#{count})", catch_response=True) as response:
-            valid = validate_response(response, [check_status_code(200), check_content_type()])
-            if valid:
-                self._extract_products(response)
-                if len(category) <= 20: response.name = f"Get_Products_By_Category_{category} (#{count})"
-
-    @task(30)
-    @tag("browse", "search")
-    def search_products(self):
-        task_name = "search_products"
-        if not self._can_execute_task(task_name):
-            return
-        count = self._increment_task_count(task_name)
-        search_terms = self.search_terms if self.search_terms else ["phone"]
-        search_term = random.choice(search_terms)
-        with self.client.get(f"/products/search", params={"q": search_term}, name=f"Search_Products (#{count})", catch_response=True) as response:
-            valid = validate_response(response, [check_status_code(200), check_content_type()])
-            if valid:
-                self._extract_products(response)
-                if len(search_term) <= 20: response.name = f"Search_Products_{search_term} (#{count})"
+        
+        def request_func():
+            with self.client.get(f"/products/category", params={"category": category}, 
+                               name=f"Get_Products_By_Category (#{count})", catch_response=True) as response:
+                if response.status_code == 200 and len(category) <= 20:
+                    response.name = f"Get_Products_By_Category_{category} (#{count})"
+                return response
+        
+        response = self._retry_request(
+            request_func,
+            f"Get_Products_By_Category (#{count})",
+            validators=[check_status_code(200), check_content_type()]
+        )
+        
+        if response and response.status_code == 200:
+            self._extract_products(response)
 
     @task(40)
     @tag("shopping", "details")
-    def view_product_details(self):
-        task_name = "view_product_details"
+    def get_product_by_name(self):
+        task_name = "get_product_by_name"
         if not self._can_execute_task(task_name):
             return
         count = self._increment_task_count(task_name)
         product = self.shared_data.get_random_product()
-        if not product or not product.get("productID"):
+        if not product or not product.get("name"):
             return
-        product_id = product.get("productID")
-        with self.client.get(f"/products/{product_id}", name=f"Get_Product_Details (#{count})", catch_response=True) as response:
-            validate_response(response, [check_status_code(200), check_content_type()])
+        product_name = product.get("name")
+        
+        def request_func():
+            with self.client.post("/products/details", json={"name": product_name}, 
+                                name=f"Get_Product_By_Name (#{count})", catch_response=True) as response:
+                return response
+        
+        self._retry_request(
+            request_func,
+            f"Get_Product_By_Name (#{count})",
+            validators=[check_status_code(200), check_content_type()]
+        )
 
     @task(25)
-    @tag("shopping", "cart")
-    def add_to_cart(self):
-        task_name = "add_to_cart"
+    @tag("admin", "inventory")
+    def update_product_stock(self):
+        task_name = "update_product_stock"
         if not self._can_execute_task(task_name):
             return
         count = self._increment_task_count(task_name)
         product = self.shared_data.get_random_product()
-        if not product or not product.get("productID"):
+        if not product or not product.get("name"):
             return
-        product_id = product.get("productID")
-        quantity = random.randint(1, 5)
-        with self.client.post(f"/cart/add", json={"product_id": product_id, "quantity": quantity}, name=f"Add_To_Cart (#{count})", catch_response=True) as response:
-            validate_response(response, [check_status_code(200), check_content_type()])
+        product_name = product.get("name")
+        new_stock = random.randint(10, 100)
+        
+        def request_func():
+            with self.client.patch("/products/stock", json={"name": product_name, "stock": new_stock}, 
+                                 name=f"Update_Product_Stock (#{count})", catch_response=True) as response:
+                return response
+        
+        self._retry_request(
+            request_func,
+            f"Update_Product_Stock (#{count})",
+            validators=[check_status_code(200), check_content_type()]
+        )
 
     @task(15)
-    @tag("shopping", "checkout")
-    def checkout(self):
-        task_name = "checkout"
-        if not self._can_execute_task(task_name):
-            return
-        count = self._increment_task_count(task_name)
-        with self.client.post(f"/checkout", json={"payment_method": "credit_card", "shipping_address": "123 Test St, City, Country"}, name=f"Checkout (#{count})", catch_response=True) as response:
-            validate_response(response, [check_status_code(200), check_content_type()])
-
-    @task(10)
-    @tag("admin", "inventory")
-    def update_inventory(self):
-        task_name = "update_inventory"
+    @tag("shopping", "purchase")
+    def buy_product(self):
+        task_name = "buy_product"
         if not self._can_execute_task(task_name):
             return
         count = self._increment_task_count(task_name)
         product = self.shared_data.get_random_product()
-        if not product or not product.get("productID"):
+        if not product or not product.get("name"):
             return
-        product_id = product.get("productID")
-        new_stock = random.randint(10, 100)
-        with self.client.put(f"/admin/products/{product_id}/stock", json={"stock": new_stock}, name=f"Update_Inventory (#{count})", catch_response=True) as response:
-            validate_response(response, [check_status_code(200), check_content_type()])
-
-    @task(5)
-    @tag("admin", "analytics")
-    def view_analytics(self):
-        task_name = "view_analytics"
-        if not self._can_execute_task(task_name):
-            return
-        count = self._increment_task_count(task_name)
-        with self.client.get(f"/admin/analytics", name=f"View_Analytics (#{count})", catch_response=True) as response:
-            validate_response(response, [check_status_code(200), check_content_type()])
+        product_name = product.get("name")
+        quantity = random.randint(1, 5)
+        
+        def request_func():
+            with self.client.post("/products/buy", json={"name": product_name, "quantity": quantity}, 
+                               name=f"Buy_Product (#{count})", catch_response=True) as response:
+                return response
+        
+        self._retry_request(
+            request_func,
+            f"Buy_Product (#{count})",
+            validators=[check_status_code(200), check_content_type()]
+        )
 
     @task(2)
     @tag("health")
@@ -228,8 +335,15 @@ class SimulationUser(HttpUser):
         if not self._can_execute_task(task_name):
             return
         count = self._increment_task_count(task_name)
-        with self.client.get("/health", name=f"Health_Check (#{count})") as response:
-            pass
+        
+        def request_func():
+            with self.client.get("/health", name=f"Health_Check (#{count})") as response:
+                return response
+        
+        self._retry_request(
+            request_func,
+            f"Health_Check (#{count})"
+        )
 
 # Import web UI extension (ensure this path is correct if locustfile moves)
 from src.web_extension import init_web_ui_extension
@@ -267,17 +381,13 @@ register_stats_event_handlers()
 
 @events.init_command_line_parser.add_listener
 def _(parser):
-    parser.add_argument("--max-browse-all-products", type=int, env_var="LOCUST_MAX_BROWSE_ALL_PRODUCTS", default=-1, help="Max executions for browse_all_products (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-get-products-by-category", type=int, env_var="LOCUST_MAX_GET_PRODUCTS_BY_CATEGORY", default=-1, help="Max executions for get_products_by_category (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-search-products", type=int, env_var="LOCUST_MAX_SEARCH_PRODUCTS", default=-1, help="Max executions for search_products (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-view-product-details", type=int, env_var="LOCUST_MAX_VIEW_PRODUCT_DETAILS", default=-1, help="Max executions for view_product_details (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-add-to-cart", type=int, env_var="LOCUST_MAX_ADD_TO_CART", default=-1, help="Max executions for add_to_cart (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-checkout", type=int, env_var="LOCUST_MAX_CHECKOUT", default=-1, help="Max executions for checkout (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-update-inventory", type=int, env_var="LOCUST_MAX_UPDATE_INVENTORY", default=-1, help="Max executions for update_inventory (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-view-analytics", type=int, env_var="LOCUST_MAX_VIEW_ANALYTICS", default=-1, help="Max executions for view_analytics (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-health-check", type=int, env_var="LOCUST_MAX_HEALTH_CHECK", default=-1, help="Max executions for health_check (-1=unlimited, 0=disabled)")
-    parser.add_argument("--possible-categories-list", type=str, env_var="LOCUST_POSSIBLE_CATEGORIES_LIST", default="Electronics,Books,Clothing", help="Comma-separated list of possible categories")
-    parser.add_argument("--search-terms-list", type=str, env_var="LOCUST_SEARCH_TERMS_LIST", default="phone,laptop,shirt,book", help="Comma-separated list of search terms")
+    parser.add_argument("--max-browse-all-products", type=int, env_var="LOCUST_MAX_BROWSE_ALL_PRODUCTS", default=0, help="Max executions for browse_all_products (-1=unlimited, 0=disabled)")
+    parser.add_argument("--max-get-products-by-category", type=int, env_var="LOCUST_MAX_GET_PRODUCTS_BY_CATEGORY", default=0, help="Max executions for get_products_by_category (-1=unlimited, 0=disabled)")
+    parser.add_argument("--max-get-product-by-name", type=int, env_var="LOCUST_MAX_GET_PRODUCT_BY_NAME", default=0, help="Max executions for get_product_by_name (-1=unlimited, 0=disabled)")
+    parser.add_argument("--max-update-product-stock", type=int, env_var="LOCUST_MAX_UPDATE_PRODUCT_STOCK", default=0, help="Max executions for update_product_stock (-1=unlimited, 0=disabled)")
+    parser.add_argument("--max-buy-product", type=int, env_var="LOCUST_MAX_BUY_PRODUCT", default=0, help="Max executions for buy_product (-1=unlimited, 0=disabled)")
+    parser.add_argument("--max-health-check", type=int, env_var="LOCUST_MAX_HEALTH_CHECK", default=0, help="Max executions for health_check (-1=unlimited, 0=disabled)")
+    parser.add_argument("--possible-categories-list", type=str, env_var="LOCUST_POSSIBLE_CATEGORIES_LIST", default="Electronics,Books,Clothing,Kitchenware,Furniture,Apparel", help="Comma-separated list of possible categories")
 
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):

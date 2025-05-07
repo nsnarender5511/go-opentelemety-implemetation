@@ -6,6 +6,13 @@ This directory contains the Locust load testing simulations for the product serv
 
 This simulation uses a single, unified `SimulationUser` class that contains all possible tasks. The tasks can be configured with maximum execution counts through the Locust class picker UI, giving you fine-grained control over test scenarios.
 
+## Features
+
+- **Configurable Task Execution Limits**: Control exactly how many times each task is executed
+- **Automatic Retry Logic**: All API calls automatically retry up to 3 times with exponential backoff for 5xx errors
+- **Load Shape Selection**: Choose from different traffic patterns through the web UI
+- **Real-time Task Counters**: Monitor execution counts through the web UI
+
 ## Running the Simulations
 
 ### Basic Run
@@ -37,12 +44,25 @@ We use Locust's built-in class picker to configure maximum execution counts for 
 2. On the Locust web UI, you'll see a class picker that allows you to:
    - Set maximum execution counts for each task (e.g., `max_browse_all_products: 20`)
    - Task limits are interpreted as follows:
-     - `-1`: Unlimited executions (default)
-     - `0`: Task disabled (won't execute)
+     - `-1`: Unlimited executions
+     - `0`: Task disabled (default)
      - `Positive number`: Maximum number of times to execute
    - Configure the target host
 
+**Important**: All tasks are disabled by default (limit=0). You must explicitly set a positive value or -1 to enable each task you want to run.
+
 Each task will be executed up to its configured maximum count, after which it will be skipped. This allows you to precisely control how many times each API endpoint is called during the test.
+
+### Error Handling and Retries
+
+All API calls include automatic retry logic:
+
+- Initial connections retry up to 3 times with increasing delays
+- 5xx server errors trigger automatic retries (up to 3 attempts)
+- Validation failures also trigger retries
+- Exponential backoff increases the delay between retry attempts
+
+This provides resilience against temporary network issues or service instability without manual intervention.
 
 ### Monitoring Task Execution Counts
 
@@ -74,24 +94,21 @@ The `SimulationUser` class includes the following tasks, each with configurable 
 
 ### Browsing Tasks
 
-- **Browse Product List** (`max_browse_all_products`): Browse all available products
-- **Browse by Category** (`max_get_products_by_category`): Browse products filtered by category
-- **Search Products** (`max_search_products`): Search for products by keyword
+- **Browse Product List** (`max_browse_all_products`): Browse all available products (GET /products)
+- **Browse by Category** (`max_get_products_by_category`): Browse products filtered by category (GET /products/category)
 
-### Shopping Tasks
+### Product Tasks
 
-- **View Product Details** (`max_view_product_details`): View detailed information for a specific product
-- **Add to Cart** (`max_add_to_cart`): Add a product to the shopping cart
-- **Checkout** (`max_checkout`): Complete the checkout process
+- **Get Product by Name** (`max_get_product_by_name`): Get detailed information for a specific product by name (POST /products/details)
+- **Buy Product** (`max_buy_product`): Purchase a product (POST /products/buy)
 
 ### Admin Tasks
 
-- **Update Inventory** (`max_update_inventory`): Update product inventory (admin task)
-- **View Analytics** (`max_view_analytics`): View analytics dashboard (admin task)
+- **Update Product Stock** (`max_update_product_stock`): Update product stock level (PATCH /products/stock)
 
 ### Utility Tasks
 
-- **Health Check** (`max_health_check`): Perform a health check
+- **Health Check** (`max_health_check`): Perform a health check (GET /health)
 
 ## Architecture
 
@@ -110,14 +127,14 @@ The simulation is built on a simplified, modular architecture:
 To create a test with exact API call counts:
 
 1. Start Locust with `--class-picker`
-2. In the class picker UI, explicitly set the maximum count for each task you want to limit:
+2. In the class picker UI, explicitly set the maximum count for each task you want to run:
    - `max_browse_all_products: 50`
-   - `max_search_products: 30`
-   - `max_checkout: 10`
-3. Set any tasks you want to disable to 0
+   - `max_get_products_by_category: 30`
+   - `max_buy_product: 10`
+3. Leave other tasks at their default value of 0 to keep them disabled
 4. Start the test
 
-The API will receive exactly 50 product list requests, 30 search requests, and 10 checkout requests, regardless of how long the test runs or how many users are simulated.
+The API will receive exactly 50 product list requests, 30 category requests, and 10 product purchase requests, regardless of how long the test runs or how many users are simulated.
 
 ### Example 2: Mixed Test with Limited Admin Operations
 
@@ -126,11 +143,11 @@ To simulate a mixed workload with limited admin operations:
 1. Start Locust with `--class-picker`
 2. Set browsing and shopping tasks with high limits:
    - `max_browse_all_products: 100`
-   - `max_add_to_cart: 50`
+   - `max_get_product_by_name: 50`
+   - `max_buy_product: 25`
 3. Set admin tasks with low limits:
-   - `max_update_inventory: 5`
-   - `max_view_analytics: 3`
-4. Set any tasks you don't want to run to 0
+   - `max_update_product_stock: 5`
+4. Leave other tasks at their default value of 0 to keep them disabled
 5. Start the test
 
 This configuration ensures the API receives a realistic mix of customer traffic with a controlled number of administrative operations.

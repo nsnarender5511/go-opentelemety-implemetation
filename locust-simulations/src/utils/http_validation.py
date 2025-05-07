@@ -118,38 +118,81 @@ def check_products_list_schema(response) -> bool:
     """
     try:
         data = response.json()
+        products = None
         
-        # Check if response is a dict with "data" field (wrapper format)
-        if isinstance(data, dict) and "data" in data:
+        # Case 1: Object with product names as keys
+        if isinstance(data, dict) and not "data" in data:
+            # Check if at least one product exists and has required fields
+            if not data:
+                return True  # Empty response is valid
+                
+            # Get first product to check schema
+            first_product_name = next(iter(data))
+            first_product = data[first_product_name]
+            
+            if not isinstance(first_product, dict):
+                logger.warning(f"Expected product to be a dictionary")
+                return False
+                
+            # Check minimal product fields in first product
+            required_fields = ["name", "description", "price"]
+            for field in required_fields:
+                if field not in first_product:
+                    logger.warning(f"Product missing required field: {field}")
+                    return False
+            
+            return True
+        
+        # Case 2: Response has a "data" field (wrapper format)
+        elif isinstance(data, dict) and "data" in data:
             products = data["data"]
-        # Or if response is a direct list
+            
+            # Handle case where data is an object with product names as keys
+            if isinstance(products, dict):
+                if not products:
+                    return True  # Empty response is valid
+                
+                # Get first product to check schema
+                first_product_name = next(iter(products))
+                first_product = products[first_product_name]
+                
+                if not isinstance(first_product, dict):
+                    logger.warning(f"Expected product to be a dictionary")
+                    return False
+                    
+                required_fields = ["name", "description", "price"]
+                for field in required_fields:
+                    if field not in first_product:
+                        logger.warning(f"Product missing required field: {field}")
+                        return False
+                
+                return True
+            
+        # Case 3: Response data is a direct list
         elif isinstance(data, list):
             products = data
         else:
-            logger.warning(f"Expected products list, got: {type(data)}")
+            logger.warning(f"Expected products list or object, got: {type(data)}")
             return False
         
-        # Check if it's a list
-        if not isinstance(products, list):
-            logger.warning(f"Expected list of products, got: {type(products)}")
-            return False
-        
-        # If list is empty, that's valid (could be filtering result)
-        if not products:
-            return True
-        
-        # Check first item for schema
-        if not isinstance(products[0], dict):
-            logger.warning(f"Expected product to be a dictionary")
-            return False
-        
-        # Check minimal product fields in first item
-        required_fields = ["name", "description", "price"]
-        for field in required_fields:
-            if field not in products[0]:
-                logger.warning(f"Product list item missing required field: {field}")
+        # For array responses, check if it's a list
+        if products is not None and isinstance(products, list):
+            # If list is empty, that's valid (could be filtering result)
+            if not products:
+                return True
+            
+            # Check first item for schema
+            if not isinstance(products[0], dict):
+                logger.warning(f"Expected product to be a dictionary")
                 return False
-                
+            
+            # Check minimal product fields in first item
+            required_fields = ["name", "description", "price"]
+            for field in required_fields:
+                if field not in products[0]:
+                    logger.warning(f"Product list item missing required field: {field}")
+                    return False
+        
         return True
         
     except Exception as e:
