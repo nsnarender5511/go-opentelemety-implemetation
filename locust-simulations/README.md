@@ -36,7 +36,10 @@ We use Locust's built-in class picker to configure maximum execution counts for 
 1. Start Locust with the `--class-picker` flag
 2. On the Locust web UI, you'll see a class picker that allows you to:
    - Set maximum execution counts for each task (e.g., `max_browse_all_products: 20`)
-   - All task limits are initially set to zero, so you must explicitly enable the tasks you want to run
+   - Task limits are interpreted as follows:
+     - `-1`: Unlimited executions (default)
+     - `0`: Task disabled (won't execute)
+     - `Positive number`: Maximum number of times to execute
    - Configure the target host
 
 Each task will be executed up to its configured maximum count, after which it will be skipped. This allows you to precisely control how many times each API endpoint is called during the test.
@@ -107,11 +110,11 @@ The simulation is built on a simplified, modular architecture:
 To create a test with exact API call counts:
 
 1. Start Locust with `--class-picker`
-2. In the class picker UI, explicitly set the maximum count for each task you want to run:
+2. In the class picker UI, explicitly set the maximum count for each task you want to limit:
    - `max_browse_all_products: 50`
    - `max_search_products: 30`
    - `max_checkout: 10`
-3. Leave other tasks at their default value of 0 to disable them
+3. Set any tasks you want to disable to 0
 4. Start the test
 
 The API will receive exactly 50 product list requests, 30 search requests, and 10 checkout requests, regardless of how long the test runs or how many users are simulated.
@@ -127,7 +130,7 @@ To simulate a mixed workload with limited admin operations:
 3. Set admin tasks with low limits:
    - `max_update_inventory: 5`
    - `max_view_analytics: 3`
-4. Leave any tasks you don't want to run at their default value of 0
+4. Set any tasks you don't want to run to 0
 5. Start the test
 
 This configuration ensures the API receives a realistic mix of customer traffic with a controlled number of administrative operations.
