@@ -13,7 +13,6 @@ services:
       - "8089:8089"
     environment:
       - PRODUCT_SERVICE_URL=http://nginx:80
-      - MASTER_STORE_URL=http://nginx:80/master
       - USE_NGINX_PROXY=true
       - LOAD_SHAPE=stages
       - OTEL_ENDPOINT=otel-collector:4317
@@ -50,40 +49,12 @@ services:
       - SIGNOZ_ENDPOINT=${SIGNOZ_ENDPOINT}
       - SIGNOZ_INGESTION_KEY=${SIGNOZ_INGESTION_KEY}
 
-  master-store:
-    container_name: ${MASTER_STORE_NAME}
-    build:
-      context: .
-      dockerfile: ./master-store/Dockerfile
-    volumes:
-      - ./master-store/data.json:/master-store/data.json
-    env_file:
-       - .env
-    ports:
-      - "8083:8083"
-    environment:
-      - OTEL_ENDPOINT=otel-collector:4317
-      - PRODUCT_DATA_FILE_PATH=/master-store/data.json
-      - SERVICE_NAME=${MASTER_STORE_NAME}
-      - SERVICE_VERSION=v1
-      - MASTER_STORE_SERVICE_PORT=8083
-      - PRODUCT_SERVICE_URL=http://nginx:80
-    networks:
-      - otel_internal-network
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 128M
 
   product-service-1:
     container_name: ${SERVICE_NAME}-1
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
-    volumes:
-      - ./product-service/data.json:/product-service/data.json
     env_file:
        - .env
     environment:
@@ -106,13 +77,11 @@ services:
     build:
       context: .
       dockerfile: ./product-service/Dockerfile
-    volumes:
-      - ./product-service/data.json:/product-service/data.json
     env_file:
        - .env
     environment:
       - OTEL_ENDPOINT=otel-collector:4317
-      - PRODUCT_DATA_FILE_PATH=/data.json
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
       - SERVICE_NAME=${SERVICE_NAME}-2
       - SERVICE_VERSION=v5
     networks:
@@ -136,7 +105,6 @@ services:
     depends_on:
       - product-service-1
       - product-service-2
-      - master-store
 
 
 

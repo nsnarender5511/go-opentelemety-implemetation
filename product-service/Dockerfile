@@ -6,7 +6,6 @@ WORKDIR /build
 COPY go.work go.work.sum ./
 COPY common/go.mod common/go.sum ./common/
 COPY product-service/go.mod product-service/go.sum ./product-service/
-COPY master-store/go.mod master-store/go.sum ./master-store/
 
 # Download dependencies
 RUN go mod download
@@ -30,8 +29,9 @@ WORKDIR /product-service/src
 # Copy the built application from the builder stage into the WORKDIR
 COPY --from=builder /product-service/src/app .
 
-# Copy the data file to its location relative to the root
-COPY --from=builder /build/product-service/data.json /product-service/data.json
+# Copy the data file from the build context directly into the container
+# This way, it's built into the image rather than being mounted
+COPY product-service/data.json /product-service/data.json
 
 # Install curl for potential health checks or debugging
 RUN apk add --no-cache curl
