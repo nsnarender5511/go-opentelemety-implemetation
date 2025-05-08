@@ -17,8 +17,6 @@ from typing import List
 # Assuming these are still relevant and in the correct path after consolidation
 from src.utils.shared_data import SharedData
 from src.utils.http_validation import validate_response, check_status_code, check_content_type, check_products_list_schema
-# Import the MasterStoreUser class
-from src.master_store_user import MasterStoreUser
 
 # Configure logging
 logging.basicConfig(
@@ -42,6 +40,7 @@ class SimulationUser(HttpUser):
         self.task_counts = {
             "health_check": 100
         }
+        self.possible_categories = []
     
     def on_start(self):
         self.shared_data = shared_data # Use the global instance
@@ -50,8 +49,17 @@ class SimulationUser(HttpUser):
         self._initialize_test_data_params()
     
     def _initialize_test_data_params(self):
-        # Get parameters from environment or CLI args
-        self.possible_categories = self.environment.parsed_options.possible_categories_list.split(",") if hasattr(self.environment, "parsed_options") else []
+        # Extract categories from product data
+        products = self.shared_data.get_products()
+        if products:
+            # Extract unique categories from product data
+            self.possible_categories = list(set(product.get("category", "") for product in products if product.get("category")))
+            logger.info(f"Extracted categories from product data: {self.possible_categories}")
+        
+        if not self.possible_categories:
+            # Fallback to defaults if no categories were found
+            self.possible_categories = ["Electronics", "Apparel", "Books", "Kitchenware", "Furniture"]
+            logger.info(f"Using default categories: {self.possible_categories}")
     
     def _can_execute_task(self, task_name):
         """Return True if the task can be executed, False otherwise"""
@@ -375,10 +383,6 @@ def _(parser):
     parser.add_argument("--max-get-product-by-name", type=int, env_var="LOCUST_MAX_GET_PRODUCT_BY_NAME", default=0, help="Max executions for get_product_by_name (-1=unlimited, 0=disabled)")
     parser.add_argument("--max-update-product-stock", type=int, env_var="LOCUST_MAX_UPDATE_PRODUCT_STOCK", default=0, help="Max executions for update_product_stock (-1=unlimited, 0=disabled)")
     parser.add_argument("--max-buy-product", type=int, env_var="LOCUST_MAX_BUY_PRODUCT", default=0, help="Max executions for buy_product (-1=unlimited, 0=disabled)")
-    
-    # Add master-store specific parameters
-    parser.add_argument("--max_master_buy_product", type=int, default=-1,
-                      help="Maximum number of master buy product executions (-1 for unlimited, 0 to disable)")
 
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):
