@@ -1,17 +1,18 @@
 """
 Main Locust entry point.
-This file defines the SimulationUser class, load shapes, telemetry components,
-and custom command-line arguments for task execution limits.
+This file defines a simplified SimulationUser class that only performs health checks.
 """
 import os
 import logging
-import random
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 from locust import HttpUser, task, between, tag, events
 from locust.clients import ResponseContextManager
 import json
+import random
+import time
+from typing import List
 
 # Assuming these are still relevant and in the correct path after consolidation
 from src.utils.shared_data import SharedData
@@ -25,20 +26,13 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[logging.FileHandler("locust.log"), logging.StreamHandler()]
 )
-logger = logging.getLogger("locustfile") # Changed logger name for clarity
-
-# Global shared data instance for all users
-# This needs to be initialized before SimulationUser class definition if it's used by it at class level
-# or ensure it's initialized in on_start if only used by instances.
-# For simplicity, keeping it global as it was in simulation_user.py
+logger = logging.getLogger("locustfile")
 shared_data = SharedData()
+
 
 class SimulationUser(HttpUser):
     """
-    Unified user class with all possible tasks and configurable execution limits via command-line arguments.
-    
-    Run with the --class-picker flag. Execution limits are set via --max-<task_name> arguments.
-    Task selection is still random, but each task will only execute up to its configured limit.
+    Simplified user class that only performs health checks.
     """
     
     wait_time = between(1, 3)
@@ -46,12 +40,7 @@ class SimulationUser(HttpUser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.task_counts = {
-            "browse_all_products": 0,
-            "get_products_by_category": 0,
-            "get_product_by_name": 0,
-            "update_product_stock": 0,
-            "buy_product": 0,
-            "health_check": 0
+            "health_check": 100
         }
     
     def on_start(self):
@@ -69,6 +58,9 @@ class SimulationUser(HttpUser):
         # Parse max executions from command-line args
         max_executions_arg = f"max_{task_name}"
         max_executions = getattr(self.environment.parsed_options, max_executions_arg, -1) if hasattr(self.environment, "parsed_options") else -1
+
+        if task_name == "health_check":
+            return True
         
         # Disabled if max executions is 0
         if max_executions == 0:
@@ -334,8 +326,6 @@ class SimulationUser(HttpUser):
     @tag("health")
     def health_check(self):
         task_name = "health_check"
-        if not self._can_execute_task(task_name):
-            return
         count = self._increment_task_count(task_name)
         
         def request_func():
@@ -346,9 +336,6 @@ class SimulationUser(HttpUser):
             request_func,
             f"Health_Check (#{count})"
         )
-
-# Import web UI extension (ensure this path is correct if locustfile moves)
-from src.web_extension import init_web_ui_extension
 
 # Import load shape if specified (optional)
 load_shape = None
@@ -388,24 +375,15 @@ def _(parser):
     parser.add_argument("--max-get-product-by-name", type=int, env_var="LOCUST_MAX_GET_PRODUCT_BY_NAME", default=0, help="Max executions for get_product_by_name (-1=unlimited, 0=disabled)")
     parser.add_argument("--max-update-product-stock", type=int, env_var="LOCUST_MAX_UPDATE_PRODUCT_STOCK", default=0, help="Max executions for update_product_stock (-1=unlimited, 0=disabled)")
     parser.add_argument("--max-buy-product", type=int, env_var="LOCUST_MAX_BUY_PRODUCT", default=0, help="Max executions for buy_product (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-health-check", type=int, env_var="LOCUST_MAX_HEALTH_CHECK", default=0, help="Max executions for health_check (-1=unlimited, 0=disabled)")
-    parser.add_argument("--possible-categories-list", type=str, env_var="LOCUST_POSSIBLE_CATEGORIES_LIST", default="Electronics,Books,Clothing,Kitchenware,Furniture,Apparel", help="Comma-separated list of possible categories")
     
     # Add master-store specific parameters
-    parser.add_argument("--max_master_health_check", type=int, default=-1,
-                      help="Maximum number of master health check executions (-1 for unlimited, 0 to disable)")
-    parser.add_argument("--max_master_browse_products", type=int, default=-1,
-                      help="Maximum number of master browse products executions (-1 for unlimited, 0 to disable)")
     parser.add_argument("--max_master_buy_product", type=int, default=-1,
                       help="Maximum number of master buy product executions (-1 for unlimited, 0 to disable)")
-    parser.add_argument("--use_nginx_proxy", action="store_true", default=False,
-                      help="Use nginx proxy paths (/master/) for master-store endpoints")
 
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):
-    init_web_ui_extension(environment)
     logger.info("Locust initialization complete")
-    logger.info("Using SimulationUser. Task execution limits and test data are configurable via custom command-line arguments in the UI.")
+    logger.info("Using SimulationUser with health check at constant weight 100")
     if load_shape:
         logger.info(f"Using load shape: {type(load_shape).__name__}")
     else:
