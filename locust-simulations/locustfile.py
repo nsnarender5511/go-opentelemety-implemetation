@@ -282,7 +282,7 @@ class SimulationUser(HttpUser):
             validators=[check_status_code(200), check_content_type()]
         )
 
-    @task(25)
+    @task(5)
     @tag("admin", "inventory")
     def update_product_stock(self):
         task_name = "update_product_stock"
@@ -293,7 +293,7 @@ class SimulationUser(HttpUser):
         if not product or not product.get("name"):
             return
         product_name = product.get("name")
-        new_stock = random.randint(10, 100)
+        new_stock = random.randint(10, 500)
         
         def request_func():
             with self.client.patch("/products/stock", json={"name": product_name, "stock": new_stock}, 

@@ -14,6 +14,18 @@ const (
 	ProductStockCountMetric = "app.product.stock.count"
 	AppRevenueTotalMetric   = "app.revenue.total"
 	AppItemsSoldCountMetric = "app.items.sold.count"
+	AppErrorCountMetric     = "app.error.count"
+
+	// Standard attribute names
+	AttrProductName     = "product.name"
+	AttrProductCategory = "product.category"
+	AttrStockLevel      = "product.stock.level"
+	AttrRevenue         = "transaction.revenue"
+	AttrQuantity        = "transaction.quantity"
+	AttrErrorType       = "error.type"
+	AttrOperation       = "operation"
+	AttrComponent       = "component"
+	AttrCustomMetric    = "custom.metric"
 )
 
 // --- Metric Configuration Types ---
@@ -41,6 +53,11 @@ var metricDefinitions = map[string]metricConfig{
 	AppItemsSoldCountMetric: {
 		Description: "Total number of items sold. Attributes: product.name, product.category",
 		Unit:        "{item}",
+		Type:        counterType,
+	},
+	AppErrorCountMetric: {
+		Description: "Count of errors by error type, operation, and component",
+		Unit:        "{error}",
 		Type:        counterType,
 	},
 }

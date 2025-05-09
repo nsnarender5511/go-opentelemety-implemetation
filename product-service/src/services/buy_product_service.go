@@ -15,7 +15,7 @@ import (
 
 func (s *productService) BuyProduct(ctx context.Context, name string, quantity int) (remainingStock int, appErr *apierrors.AppError) {
 	newCtx, span := commontrace.StartSpan(ctx,
-		attribute.String("product.name", name),
+		attribute.String(metric.AttrProductName, name),
 		attribute.Int("product.purchase_quantity", quantity),
 	)
 	ctx = newCtx // Update ctx
@@ -37,6 +37,8 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 			span.SetStatus(codes.Error, repoGetErr.Message)
 		}
 		appErr = repoGetErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, repoGetErr.Code, "buy_product", "service")
 		return 0, appErr
 	}
 	s.logger.DebugContext(ctx, "Shop Manager: Current stock check", slog.String("product_name", product.Name), slog.Int("stock", product.Stock))
@@ -52,6 +54,8 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 			span.SetStatus(codes.Error, "Insufficient stock") // Specific message for span
 		}
 		appErr = apierrors.NewAppError(apierrors.ErrCodeInsufficientStock, errMsg, nil)
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeInsufficientStock, "buy_product", "service")
 		return product.Stock, appErr // Return current stock with the error
 	}
 	s.logger.DebugContext(ctx, "Shop Manager: Stock available for purchase")
@@ -67,6 +71,8 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 			span.SetStatus(codes.Error, repoUpdateErr.Message)
 		}
 		appErr = repoUpdateErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, repoUpdateErr.Code, "buy_product", "service")
 		return product.Stock, appErr // Return pre-update stock if update fails
 	}
 
@@ -74,11 +80,9 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 	span.SetAttributes(attribute.Int("product.remaining_stock", remainingStock))
 
 	// --- Metrics Reporting for Sale ---
-	// Assuming currencyCode for now. This might come from config or request context in a real scenario.
-	const currencyCode = "USD"
 	revenue := product.Price * float64(quantity)
 
-	metric.IncrementRevenueTotal(ctx, revenue, product.Name, product.Category, currencyCode)
+	metric.IncrementRevenueTotal(ctx, revenue, product.Name, product.Category)
 	metric.IncrementItemsSoldCount(ctx, int64(quantity), product.Name, product.Category)
 	s.logger.InfoContext(ctx, "Shop Manager: Sales metrics reported", slog.String("product_name", product.Name), slog.Float64("revenue", revenue), slog.Int("quantity_sold", quantity))
 	// --- End Metrics Reporting ---

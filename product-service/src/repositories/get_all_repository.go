@@ -67,7 +67,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	// Update product stock levels for telemetry
 	// const storeID = "default-store" // Removed storeID
 	for _, p := range productsSlice { // Iterate productsSlice, p.Name is the identifier
-		metric.UpdateProductStockLevels(p.Name, p.Category, int64(p.Stock))
+		metric.UpdateProductStockLevels(ctx, p.Name, p.Category, int64(p.Stock))
 	}
 
 	productCount := len(productsSlice)

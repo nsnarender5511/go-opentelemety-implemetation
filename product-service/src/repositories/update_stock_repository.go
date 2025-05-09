@@ -19,7 +19,7 @@ import (
 )
 
 func (r *productRepository) UpdateStock(ctx context.Context, name string, newStock int) (appErr *apierrors.AppError) {
-	productNameAttr := attribute.String("product.name", name)
+	productNameAttr := attribute.String(metric.AttrProductName, name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productNameAttr, newStockAttr}
 
@@ -46,6 +46,8 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		r.logger.ErrorContext(ctx, "Stock Room Worker: *Panics* Cannot read inventory ledger for update!", slog.String("error", err.Error()))
 		span.SetStatus(codes.Error, errMsg)
 		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabase, "update_stock", "repository")
 		return appErr
 	}
 
@@ -58,6 +60,8 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		span.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
 		span.SetStatus(codes.Error, errMsg)
 		appErr = apierrors.NewAppError(apierrors.ErrCodeNotFound, errMsg, nil)
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeNotFound, "update_stock", "repository")
 		return appErr
 	}
 
@@ -84,11 +88,13 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		r.logger.ErrorContext(ctx, "Stock Room Worker: *Spills coffee* Cannot write updated inventory ledger!", slog.String("error", writeErr.Error()))
 		span.SetStatus(codes.Error, errMsg)
 		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, writeErr)
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabase, "update_stock", "repository")
 		return appErr
 	}
 
 	// Update product stock level for telemetry
-	metric.UpdateProductStockLevels(product.Name, product.Category, int64(newStock)) // product.Name is the identifier
+	metric.UpdateProductStockLevels(ctx, product.Name, product.Category, int64(newStock))
 
 	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
 	r.logger.DebugContext(ctx, "Stock Room Worker: *Closes ledger* Also updated our inventory records to match the physical stock")

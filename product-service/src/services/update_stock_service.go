@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/narender/common/debugutils"
+	"github.com/narender/common/telemetry/metric"
 	commontrace "github.com/narender/common/telemetry/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -13,7 +14,7 @@ import (
 )
 
 func (s *productService) UpdateStock(ctx context.Context, name string, newStock int) (appErr *apierrors.AppError) {
-	productNameAttr := attribute.String("product.name", name)
+	productNameAttr := attribute.String(metric.AttrProductName, name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 
 	newCtx, span := commontrace.StartSpan(ctx, productNameAttr, newStockAttr)
@@ -28,6 +29,8 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		appErr = simAppErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
 		return appErr
 	}
 
@@ -35,6 +38,8 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		appErr = simAppErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
 		return appErr
 	}
 
@@ -47,11 +52,15 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 			span.SetStatus(codes.Error, repoErr.Message)
 		}
 		appErr = repoErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, repoErr.Code, "update_stock", "service")
 		return appErr
 	}
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		appErr = simAppErr
+		// Track error metrics
+		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
 		return appErr
 	}
 

@@ -138,9 +138,9 @@ func observeProductStock(ctx context.Context, observer metric.Observer) error {
 	for productNameKey, detail := range latestProductStock {
 		// Observe the current stock level for this product ID
 		attrs := attribute.NewSet(
-			attribute.String("product.name", productNameKey),
-			attribute.String("product.category", detail.ProductCategory),
-			attribute.String("custom.metric", "true"),
+			attribute.String(AttrProductName, productNameKey),
+			attribute.String(AttrProductCategory, detail.ProductCategory),
+			attribute.String(AttrCustomMetric, "true"),
 		)
 		observer.ObserveInt64(gauge, detail.StockLevel, metric.WithAttributeSet(attrs))
 	}
@@ -150,34 +150,32 @@ func observeProductStock(ctx context.Context, observer metric.Observer) error {
 // UpdateProductStockLevels updates the in-memory store of product stock levels.
 // This function is called when new stock data is available.
 // productName is the map key and also stored in the detail struct.
-func UpdateProductStockLevels(productName, productCategory string, stockLevel int64) {
+func UpdateProductStockLevels(ctx context.Context, productName, productCategory string, stockLevel int64) {
 	latestProductStockMutex.Lock()
 	defer latestProductStockMutex.Unlock()
 	latestProductStock[productName] = productStockDetail{
 		StockLevel:      stockLevel,
 		ProductName:     productName,
 		ProductCategory: productCategory,
-		
 	}
-	slog.Debug("Updated product stock level",
-		slog.String("product.name", productName),
-		slog.String("product.category", productCategory),
-		slog.Int64("stock.level", stockLevel),
-		
+	slog.DebugContext(ctx, "Updated product stock level",
+		slog.String(AttrProductName, productName),
+		slog.String(AttrProductCategory, productCategory),
+		slog.Int64(AttrStockLevel, stockLevel),
 	)
 }
 
-func IncrementRevenueTotal(ctx context.Context, revenue float64, productName, productCategory, currencyCode string) {
+func IncrementRevenueTotal(ctx context.Context, revenue float64, productName, productCategory string) {
 	counter, ok := float64Counters[AppRevenueTotalMetric]
 	if !ok {
 		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppRevenueTotalMetric))
 		return
 	}
 	attrs := attribute.NewSet(
-		attribute.String("product.bill.amount", strconv.FormatFloat(revenue, 'f', -1, 64)),
-		attribute.String("product.name", productName),
-		attribute.String("product.category", productCategory),
-		attribute.String("custom.metric", "true"),
+		attribute.String(AttrRevenue, strconv.FormatFloat(revenue, 'f', -1, 64)),
+		attribute.String(AttrProductName, productName),
+		attribute.String(AttrProductCategory, productCategory),
+		attribute.String(AttrCustomMetric, "true"),
 	)
 	counter.Add(ctx, revenue, metric.WithAttributeSet(attrs))
 }
@@ -189,9 +187,26 @@ func IncrementItemsSoldCount(ctx context.Context, quantity int64, productName, p
 		return
 	}
 	attrs := attribute.NewSet(
-		attribute.String("product.name", productName),
-		attribute.String("product.category", productCategory),
-		attribute.String("custom.metric", "true"),
+		attribute.String(AttrProductName, productName),
+		attribute.String(AttrProductCategory, productCategory),
+		attribute.String(AttrQuantity, strconv.FormatInt(quantity, 10)),
+		attribute.String(AttrCustomMetric, "true"),
 	)
 	counter.Add(ctx, quantity, metric.WithAttributeSet(attrs))
+}
+
+// IncrementErrorCount tracks errors by type, operation, and component
+func IncrementErrorCount(ctx context.Context, errorType, operation, component string) {
+	counter, ok := counters[AppErrorCountMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppErrorCountMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String(AttrErrorType, errorType),
+		attribute.String(AttrOperation, operation),
+		attribute.String(AttrComponent, component),
+		attribute.String(AttrCustomMetric, "true"),
+	)
+	counter.Add(ctx, 1, metric.WithAttributeSet(attrs))
 }

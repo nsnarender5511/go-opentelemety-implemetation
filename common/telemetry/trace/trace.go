@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+
 	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
