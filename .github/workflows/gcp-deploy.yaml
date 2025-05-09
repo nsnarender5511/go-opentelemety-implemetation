@@ -29,18 +29,35 @@ jobs:
         run: |-
           # SSH into the VM and execute commands
           gcloud compute ssh "$VM_INSTANCE_NAME" --project="$GCP_PROJECT_ID" --zone="$GCP_ZONE" --command='
-            echo "Stopping and removing existing Docker Compose services..."
+            # Make script exit on any error
+            set -e
+            
+            # Install docker-compose if not available
+            if ! command -v docker-compose &> /dev/null; then
+              echo "Installing Docker Compose..."
+              sudo apt-get update
+              sudo apt-get install -y docker-compose-plugin
+              sudo ln -s /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+            fi
+            
+            echo "Setting Git repository as safe directory..."
             cd ${{ env.REMOTE_APP_PATH }}
+            sudo chown -R $(whoami) .
+            git config --global --add safe.directory ${{ env.REMOTE_APP_PATH }}
+            
+            echo "Stopping and removing existing Docker Compose services..."
             if [ -f docker-compose.yml ]; then
-              sudo docker-compose down
+              sudo docker compose down || sudo docker-compose down
             else
               echo "docker-compose.yml not found in ${{ env.REMOTE_APP_PATH }}"
+              exit 1
             fi
-
+ 
             echo "Pulling the latest changes from Git..."
             git pull origin ${{ github.event.inputs.branch || github.ref_name }}
-
+            
             echo "Rebuilding Docker Compose services..."
-            sudo docker-compose up -d --build
+            sudo docker compose up -d --build || sudo docker-compose up -d --build
+            
             echo "Deployment successful!"
           '
