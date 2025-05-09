@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"log/slog"
-	"strconv"
 
 	"github.com/narender/common/debugutils"
 	commontrace "github.com/narender/common/telemetry/trace"
@@ -15,7 +14,16 @@ import (
 )
 
 func (s *productService) GetByCategory(ctx context.Context, category string) (products []models.Product, appErr *apierrors.AppError) {
-	s.logger.InfoContext(ctx, "Shop Manager: Front desk asking for products by category", slog.String("category", category))
+	// Get request ID from context
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
+	s.logger.InfoContext(ctx, "Processing category products request",
+		slog.String("category", category),
+		slog.String("request_id", requestID),
+		slog.String("event_type", "category_products_processing"))
 
 	newCtx, span := commontrace.StartSpan(ctx, attribute.String("product.category", category))
 	ctx = newCtx // Update ctx
@@ -28,24 +36,48 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
-	s.logger.DebugContext(ctx, "Shop Manager: Asking stock room worker to find products", slog.String("category", category))
+	s.logger.DebugContext(ctx, "Retrieving products by category from repository",
+		slog.String("category", category),
+		slog.String("request_id", requestID))
+
 	products, repoErr := s.repo.GetByCategory(ctx, category)
 	if repoErr != nil {
-		s.logger.ErrorContext(ctx, "Shop Manager: Stock room worker couldn't find products", slog.String("category", category), slog.String("error", repoErr.Error()))
+		s.logger.ErrorContext(ctx, "Failed to retrieve products by category",
+			slog.String("category", category),
+			slog.String("error", repoErr.Error()),
+			slog.String("error_code", repoErr.Code),
+			slog.String("request_id", requestID),
+			slog.String("event_type", "category_products_retrieval_failed"))
+
 		if span != nil {
 			span.SetStatus(codes.Error, repoErr.Message)
 		}
+
+		// Ensure request ID is set
+		if repoErr.RequestID == "" {
+			repoErr.RequestID = requestID
+		}
+
 		appErr = repoErr
 		return nil, appErr
 	}
 
 	productCount := len(products)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
-	s.logger.InfoContext(ctx, "Shop Manager: Found "+strconv.Itoa(productCount)+" products in category: "+category)
-	s.logger.InfoContext(ctx, "Shop Manager: Sending category products to front desk")
+
+	s.logger.InfoContext(ctx, "Category products retrieved successfully",
+		slog.String("category", category),
+		slog.Int("product_count", productCount),
+		slog.String("request_id", requestID),
+		slog.String("event_type", "category_products_retrieved"))
+
 	return products, appErr
 }

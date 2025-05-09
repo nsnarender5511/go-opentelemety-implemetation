@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/narender/common/debugutils"
@@ -15,7 +15,15 @@ import (
 
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	ctx := c.UserContext()
-	h.logger.InfoContext(ctx, "Front_Desk: Customer asking for all products list !!!")
+
+	// Get request ID
+	requestID := c.Locals("requestID").(string)
+
+	h.logger.InfoContext(ctx, "Products list request received",
+		slog.String("request_id", requestID),
+		slog.String("path", c.Path()),
+		slog.String("method", c.Method()),
+		slog.String("event_type", "products_list_requested"))
 
 	newCtx, span := commontrace.StartSpan(ctx)
 	ctx = newCtx
@@ -28,23 +36,43 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		err = simAppErr
 		return
 	}
 
-	h.logger.DebugContext(ctx, "Front Desk: waiting for all products list from shop manager")
+	h.logger.DebugContext(ctx, "Fetching products list",
+		slog.String("request_id", requestID))
+
 	products, appErr := h.service.GetAll(ctx)
 	if appErr != nil {
 		if span != nil {
 			span.SetStatus(codes.Error, appErr.Error())
 		}
+
+		// Ensure request ID is set
+		if appErr.RequestID == "" {
+			appErr.RequestID = requestID
+		}
+
 		err = appErr
 		return
 	}
+
 	productCount := len(products)
-	h.logger.InfoContext(ctx, "Front Desk: total "+strconv.Itoa(productCount)+" products list received from shop manager")
+	h.logger.InfoContext(ctx, "Products retrieved successfully",
+		slog.String("request_id", requestID),
+		slog.Int("product_count", productCount),
+		slog.String("event_type", "products_retrieved"))
+
 	span.SetAttributes(attribute.Int("products.count", productCount))
-	h.logger.InfoContext(ctx, "Front Desk: Returning "+strconv.Itoa(productCount)+" products list to customer")
-	err = c.Status(http.StatusOK).JSON(apiresponses.NewSuccessResponse(products))
+
+	// Create response with request ID
+	response := apiresponses.NewSuccessResponse(products).WithRequestID(requestID)
+
+	err = c.Status(http.StatusOK).JSON(response)
 	return
 }

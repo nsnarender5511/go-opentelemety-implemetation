@@ -9,13 +9,12 @@ import (
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/narender/common/globals"
-	// Import new common packages
+	// Import common packages
 	commonMiddleware "github.com/narender/common/middleware"
 
-	// Import new structured packages
+	// Import structured packages
 	"github.com/narender/product-service/src/handlers"
 	"github.com/narender/product-service/src/repositories"
 	"github.com/narender/product-service/src/services"
@@ -49,8 +48,9 @@ func main() {
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
-	app.Use(recover.New())          // Recover from panics
-	app.Use(otelfiber.Middleware()) // otelfiber instrumentation
+	app.Use(commonMiddleware.RequestIDMiddleware()) // Add request ID to all requests
+	app.Use(commonMiddleware.RecoverMiddleware())   // Custom panic recovery
+	app.Use(otelfiber.Middleware())                 // otelfiber instrumentation
 
 	// --- Route Definitions ---
 	setupRoutes(app, handler)

@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"log/slog"
-	"strconv"
 
 	"github.com/narender/common/debugutils"
 	commontrace "github.com/narender/common/telemetry/trace"
@@ -15,7 +14,15 @@ import (
 )
 
 func (s *productService) GetAll(ctx context.Context) (products []models.Product, appErr *apierrors.AppError) {
-	s.logger.DebugContext(ctx, "Shop Manager: Front desk asking for all products list")
+	// Get request ID from context
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
+	s.logger.DebugContext(ctx, "Processing product list request",
+		slog.String("request_id", requestID),
+		slog.String("event_type", "product_list_processing"))
 
 	newCtx, span := commontrace.StartSpan(ctx)
 	ctx = newCtx // Update ctx if StartSpan modifies it
@@ -28,28 +35,58 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
-	s.logger.DebugContext(ctx, "Shop Manager: Asking stock room worker to get all products")
+	s.logger.DebugContext(ctx, "Retrieving all products from repository",
+		slog.String("request_id", requestID))
+
 	products, repoErr := s.repo.GetAll(ctx)
 	if repoErr != nil {
-		s.logger.ErrorContext(ctx, "Shop Manager: Stock room worker couldn't get all products", slog.String("error", repoErr.Error()))
+		s.logger.ErrorContext(ctx, "Failed to retrieve products list",
+			slog.String("error", repoErr.Error()),
+			slog.String("error_code", repoErr.Code),
+			slog.String("request_id", requestID),
+			slog.String("event_type", "product_list_retrieval_failed"))
+
 		if span != nil { // Check if span is valid before using
 			span.SetStatus(codes.Error, repoErr.Message)
 		}
+
+		// Ensure request ID is set
+		if repoErr.RequestID == "" {
+			repoErr.RequestID = requestID
+		}
+
 		appErr = repoErr
 		return nil, appErr
 	}
+
 	productCount := len(products)
-	s.logger.InfoContext(ctx, "Shop Manager: Received "+strconv.Itoa(productCount)+" products from stock room worker")
+	s.logger.InfoContext(ctx, "Products list retrieved from repository",
+		slog.String("request_id", requestID),
+		slog.Int("product_count", productCount),
+		slog.String("event_type", "products_retrieved"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		appErr = simAppErr
 		return nil, appErr
 	}
+
 	span.SetAttributes(attribute.Int("products.count", productCount))
-	s.logger.DebugContext(ctx, "Shop Manager: Sending "+strconv.Itoa(productCount)+" products to front desk")
+
+	s.logger.DebugContext(ctx, "Processing products list completed",
+		slog.String("request_id", requestID),
+		slog.Int("product_count", productCount))
+
 	return products, appErr
 }

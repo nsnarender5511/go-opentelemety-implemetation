@@ -1,12 +1,18 @@
 package middleware
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"runtime/debug"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/narender/common/globals"
 
 	// Import common packages
@@ -14,54 +20,194 @@ import (
 	apiresponses "github.com/narender/common/apiresponses"
 )
 
+// RequestIDMiddleware adds a unique request ID to each request
+func RequestIDMiddleware() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		requestID := c.Get("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+			c.Set("X-Request-ID", requestID)
+		}
+
+		// Store in both locals for middleware and context for logging
+		c.Locals("requestID", requestID)
+		ctx := context.WithValue(c.UserContext(), "requestID", requestID)
+		c.SetUserContext(ctx)
+
+		return c.Next()
+	}
+}
+
+// RecoverMiddleware handles panics gracefully
+func RecoverMiddleware() fiber.Handler {
+	logger := globals.Logger()
+
+	return func(c *fiber.Ctx) error {
+		defer func() {
+			if r := recover(); r != nil {
+				err, ok := r.(error)
+				if !ok {
+					err = fmt.Errorf("panic: %v", r)
+				}
+
+				stack := string(debug.Stack())
+				requestID := c.Locals("requestID").(string)
+
+				logger.ErrorContext(c.UserContext(), "CRITICAL: Unhandled panic recovered",
+					slog.String("request_id", requestID),
+					slog.String("error", err.Error()),
+					slog.String("stack", stack),
+					slog.String("path", c.Path()),
+					slog.String("method", c.Method()),
+				)
+
+				appErr := apierrors.NewApplicationError(
+					apierrors.ErrCodeSystemPanic,
+					"A critical system error occurred. Our team has been notified.",
+					err,
+				).WithRequestID(requestID)
+
+				// Handle through the normal error handler
+				_ = ErrorHandler()(c, appErr)
+			}
+		}()
+		return c.Next()
+	}
+}
+
 // ErrorHandler creates a Fiber error handler middleware.
 func ErrorHandler() fiber.ErrorHandler {
 	logger := globals.Logger()
 
 	return func(c *fiber.Ctx, err error) error {
-		var appErr *apierrors.AppError                                               // Use imported type
-		var statusCode int = http.StatusInternalServerError                          // Default to 500
-		var errCode string = apierrors.ErrCodeUnknown                                // Default code
-		var message string = "An unexpected error occurred. Please try again later." // Generic default message
+		var appErr *apierrors.AppError
+		var statusCode int = http.StatusInternalServerError
+		var errCode string = apierrors.ErrCodeUnknown
+		var message string = "An unexpected error occurred. Please try again later."
+		var requestID string
+
+		// Safely get the request ID
+		if reqID, ok := c.Locals("requestID").(string); ok {
+			requestID = reqID
+		} else {
+			// Generate a new one if not found
+			requestID = uuid.New().String()
+			c.Locals("requestID", requestID)
+		}
 
 		if errors.As(err, &appErr) {
 			// Handle our custom AppError
 			errCode = appErr.Code
-			message = appErr.Message // Use the specific message from AppError
+			message = appErr.Message
 
-			// Map AppError Code to HTTP Status Code
-			switch appErr.Code {
-			case apierrors.ErrCodeNotFound:
-				statusCode = http.StatusNotFound // 404
-			case apierrors.ErrCodeValidation, apierrors.ErrCodeInsufficientStock:
-				statusCode = http.StatusBadRequest // 400
-			case apierrors.ErrCodeDatabase: // Will become INVENTORY_ACCESS_ERROR
-				statusCode = http.StatusInternalServerError // 500
-			// Add mappings for other codes if needed
-			default:
-				statusCode = http.StatusInternalServerError
+			// Ensure RequestID is set
+			if appErr.RequestID == "" {
+				appErr.RequestID = requestID
 			}
-			// Use the passed-in logger - Refined log message
-			logger.ErrorContext(c.UserContext(), "API Error Handled",
-				slog.String("msg", message),
-				slog.Any("cause", appErr.Unwrap()),
-			)
+
+			// Map AppError Code to HTTP Status Code based on category and code
+			if appErr.Category == apierrors.CategoryBusiness {
+				switch appErr.Code {
+				case apierrors.ErrCodeProductNotFound:
+					statusCode = http.StatusNotFound
+				case apierrors.ErrCodeInsufficientStock,
+					apierrors.ErrCodeInvalidProductData,
+					apierrors.ErrCodeOrderLimitExceeded,
+					apierrors.ErrCodePriceMismatch:
+					statusCode = http.StatusBadRequest
+				default:
+					statusCode = http.StatusBadRequest
+				}
+			} else {
+				// Application category
+				switch appErr.Code {
+				case apierrors.ErrCodeDatabaseAccess,
+					apierrors.ErrCodeInternalProcessing,
+					apierrors.ErrCodeSystemPanic:
+					statusCode = http.StatusInternalServerError
+				case apierrors.ErrCodeServiceUnavailable,
+					apierrors.ErrCodeNetworkError:
+					statusCode = http.StatusServiceUnavailable
+				case apierrors.ErrCodeRequestValidation,
+					apierrors.ErrCodeMalformedData:
+					statusCode = http.StatusBadRequest
+				case apierrors.ErrCodeResourceConstraint:
+					statusCode = http.StatusTooManyRequests
+				case apierrors.ErrCodeRequestTimeout:
+					statusCode = http.StatusRequestTimeout
+				default:
+					statusCode = http.StatusInternalServerError
+				}
+			}
+
+			// Log with appropriate level based on category and status code
+			if appErr.Category == apierrors.CategoryBusiness && statusCode < 500 {
+				logger.WarnContext(c.UserContext(), "Business rule violation",
+					slog.String("error_code", appErr.Code),
+					slog.String("message", appErr.Message),
+					slog.String("request_id", appErr.RequestID),
+					slog.String("path", c.Path()),
+				)
+			} else {
+				logger.ErrorContext(c.UserContext(), "Error occurred",
+					slog.String("error_code", appErr.Code),
+					slog.String("category", string(appErr.Category)),
+					slog.String("message", appErr.Message),
+					slog.Any("cause", appErr.Unwrap()),
+					slog.String("request_id", appErr.RequestID),
+					slog.String("path", c.Path()),
+				)
+			}
 		} else {
-			// Use the passed-in logger - Refined log message
-			logger.ErrorContext(c.UserContext(), "API Unhandled Error",
-				slog.String("type", fmt.Sprintf("%T", err)),
+			// Handle unexpected errors with better classification
+			var netErr net.Error
+			var jsonErr *json.SyntaxError
+
+			switch {
+			case errors.As(err, &netErr):
+				errCode = apierrors.ErrCodeNetworkError
+				statusCode = http.StatusServiceUnavailable
+				message = "Network connectivity issue occurred"
+
+			case errors.As(err, &jsonErr):
+				errCode = apierrors.ErrCodeMalformedData
+				statusCode = http.StatusBadRequest
+				message = "Invalid data format in request"
+
+			case errors.Is(err, context.DeadlineExceeded):
+				errCode = apierrors.ErrCodeRequestTimeout
+				statusCode = http.StatusRequestTimeout
+				message = "Request processing timed out"
+
+			case errors.Is(err, context.Canceled):
+				errCode = apierrors.ErrCodeRequestTimeout
+				statusCode = http.StatusRequestTimeout
+				message = "Request was canceled"
+
+			default:
+				errCode = apierrors.ErrCodeUnknown
+				statusCode = http.StatusInternalServerError
+				message = "An unexpected error occurred"
+			}
+
+			logger.ErrorContext(c.UserContext(), "Unhandled error",
+				slog.String("error_type", fmt.Sprintf("%T", err)),
 				slog.String("error", err.Error()),
+				slog.String("error_code", errCode),
+				slog.String("request_id", requestID),
+				slog.String("path", c.Path()),
 			)
-			message = "An internal server error occurred."
 		}
 
-		// Send standardized JSON error response using the structure from responses.go
+		// Send standardized JSON error response
 		c.Status(statusCode)
 		return c.JSON(apiresponses.ErrorResponse{
 			Status: "error",
 			Error: apiresponses.ErrorDetail{
-				Code:    errCode,
-				Message: message,
+				Code:      errCode,
+				Message:   message,
+				RequestID: requestID,
+				Timestamp: time.Now().UTC().Format(time.RFC3339),
 			},
 		})
 	}

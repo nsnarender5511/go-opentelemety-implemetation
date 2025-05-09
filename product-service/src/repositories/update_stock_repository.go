@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
 
 	"github.com/narender/common/debugutils"
 	"github.com/narender/common/telemetry/metric"
@@ -19,6 +18,12 @@ import (
 )
 
 func (r *productRepository) UpdateStock(ctx context.Context, name string, newStock int) (appErr *apierrors.AppError) {
+	// Get request ID from context
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
 	productNameAttr := attribute.String(metric.AttrProductName, name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productNameAttr, newStockAttr}
@@ -33,35 +38,68 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		return simAppErr
 	}
 
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Nods* Shop manager wants me to update stock for product '"+name+"' to exactly "+strconv.Itoa(newStock)+" units")
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Rolls up sleeves* Time to adjust our physical inventory")
+	r.logger.InfoContext(ctx, "Updating product stock",
+		slog.String("product_name", name),
+		slog.Int("new_stock", newStock),
+		slog.String("request_id", requestID),
+		slog.String("operation", "update_stock"))
+
+	r.logger.DebugContext(ctx, "Accessing product database",
+		slog.String("request_id", requestID),
+		slog.String("product_name", name))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
-		errMsg := "Failed to read inventory data for update"
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Panics* Cannot read inventory ledger for update!", slog.String("error", err.Error()))
+		errMsg := "Failed to read product data from database"
+		r.logger.ErrorContext(ctx, "Database access error",
+			slog.String("error", err.Error()),
+			slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+			slog.String("request_id", requestID),
+			slog.String("operation", "update_stock"))
+			
 		span.SetStatus(codes.Error, errMsg)
-		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+		
+		appErr = apierrors.NewApplicationError(
+			apierrors.ErrCodeDatabaseAccess,
+			errMsg,
+			err).WithRequestID(requestID)
+			
 		// Track error metrics
-		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabase, "update_stock", "repository")
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabaseAccess, "update_stock", "repository")
 		return appErr
 	}
 
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Searches inventory* Let me find product '"+name+"' first...")
+	r.logger.DebugContext(ctx, "Verifying product exists",
+		slog.String("product_name", name),
+		slog.String("request_id", requestID))
 
 	product, ok := productsMap[name]
 	if !ok {
 		errMsg := fmt.Sprintf("Product with name '%s' not found for stock update", name)
-		r.logger.WarnContext(ctx, "Stock Room Worker: Product not found for update", slog.String("product_name", name))
+		r.logger.WarnContext(ctx, "Product not found",
+			slog.String("product_name", name),
+			slog.String("error_code", apierrors.ErrCodeProductNotFound),
+			slog.String("request_id", requestID),
+			slog.String("operation", "update_stock"))
+			
 		span.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
 		span.SetStatus(codes.Error, errMsg)
-		appErr = apierrors.NewAppError(apierrors.ErrCodeNotFound, errMsg, nil)
+		
+		appErr = apierrors.NewBusinessError(
+			apierrors.ErrCodeProductNotFound,
+			errMsg,
+			nil).WithRequestID(requestID)
+			
 		// Track error metrics
-		metric.IncrementErrorCount(ctx, apierrors.ErrCodeNotFound, "update_stock", "repository")
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeProductNotFound, "update_stock", "repository")
 		return appErr
 	}
 
@@ -71,34 +109,53 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 
 	span.SetAttributes(attribute.Int("product.old_stock", oldStock))
 
-	if newStock > oldStock {
-		added := newStock - oldStock
-		r.logger.InfoContext(ctx, "Stock Room Worker: *Unloading boxes* Adding "+strconv.Itoa(added)+" units of "+product.Name+" to the shelf")
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Arranges products* Making sure they're displayed nicely")
-	} else if newStock < oldStock {
-		removed := oldStock - newStock
-		r.logger.InfoContext(ctx, "Stock Room Worker: *Counts carefully* Removing "+strconv.Itoa(removed)+" units of "+product.Name+" from the shelf")
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Updates display* Making sure the remaining "+strconv.Itoa(newStock)+" units look presentable")
-	} else {
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Puzzled* Stock count for "+product.Name+" is unchanged at "+strconv.Itoa(newStock)+". Just double-checking everything looks good")
+	stockDiff := newStock - oldStock
+	stockChangeType := "unchanged"
+	if stockDiff > 0 {
+		stockChangeType = "increased"
+	} else if stockDiff < 0 {
+		stockChangeType = "decreased"
 	}
+	
+	r.logger.InfoContext(ctx, "Updating product stock level",
+		slog.String("product_name", product.Name),
+		slog.Int("old_stock", oldStock),
+		slog.Int("new_stock", newStock),
+		slog.Int("stock_change", stockDiff),
+		slog.String("stock_change_type", stockChangeType),
+		slog.String("request_id", requestID))
 
 	if writeErr := r.database.Write(ctx, productsMap); writeErr != nil {
-		errMsg := "Failed to write updated inventory data"
-		r.logger.ErrorContext(ctx, "Stock Room Worker: *Spills coffee* Cannot write updated inventory ledger!", slog.String("error", writeErr.Error()))
+		errMsg := "Failed to write updated product data"
+		r.logger.ErrorContext(ctx, "Database write error",
+			slog.String("error", writeErr.Error()),
+			slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+			slog.String("product_name", name),
+			slog.String("request_id", requestID),
+			slog.String("operation", "update_stock"))
+			
 		span.SetStatus(codes.Error, errMsg)
-		appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, writeErr)
+		
+		appErr = apierrors.NewApplicationError(
+			apierrors.ErrCodeDatabaseAccess,
+			errMsg,
+			writeErr).WithRequestID(requestID)
+			
 		// Track error metrics
-		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabase, "update_stock", "repository")
+		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabaseAccess, "update_stock", "repository")
 		return appErr
 	}
 
 	// Update product stock level for telemetry
 	metric.UpdateProductStockLevels(ctx, product.Name, product.Category, int64(newStock))
 
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Satisfied* Successfully updated the stock for "+product.Name+" from "+strconv.Itoa(oldStock)+" to "+strconv.Itoa(newStock))
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Closes ledger* Also updated our inventory records to match the physical stock")
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Returns to counter* All done! Stock update completed for product '"+name+"'")
+	r.logger.InfoContext(ctx, "Product stock update completed",
+		slog.String("product_name", product.Name),
+		slog.Int("old_stock", oldStock),
+		slog.Int("new_stock", newStock),
+		slog.String("request_id", requestID),
+		slog.String("operation", "update_stock"),
+		slog.String("event_type", "stock_update_completed"))
 
 	return nil
 }

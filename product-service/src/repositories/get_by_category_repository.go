@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strconv"
 
 	"github.com/narender/common/debugutils"
 	commontrace "github.com/narender/common/telemetry/trace"
@@ -18,6 +17,12 @@ import (
 )
 
 func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []models.Product, appErr *apierrors.AppError) {
+	// Get request ID from context
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
 	categoryAttr := attribute.String("product.category", category)
 	newCtx, span := commontrace.StartSpan(ctx, categoryAttr)
 	ctx = newCtx // Update ctx
@@ -30,50 +35,84 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts name tag* Shop manager needs all products from the '"+category+"' category")
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to section "+category+"* Let me check what we have on these shelves")
+	r.logger.InfoContext(ctx, "Retrieving products by category",
+		slog.String("category", category),
+		slog.String("request_id", requestID),
+		slog.String("operation", "get_by_category"))
+
+	r.logger.DebugContext(ctx, "Accessing product database",
+		slog.String("category", category),
+		slog.String("request_id", requestID))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.logger.WarnContext(ctx, "Stock Room Worker: *Worried* Strange, our inventory ledger is missing! I better tell shop manager we have no products in category '"+category+"'", slog.String("category", category))
+			r.logger.WarnContext(ctx, "No products found in database",
+				slog.String("category", category),
+				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+				slog.String("request_id", requestID),
+				slog.String("operation", "get_by_category"),
+				slog.String("error", err.Error()))
+
 			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
 			return []models.Product{}, nil
 		} else {
-			errMsg := "Failed to read inventory data for category lookup"
-			r.logger.ErrorContext(ctx, "Stock Room Worker: *Squints* Cannot read inventory ledger!", slog.String("error", err.Error()))
+			errMsg := "Failed to read product data from database"
+			r.logger.ErrorContext(ctx, "Database access error",
+				slog.String("error", err.Error()),
+				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+				slog.String("request_id", requestID),
+				slog.String("operation", "get_by_category"))
+
 			if span != nil {
 				span.SetStatus(codes.Error, errMsg)
 			}
-			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+
+			appErr = apierrors.NewApplicationError(
+				apierrors.ErrCodeDatabaseAccess,
+				errMsg,
+				err,
+			).WithRequestID(requestID)
+
 			return nil, appErr
 		}
 	}
 
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Searching shelves* Looking through our '"+category+"' section...")
+	r.logger.DebugContext(ctx, "Filtering products by category",
+		slog.String("category", category),
+		slog.String("request_id", requestID),
+		slog.Int("total_products", len(productsMap)))
 
 	filteredProducts = make([]models.Product, 0)
 	for _, p := range productsMap {
 		if p.Category == category {
 			filteredProducts = append(filteredProducts, p)
-			r.logger.DebugContext(ctx, "Stock Room Worker: *Picks up item* Found "+p.Name+" in the '"+category+"' section, we have "+strconv.Itoa(p.Stock)+" in stock")
+			r.logger.DebugContext(ctx, "Product matches category filter",
+				slog.String("product_name", p.Name),
+				slog.Int("stock", p.Stock),
+				slog.String("category", p.Category),
+				slog.String("request_id", requestID))
 		}
 	}
 
 	productCount := len(filteredProducts)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
 
-	if productCount == 0 {
-		r.logger.InfoContext(ctx, "Stock Room Worker: *Shrugs* We don't have any products in the '"+category+"' category right now")
-	} else {
-		r.logger.InfoContext(ctx, "Stock Room Worker: *Counts items* We have "+strconv.Itoa(productCount)+" different products in the '"+category+"' category")
-	}
+	r.logger.InfoContext(ctx, "Category products retrieval completed",
+		slog.String("category", category),
+		slog.Int("product_count", productCount),
+		slog.String("request_id", requestID),
+		slog.String("operation", "get_by_category"),
+		slog.String("event_type", "category_products_retrieved"))
 
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Returns to counter* Here's the list of all our '"+category+"' products for the shop manager")
 	return filteredProducts, appErr // appErr is nil here if successful
 }

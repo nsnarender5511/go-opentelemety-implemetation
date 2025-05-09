@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strconv"
 
 	"github.com/narender/common/debugutils"
 	"github.com/narender/common/telemetry/metric"
@@ -19,6 +18,12 @@ import (
 )
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.Product, appErr *apierrors.AppError) {
+	// Get request ID from context
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
 	newCtx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
 	ctx = newCtx // Update ctx if StartSpan modifies it
 	defer func() {
@@ -30,50 +35,81 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
+		// Ensure request ID is set
+		if simAppErr.RequestID == "" {
+			simAppErr.RequestID = requestID
+		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Adjusts uniform* Shop manager asked me to fetch ALL products from our inventory")
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Walks to the back room* Let me check our master inventory ledger")
+	r.logger.InfoContext(ctx, "Retrieving all products from database",
+		slog.String("request_id", requestID),
+		slog.String("operation", "get_all_products"))
+
+	r.logger.DebugContext(ctx, "Accessing product database",
+		slog.String("request_id", requestID))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.logger.WarnContext(ctx, "Stock Room Worker: *Panics* Oh no! The inventory ledger is missing! *Takes deep breath* I better tell the shop manager our shelves are empty")
+			r.logger.WarnContext(ctx, "No products found in database",
+				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+				slog.String("request_id", requestID),
+				slog.String("operation", "get_all_products"),
+				slog.String("error", err.Error()))
+
 			span.AddEvent("FileDatabase.Read indicated file not found, returning empty.", trace.WithAttributes(attribute.String("error.message", err.Error())))
 			return []models.Product{}, nil
 		} else {
-			errMsg := "Failed to read inventory ledger"
-			r.logger.ErrorContext(ctx, "Stock Room Worker: *Distressed* Cannot read inventory ledger!", slog.String("error", err.Error()))
+			errMsg := "Failed to read product data from database"
+			r.logger.ErrorContext(ctx, "Database access error",
+				slog.String("error", err.Error()),
+				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
+				slog.String("request_id", requestID),
+				slog.String("operation", "get_all_products"))
+
 			if span != nil {
 				span.SetStatus(codes.Error, errMsg)
 			}
-			appErr = apierrors.NewAppError(apierrors.ErrCodeDatabase, errMsg, err)
+
+			appErr = apierrors.NewApplicationError(
+				apierrors.ErrCodeDatabaseAccess,
+				errMsg,
+				err,
+			).WithRequestID(requestID)
+
 			return nil, appErr
 		}
 	}
 
-	r.logger.DebugContext(ctx, "Stock Room Worker: *Flips through pages* Ah! Here's our complete inventory. Let me count everything...")
+	r.logger.DebugContext(ctx, "Processing product inventory data",
+		slog.String("request_id", requestID),
+		slog.Int("product_count", len(productsMap)))
 
 	productsSlice = make([]models.Product, 0, len(productsMap))
-	// var productID string // Removed unused productID variable and its assignment loop
-	for _, p := range productsMap { // Iterate once to populate productsSlice
+	for _, p := range productsMap {
 		productsSlice = append(productsSlice, p)
-		r.logger.DebugContext(ctx, "Stock Room Worker: *Checks shelf* Product "+p.Name+" - we have "+strconv.Itoa(p.Stock)+" in stock")
+		r.logger.DebugContext(ctx, "Processing product data",
+			slog.String("product_name", p.Name),
+			slog.Int("stock", p.Stock),
+			slog.String("request_id", requestID))
 	}
 
 	// Update product stock levels for telemetry
-	// const storeID = "default-store" // Removed storeID
-	for _, p := range productsSlice { // Iterate productsSlice, p.Name is the identifier
+	for _, p := range productsSlice {
 		metric.UpdateProductStockLevels(ctx, p.Name, p.Category, int64(p.Stock))
 	}
 
 	productCount := len(productsSlice)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Wipes brow* Phew! Counted all "+strconv.Itoa(productCount)+" products in our actual stock")
-	r.logger.InfoContext(ctx, "Stock Room Worker: *Walks back to counter* Here's the complete inventory list for the shop manager")
+
+	r.logger.InfoContext(ctx, "Products retrieval completed",
+		slog.String("request_id", requestID),
+		slog.Int("product_count", productCount),
+		slog.String("operation", "get_all_products"),
+		slog.String("event_type", "products_retrieved"))
 
 	return productsSlice, appErr // appErr is nil here if successful
 }
