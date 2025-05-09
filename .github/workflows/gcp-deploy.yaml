@@ -1,0 +1,46 @@
+name: Deploy to GCP VM (Directly)
+
+on:
+  push:
+    branches: [ "main" ] # Or your default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy to GCP VM
+        env:
+          GCP_PROJECT_ID: signoz-assignment # Replace with your GCP Project ID
+          GCP_REGION: "us-central1-b" # Replace with your VM's region
+          GCP_ZONE: "us-central1-b" # Replace with your VM's zone
+          VM_INSTANCE_NAME: "instance-20250509-092641" # Replace with your VM instance name
+          REMOTE_APP_PATH: "/home/nsnarender2024/go-opentelemety-implemetation" # Replace with the path to your application directory on the VM
+        run: |-
+          # SSH into the VM and execute commands
+          gcloud compute ssh "$VM_INSTANCE_NAME" --project="$GCP_PROJECT_ID" --zone="$GCP_ZONE" --command='
+            echo "Stopping and removing existing Docker Compose services..."
+            cd ${{ env.REMOTE_APP_PATH }}
+            if [ -f docker-compose.yml ]; then
+              sudo docker-compose down
+            else
+              echo "docker-compose.yml not found in ${{ env.REMOTE_APP_PATH }}"
+            fi
+
+            echo "Pulling the latest changes from Git..."
+            git pull origin ${{ github.event.inputs.branch || github.ref_name }}
+
+            echo "Rebuilding Docker Compose services..."
+            sudo docker-compose up -d --build
+            echo "Deployment successful!"
+          '
