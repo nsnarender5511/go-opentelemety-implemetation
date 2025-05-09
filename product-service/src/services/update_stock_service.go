@@ -14,12 +14,6 @@ import (
 )
 
 func (s *productService) UpdateStock(ctx context.Context, name string, newStock int) (appErr *apierrors.AppError) {
-	// Get request ID from context
-	var requestID string
-	if id, ok := ctx.Value("requestID").(string); ok {
-		requestID = id
-	}
-
 	productNameAttr := attribute.String(metric.AttrProductName, name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 
@@ -34,10 +28,6 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
@@ -52,10 +42,6 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 		slog.String("event_type", "stock_update_processing"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
@@ -82,11 +68,6 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 			span.SetStatus(codes.Error, repoErr.Message)
 		}
 
-		// Ensure request ID is set
-		if repoErr.RequestID == "" {
-			repoErr.RequestID = requestID
-		}
-
 		appErr = repoErr
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, repoErr.Code, "update_stock", "service")
@@ -94,10 +75,6 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	}
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, simAppErr.Code, "update_stock", "service")
