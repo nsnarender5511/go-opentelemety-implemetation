@@ -14,15 +14,8 @@ import (
 )
 
 func (s *productService) GetByCategory(ctx context.Context, category string) (products []models.Product, appErr *apierrors.AppError) {
-	// Get request ID from context
-	var requestID string
-	if id, ok := ctx.Value("requestID").(string); ok {
-		requestID = id
-	}
-
 	s.logger.InfoContext(ctx, "Initializing service layer processing for category-based product filtering",
 		slog.String("category", category),
-		slog.String("request_id", requestID),
 		slog.String("component", "product_service"),
 		slog.String("operation", "get_products_by_category"),
 		slog.String("event_type", "category_products_processing"))
@@ -38,10 +31,6 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		return nil, appErr
 	}
@@ -49,8 +38,7 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 	s.logger.DebugContext(ctx, "Delegating category-based product query to repository layer",
 		slog.String("category", category),
 		slog.String("component", "product_service"),
-		slog.String("operation", "repository_fetch_by_category"),
-		slog.String("request_id", requestID))
+		slog.String("operation", "repository_fetch_by_category"))
 
 	products, repoErr := s.repo.GetByCategory(ctx, category)
 	if repoErr != nil {
@@ -60,16 +48,10 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 			slog.String("error_code", repoErr.Code),
 			slog.String("component", "product_service"),
 			slog.String("operation", "get_products_by_category"),
-			slog.String("request_id", requestID),
 			slog.String("event_type", "category_products_retrieval_failed"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoErr.Message)
-		}
-
-		// Ensure request ID is set
-		if repoErr.RequestID == "" {
-			repoErr.RequestID = requestID
 		}
 
 		appErr = repoErr
@@ -84,7 +66,6 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_service"),
 		slog.String("operation", "get_products_by_category"),
-		slog.String("request_id", requestID),
 		slog.String("status", "success"),
 		slog.String("event_type", "category_products_retrieved"))
 

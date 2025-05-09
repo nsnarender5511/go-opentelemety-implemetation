@@ -12,31 +12,12 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/narender/common/globals"
 
 	// Import common packages
 	apierrors "github.com/narender/common/apierrors"
 	apiresponses "github.com/narender/common/apiresponses"
 )
-
-// RequestIDMiddleware adds a unique request ID to each request
-func RequestIDMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		requestID := c.Get("X-Request-ID")
-		if requestID == "" {
-			requestID = uuid.New().String()
-			c.Set("X-Request-ID", requestID)
-		}
-
-		// Store in both locals for middleware and context for logging
-		c.Locals("requestID", requestID)
-		ctx := context.WithValue(c.UserContext(), "requestID", requestID)
-		c.SetUserContext(ctx)
-
-		return c.Next()
-	}
-}
 
 // RecoverMiddleware handles panics gracefully
 func RecoverMiddleware() fiber.Handler {
@@ -51,10 +32,8 @@ func RecoverMiddleware() fiber.Handler {
 				}
 
 				stack := string(debug.Stack())
-				requestID := c.Locals("requestID").(string)
 
 				logger.ErrorContext(c.UserContext(), "CRITICAL: Unhandled panic recovered",
-					slog.String("request_id", requestID),
 					slog.String("error", err.Error()),
 					slog.String("stack", stack),
 					slog.String("path", c.Path()),
@@ -64,8 +43,7 @@ func RecoverMiddleware() fiber.Handler {
 				appErr := apierrors.NewApplicationError(
 					apierrors.ErrCodeSystemPanic,
 					"A critical system error occurred. Our team has been notified.",
-					err,
-				).WithRequestID(requestID)
+					err)
 
 				// Handle through the normal error handler
 				_ = ErrorHandler()(c, appErr)
@@ -84,26 +62,11 @@ func ErrorHandler() fiber.ErrorHandler {
 		var statusCode int = http.StatusInternalServerError
 		var errCode string = apierrors.ErrCodeUnknown
 		var message string = "An unexpected error occurred. Please try again later."
-		var requestID string
-
-		// Safely get the request ID
-		if reqID, ok := c.Locals("requestID").(string); ok {
-			requestID = reqID
-		} else {
-			// Generate a new one if not found
-			requestID = uuid.New().String()
-			c.Locals("requestID", requestID)
-		}
 
 		if errors.As(err, &appErr) {
 			// Handle our custom AppError
 			errCode = appErr.Code
 			message = appErr.Message
-
-			// Ensure RequestID is set
-			if appErr.RequestID == "" {
-				appErr.RequestID = requestID
-			}
 
 			// Map AppError Code to HTTP Status Code based on category and code
 			if appErr.Category == apierrors.CategoryBusiness {
@@ -145,7 +108,6 @@ func ErrorHandler() fiber.ErrorHandler {
 				logger.WarnContext(c.UserContext(), "Business rule violation",
 					slog.String("error_code", appErr.Code),
 					slog.String("message", appErr.Message),
-					slog.String("request_id", appErr.RequestID),
 					slog.String("path", c.Path()),
 				)
 			} else {
@@ -154,7 +116,6 @@ func ErrorHandler() fiber.ErrorHandler {
 					slog.String("category", string(appErr.Category)),
 					slog.String("message", appErr.Message),
 					slog.Any("cause", appErr.Unwrap()),
-					slog.String("request_id", appErr.RequestID),
 					slog.String("path", c.Path()),
 				)
 			}
@@ -194,7 +155,6 @@ func ErrorHandler() fiber.ErrorHandler {
 				slog.String("error_type", fmt.Sprintf("%T", err)),
 				slog.String("error", err.Error()),
 				slog.String("error_code", errCode),
-				slog.String("request_id", requestID),
 				slog.String("path", c.Path()),
 			)
 		}
@@ -206,7 +166,6 @@ func ErrorHandler() fiber.ErrorHandler {
 			Error: apiresponses.ErrorDetail{
 				Code:      errCode,
 				Message:   message,
-				RequestID: requestID,
 				Timestamp: time.Now().UTC().Format(time.RFC3339),
 			},
 		})

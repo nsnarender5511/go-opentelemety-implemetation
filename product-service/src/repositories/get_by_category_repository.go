@@ -17,12 +17,6 @@ import (
 )
 
 func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []models.Product, appErr *apierrors.AppError) {
-	// Get request ID from context
-	var requestID string
-	if id, ok := ctx.Value("requestID").(string); ok {
-		requestID = id
-	}
-
 	categoryAttr := attribute.String("product.category", category)
 	newCtx, span := commontrace.StartSpan(ctx, categoryAttr)
 	ctx = newCtx // Update ctx
@@ -35,25 +29,19 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
 	r.logger.InfoContext(ctx, "Initiating repository operation for category-filtered product retrieval",
 		slog.String("category", category),
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_by_category"))
 
 	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
 		slog.String("category", category),
 		slog.String("component", "product_repository"),
-		slog.String("database_operation", "read"),
-		slog.String("request_id", requestID))
+		slog.String("database_operation", "read"))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
@@ -62,7 +50,6 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 			r.logger.WarnContext(ctx, "No products found in database",
 				slog.String("category", category),
 				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
-				slog.String("request_id", requestID),
 				slog.String("operation", "get_by_category"),
 				slog.String("error", err.Error()))
 
@@ -73,7 +60,6 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 			r.logger.ErrorContext(ctx, "Database access error",
 				slog.String("error", err.Error()),
 				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
-				slog.String("request_id", requestID),
 				slog.String("operation", "get_by_category"))
 
 			if span != nil {
@@ -83,8 +69,7 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 			appErr = apierrors.NewApplicationError(
 				apierrors.ErrCodeDatabaseAccess,
 				errMsg,
-				err,
-			).WithRequestID(requestID)
+				err)
 
 			return nil, appErr
 		}
@@ -92,7 +77,6 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 
 	r.logger.DebugContext(ctx, "Applying category filter to product inventory data",
 		slog.String("category", category),
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.Int("total_products", len(productsMap)),
 		slog.String("filter_operation", "category_match"))
@@ -107,8 +91,7 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 				slog.String("product_category", p.Category),
 				slog.Float64("product_price", p.Price),
 				slog.String("component", "product_repository"),
-				slog.String("operation", "category_filtering"),
-				slog.String("request_id", requestID))
+				slog.String("operation", "category_filtering"))
 		}
 	}
 
@@ -118,7 +101,6 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	r.logger.InfoContext(ctx, "Repository layer successfully completed category-filtered product retrieval",
 		slog.String("category", category),
 		slog.Int("product_count", productCount),
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_by_category"),
 		slog.String("status", "success"),

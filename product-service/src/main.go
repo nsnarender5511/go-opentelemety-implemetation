@@ -48,9 +48,8 @@ func main() {
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
-	app.Use(commonMiddleware.RequestIDMiddleware()) // Add request ID to all requests
-	app.Use(commonMiddleware.RecoverMiddleware())   // Custom panic recovery
-	app.Use(otelfiber.Middleware())                 // otelfiber instrumentation
+	app.Use(commonMiddleware.RecoverMiddleware()) // Custom panic recovery
+	app.Use(otelfiber.Middleware())               // otelfiber instrumentation
 
 	// --- Route Definitions ---
 	setupRoutes(app, handler)

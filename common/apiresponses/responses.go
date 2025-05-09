@@ -6,7 +6,6 @@ import "time"
 type SuccessResponse struct {
 	Status    string      `json:"status"` // Always "success"
 	Data      interface{} `json:"data"`   // Payload
-	RequestID string      `json:"requestId,omitempty"`
 	Timestamp string      `json:"timestamp,omitempty"`
 }
 
@@ -19,7 +18,6 @@ type ErrorResponse struct {
 type ErrorDetail struct {
 	Code      string `json:"code"`    // Application-specific error code
 	Message   string `json:"message"` // User-friendly message
-	RequestID string `json:"requestId,omitempty"`
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
@@ -30,12 +28,6 @@ func NewSuccessResponse(data interface{}) SuccessResponse {
 		Data:      data,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
-}
-
-// WithRequestID adds a request ID to the success response
-func (r SuccessResponse) WithRequestID(requestID string) SuccessResponse {
-	r.RequestID = requestID
-	return r
 }
 
 // Optional: Define common success data structures

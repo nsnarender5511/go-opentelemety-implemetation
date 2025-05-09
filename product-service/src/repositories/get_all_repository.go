@@ -18,12 +18,6 @@ import (
 )
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.Product, appErr *apierrors.AppError) {
-	// Get request ID from context
-	var requestID string
-	if id, ok := ctx.Value("requestID").(string); ok {
-		requestID = id
-	}
-
 	newCtx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
 	ctx = newCtx // Update ctx if StartSpan modifies it
 	defer func() {
@@ -35,21 +29,15 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		appErr = simAppErr
 		return nil, appErr
 	}
 
 	r.logger.InfoContext(ctx, "Initiating repository operation to retrieve complete product inventory",
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_all_products"))
 
 	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.String("database_operation", "read"))
 
@@ -59,7 +47,6 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 		if os.IsNotExist(err) {
 			r.logger.WarnContext(ctx, "No products found in database",
 				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
-				slog.String("request_id", requestID),
 				slog.String("operation", "get_all_products"),
 				slog.String("error", err.Error()))
 
@@ -70,7 +57,6 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 			r.logger.ErrorContext(ctx, "Database access error",
 				slog.String("error", err.Error()),
 				slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
-				slog.String("request_id", requestID),
 				slog.String("operation", "get_all_products"))
 
 			if span != nil {
@@ -80,15 +66,13 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 			appErr = apierrors.NewApplicationError(
 				apierrors.ErrCodeDatabaseAccess,
 				errMsg,
-				err,
-			).WithRequestID(requestID)
+				err)
 
 			return nil, appErr
 		}
 	}
 
 	r.logger.DebugContext(ctx, "Converting database entity map to product array structure",
-		slog.String("request_id", requestID),
 		slog.String("component", "product_repository"),
 		slog.Int("product_count", len(productsMap)),
 		slog.String("database_operation", "entity_transformation"))
@@ -101,8 +85,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 			slog.String("product_category", p.Category),
 			slog.Float64("product_price", p.Price),
 			slog.Int("stock", p.Stock),
-			slog.String("component", "product_repository"),
-			slog.String("request_id", requestID))
+			slog.String("component", "product_repository"))
 	}
 
 	// Update product stock levels for telemetry
@@ -114,7 +97,6 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
 
 	r.logger.InfoContext(ctx, "Repository layer successfully completed product catalog retrieval",
-		slog.String("request_id", requestID),
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_all_products"),

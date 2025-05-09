@@ -16,11 +16,7 @@ import (
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	ctx := c.UserContext()
 
-	// Get request ID
-	requestID := c.Locals("requestID").(string)
-
 	h.logger.InfoContext(ctx, "Initiating request processing for retrieving all products",
-		slog.String("request_id", requestID),
 		slog.String("path", c.Path()),
 		slog.String("method", c.Method()),
 		slog.String("operation", "get_all_products"),
@@ -39,16 +35,11 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		err = simAppErr
 		return
 	}
 
 	h.logger.DebugContext(ctx, "Executing database query to retrieve complete product catalog",
-		slog.String("request_id", requestID),
 		slog.String("operation", "fetch_all_products"),
 		slog.String("component", "product_handler"))
 
@@ -57,19 +48,12 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 		if span != nil {
 			span.SetStatus(codes.Error, appErr.Error())
 		}
-
-		// Ensure request ID is set
-		if appErr.RequestID == "" {
-			appErr.RequestID = requestID
-		}
-
 		err = appErr
 		return
 	}
 
 	productCount := len(products)
 	h.logger.InfoContext(ctx, "Product catalog retrieval operation completed successfully",
-		slog.String("request_id", requestID),
 		slog.Int("product_count", productCount),
 		slog.String("operation", "get_all_products"),
 		slog.String("event_type", "products_retrieved"),
@@ -77,8 +61,8 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 
 	span.SetAttributes(attribute.Int("products.count", productCount))
 
-	// Create response with request ID
-	response := apiresponses.NewSuccessResponse(products).WithRequestID(requestID)
+	// Create response without request ID
+	response := apiresponses.NewSuccessResponse(products)
 
 	err = c.Status(http.StatusOK).JSON(response)
 	return
