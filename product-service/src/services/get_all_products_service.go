@@ -20,8 +20,10 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 		requestID = id
 	}
 
-	s.logger.DebugContext(ctx, "Processing product list request",
+	s.logger.DebugContext(ctx, "Initializing service layer processing for complete product catalog retrieval",
 		slog.String("request_id", requestID),
+		slog.String("component", "product_service"),
+		slog.String("operation", "get_all_products"),
 		slog.String("event_type", "product_list_processing"))
 
 	newCtx, span := commontrace.StartSpan(ctx)
@@ -43,14 +45,18 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 		return nil, appErr
 	}
 
-	s.logger.DebugContext(ctx, "Retrieving all products from repository",
+	s.logger.DebugContext(ctx, "Delegating complete product catalog query to repository layer",
+		slog.String("component", "product_service"),
+		slog.String("operation", "repository_fetch_all"),
 		slog.String("request_id", requestID))
 
 	products, repoErr := s.repo.GetAll(ctx)
 	if repoErr != nil {
-		s.logger.ErrorContext(ctx, "Failed to retrieve products list",
+		s.logger.ErrorContext(ctx, "Repository layer encountered error during complete product catalog retrieval",
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
+			slog.String("component", "product_service"),
+			slog.String("operation", "get_all_products"),
 			slog.String("request_id", requestID),
 			slog.String("event_type", "product_list_retrieval_failed"))
 
@@ -68,10 +74,13 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 	}
 
 	productCount := len(products)
-	s.logger.InfoContext(ctx, "Products list retrieved from repository",
+	s.logger.InfoContext(ctx, "Repository layer successfully returned complete product catalog",
 		slog.String("request_id", requestID),
 		slog.Int("product_count", productCount),
-		slog.String("event_type", "products_retrieved"))
+		slog.String("component", "product_service"),
+		slog.String("operation", "get_all_products"),
+		slog.String("event_type", "products_retrieved"),
+		slog.String("status", "success"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		// Ensure request ID is set
@@ -84,9 +93,12 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 
 	span.SetAttributes(attribute.Int("products.count", productCount))
 
-	s.logger.DebugContext(ctx, "Processing products list completed",
+	s.logger.DebugContext(ctx, "Service layer has completed processing of product catalog retrieval request",
 		slog.String("request_id", requestID),
-		slog.Int("product_count", productCount))
+		slog.Int("product_count", productCount),
+		slog.String("component", "product_service"),
+		slog.String("operation", "get_all_products"),
+		slog.String("status", "completed"))
 
 	return products, appErr
 }

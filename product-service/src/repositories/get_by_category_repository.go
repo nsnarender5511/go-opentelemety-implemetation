@@ -43,13 +43,16 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 		return nil, appErr
 	}
 
-	r.logger.InfoContext(ctx, "Retrieving products by category",
+	r.logger.InfoContext(ctx, "Initiating repository operation for category-filtered product retrieval",
 		slog.String("category", category),
 		slog.String("request_id", requestID),
+		slog.String("component", "product_repository"),
 		slog.String("operation", "get_by_category"))
 
-	r.logger.DebugContext(ctx, "Accessing product database",
+	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
 		slog.String("category", category),
+		slog.String("component", "product_repository"),
+		slog.String("database_operation", "read"),
 		slog.String("request_id", requestID))
 
 	var productsMap map[string]models.Product
@@ -87,19 +90,24 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 		}
 	}
 
-	r.logger.DebugContext(ctx, "Filtering products by category",
+	r.logger.DebugContext(ctx, "Applying category filter to product inventory data",
 		slog.String("category", category),
 		slog.String("request_id", requestID),
-		slog.Int("total_products", len(productsMap)))
+		slog.String("component", "product_repository"),
+		slog.Int("total_products", len(productsMap)),
+		slog.String("filter_operation", "category_match"))
 
 	filteredProducts = make([]models.Product, 0)
 	for _, p := range productsMap {
 		if p.Category == category {
 			filteredProducts = append(filteredProducts, p)
-			r.logger.DebugContext(ctx, "Product matches category filter",
+			r.logger.DebugContext(ctx, "Product entity matches requested category criteria",
 				slog.String("product_name", p.Name),
 				slog.Int("stock", p.Stock),
-				slog.String("category", p.Category),
+				slog.String("product_category", p.Category),
+				slog.Float64("product_price", p.Price),
+				slog.String("component", "product_repository"),
+				slog.String("operation", "category_filtering"),
 				slog.String("request_id", requestID))
 		}
 	}
@@ -107,11 +115,13 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	productCount := len(filteredProducts)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
 
-	r.logger.InfoContext(ctx, "Category products retrieval completed",
+	r.logger.InfoContext(ctx, "Repository layer successfully completed category-filtered product retrieval",
 		slog.String("category", category),
 		slog.Int("product_count", productCount),
 		slog.String("request_id", requestID),
+		slog.String("component", "product_repository"),
 		slog.String("operation", "get_by_category"),
+		slog.String("status", "success"),
 		slog.String("event_type", "category_products_retrieved"))
 
 	return filteredProducts, appErr // appErr is nil here if successful

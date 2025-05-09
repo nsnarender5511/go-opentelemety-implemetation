@@ -19,11 +19,14 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	// Get request ID
 	requestID := c.Locals("requestID").(string)
 
-	h.logger.InfoContext(ctx, "Products list request received",
+	h.logger.InfoContext(ctx, "Initiating request processing for retrieving all products",
 		slog.String("request_id", requestID),
 		slog.String("path", c.Path()),
 		slog.String("method", c.Method()),
-		slog.String("event_type", "products_list_requested"))
+		slog.String("operation", "get_all_products"),
+		slog.String("event_type", "products_list_requested"),
+		slog.String("client_ip", c.IP()),
+		slog.String("user_agent", c.Get("User-Agent")))
 
 	newCtx, span := commontrace.StartSpan(ctx)
 	ctx = newCtx
@@ -44,8 +47,10 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 		return
 	}
 
-	h.logger.DebugContext(ctx, "Fetching products list",
-		slog.String("request_id", requestID))
+	h.logger.DebugContext(ctx, "Executing database query to retrieve complete product catalog",
+		slog.String("request_id", requestID),
+		slog.String("operation", "fetch_all_products"),
+		slog.String("component", "product_handler"))
 
 	products, appErr := h.service.GetAll(ctx)
 	if appErr != nil {
@@ -63,10 +68,12 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	}
 
 	productCount := len(products)
-	h.logger.InfoContext(ctx, "Products retrieved successfully",
+	h.logger.InfoContext(ctx, "Product catalog retrieval operation completed successfully",
 		slog.String("request_id", requestID),
 		slog.Int("product_count", productCount),
-		slog.String("event_type", "products_retrieved"))
+		slog.String("operation", "get_all_products"),
+		slog.String("event_type", "products_retrieved"),
+		slog.String("status", "success"))
 
 	span.SetAttributes(attribute.Int("products.count", productCount))
 

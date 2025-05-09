@@ -43,12 +43,15 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 		return nil, appErr
 	}
 
-	r.logger.InfoContext(ctx, "Retrieving all products from database",
+	r.logger.InfoContext(ctx, "Initiating repository operation to retrieve complete product inventory",
 		slog.String("request_id", requestID),
+		slog.String("component", "product_repository"),
 		slog.String("operation", "get_all_products"))
 
-	r.logger.DebugContext(ctx, "Accessing product database",
-		slog.String("request_id", requestID))
+	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
+		slog.String("request_id", requestID),
+		slog.String("component", "product_repository"),
+		slog.String("database_operation", "read"))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
@@ -84,16 +87,21 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 		}
 	}
 
-	r.logger.DebugContext(ctx, "Processing product inventory data",
+	r.logger.DebugContext(ctx, "Converting database entity map to product array structure",
 		slog.String("request_id", requestID),
-		slog.Int("product_count", len(productsMap)))
+		slog.String("component", "product_repository"),
+		slog.Int("product_count", len(productsMap)),
+		slog.String("database_operation", "entity_transformation"))
 
 	productsSlice = make([]models.Product, 0, len(productsMap))
 	for _, p := range productsMap {
 		productsSlice = append(productsSlice, p)
-		r.logger.DebugContext(ctx, "Processing product data",
+		r.logger.DebugContext(ctx, "Processing individual product entity data",
 			slog.String("product_name", p.Name),
+			slog.String("product_category", p.Category),
+			slog.Float64("product_price", p.Price),
 			slog.Int("stock", p.Stock),
+			slog.String("component", "product_repository"),
 			slog.String("request_id", requestID))
 	}
 
@@ -105,10 +113,12 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	productCount := len(productsSlice)
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))
 
-	r.logger.InfoContext(ctx, "Products retrieval completed",
+	r.logger.InfoContext(ctx, "Repository layer successfully completed product catalog retrieval",
 		slog.String("request_id", requestID),
 		slog.Int("product_count", productCount),
+		slog.String("component", "product_repository"),
 		slog.String("operation", "get_all_products"),
+		slog.String("status", "success"),
 		slog.String("event_type", "products_retrieved"))
 
 	return productsSlice, appErr // appErr is nil here if successful
