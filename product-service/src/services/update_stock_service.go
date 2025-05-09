@@ -45,9 +45,10 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	}
 
 	s.logger.InfoContext(ctx, "Processing stock update request",
+		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("new_stock", newStock),
-		slog.String("request_id", requestID),
+		slog.String("operation", "update_stock"),
 		slog.String("event_type", "stock_update_processing"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
@@ -62,17 +63,19 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	}
 
 	s.logger.DebugContext(ctx, "Updating product stock in repository",
+		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("new_stock", newStock),
-		slog.String("request_id", requestID))
+		slog.String("operation", "repository_update_stock"))
 
 	repoErr := s.repo.UpdateStock(ctx, name, newStock)
 	if repoErr != nil {
 		s.logger.ErrorContext(ctx, "Failed to update product stock",
+			slog.String("component", "product_service"),
 			slog.String("product_name", name),
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
-			slog.String("request_id", requestID),
+			slog.String("operation", "update_stock"),
 			slog.String("event_type", "stock_update_failed"))
 
 		if span != nil {
@@ -102,9 +105,11 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	}
 
 	s.logger.InfoContext(ctx, "Product stock updated successfully",
+		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("new_stock", newStock),
-		slog.String("request_id", requestID),
+		slog.String("operation", "update_stock"),
+		slog.String("status", "success"),
 		slog.String("event_type", "stock_update_completed"))
 
 	return appErr

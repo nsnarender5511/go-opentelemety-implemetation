@@ -19,46 +19,39 @@ import (
 func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 	ctx := c.UserContext()
 
-	// Get request ID
-	requestID := c.Locals("requestID").(string)
-
 	h.logger.InfoContext(ctx, "Purchase request received",
-		slog.String("request_id", requestID),
+		slog.String("component", "product_handler"),
 		slog.String("path", c.Path()),
 		slog.String("method", c.Method()),
-		slog.String("event_type", "purchase_initiated"))
+		slog.String("operation", "buy_product"),
+		slog.String("event_type", "purchase_initiated"),
+		slog.String("client_ip", c.IP()),
+		slog.String("user_agent", c.Get("User-Agent")))
 
 	var req apirequests.ProductBuyRequest
 	if parseErr := c.BodyParser(&req); parseErr != nil {
 		h.logger.WarnContext(ctx, "Request rejected: invalid request format",
+			slog.String("component", "product_handler"),
 			slog.String("error", parseErr.Error()),
 			slog.String("error_code", apierrors.ErrCodeRequestValidation),
-			slog.String("request_id", requestID),
 			slog.String("path", c.Path()),
-		)
+			slog.String("operation", "buy_product"))
 
 		err = apierrors.NewApplicationError(
 			apierrors.ErrCodeRequestValidation,
 			"Invalid request body format",
-			parseErr,
-		).WithRequestID(requestID)
-
+			parseErr)
 		return
 	}
 
 	if validatorErr := validator.ValidateRequest(&req); validatorErr != nil {
-		// Ensure request ID is set on the validator error
-		if validatorErr.RequestID == "" {
-			validatorErr.RequestID = requestID
-		}
-
 		h.logger.WarnContext(ctx, "Request validation failed",
+			slog.String("component", "product_handler"),
 			slog.String("validator_error", validatorErr.Message),
 			slog.String("error_code", validatorErr.Code),
-			slog.String("request_id", requestID),
 			slog.String("path", c.Path()),
-			slog.String("event_type", "request_validation_failed"),
-		)
+			slog.String("operation", "buy_product"),
+			slog.String("event_type", "request_validation_failed"))
 
 		err = validatorErr
 		return
@@ -68,11 +61,12 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 	quantity := req.Quantity
 
 	h.logger.DebugContext(ctx, "Processing purchase details",
+		slog.String("component", "product_handler"),
 		slog.String("product_name", productName),
 		slog.Int("quantity", quantity),
-		slog.String("request_id", requestID))
+		slog.String("operation", "buy_product"))
 
-	newCtx, span := commontrace.StartSpan(c.UserContext(),
+	newCtx, span := commontrace.StartSpan(ctx,
 		attribute.String("product.name", productName),
 		attribute.Int("product.purchase_quantity", quantity))
 	ctx = newCtx
@@ -85,18 +79,15 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 	}()
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
-		// Ensure request ID is set
-		if simAppErr.RequestID == "" {
-			simAppErr.RequestID = requestID
-		}
 		err = simAppErr
 		return
 	}
 
 	h.logger.InfoContext(ctx, "Processing purchase request",
+		slog.String("component", "product_handler"),
 		slog.String("product_name", productName),
 		slog.Int("quantity", quantity),
-		slog.String("request_id", requestID),
+		slog.String("operation", "buy_product"),
 		slog.String("event_type", "purchase_processing"))
 
 	revenue, appErr := h.service.BuyProduct(ctx, productName, quantity)
@@ -105,31 +96,26 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 			span.SetStatus(codes.Error, appErr.Error())
 		}
 
-		// Ensure request ID is set
-		if appErr.RequestID == "" {
-			appErr.RequestID = requestID
-		}
-
 		err = appErr
 		return
 	}
 
 	h.logger.InfoContext(ctx, "Purchase completed successfully",
+		slog.String("component", "product_handler"),
 		slog.String("product_name", productName),
 		slog.Int("quantity", quantity),
 		slog.Float64("revenue", revenue),
-		slog.String("request_id", requestID),
-		slog.String("event_type", "purchase_completed"),
-	)
+		slog.String("operation", "buy_product"),
+		slog.String("status", "success"),
+		slog.String("event_type", "purchase_completed"))
 
 	span.SetAttributes(attribute.Float64("product.revenue", revenue))
 
-	// Create response with request ID
 	response := apiresponses.NewSuccessResponse(fiber.Map{
 		"productName": productName,
 		"quantity":    quantity,
 		"revenue":     revenue,
-	}).WithRequestID(requestID)
+	})
 
 	err = c.Status(http.StatusOK).JSON(response)
 	return

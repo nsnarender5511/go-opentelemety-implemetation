@@ -64,14 +64,14 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 			slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
 			slog.String("request_id", requestID),
 			slog.String("operation", "update_stock"))
-			
+
 		span.SetStatus(codes.Error, errMsg)
-		
+
 		appErr = apierrors.NewApplicationError(
 			apierrors.ErrCodeDatabaseAccess,
 			errMsg,
 			err).WithRequestID(requestID)
-			
+
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabaseAccess, "update_stock", "repository")
 		return appErr
@@ -89,15 +89,15 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 			slog.String("error_code", apierrors.ErrCodeProductNotFound),
 			slog.String("request_id", requestID),
 			slog.String("operation", "update_stock"))
-			
+
 		span.AddEvent("product_not_found_in_map_for_update", trace.WithAttributes(attrs...))
 		span.SetStatus(codes.Error, errMsg)
-		
+
 		appErr = apierrors.NewBusinessError(
 			apierrors.ErrCodeProductNotFound,
 			errMsg,
 			nil).WithRequestID(requestID)
-			
+
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, apierrors.ErrCodeProductNotFound, "update_stock", "repository")
 		return appErr
@@ -116,7 +116,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	} else if stockDiff < 0 {
 		stockChangeType = "decreased"
 	}
-	
+
 	r.logger.InfoContext(ctx, "Updating product stock level",
 		slog.String("product_name", product.Name),
 		slog.Int("old_stock", oldStock),
@@ -133,14 +133,14 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 			slog.String("product_name", name),
 			slog.String("request_id", requestID),
 			slog.String("operation", "update_stock"))
-			
+
 		span.SetStatus(codes.Error, errMsg)
-		
+
 		appErr = apierrors.NewApplicationError(
 			apierrors.ErrCodeDatabaseAccess,
 			errMsg,
 			writeErr).WithRequestID(requestID)
-			
+
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, apierrors.ErrCodeDatabaseAccess, "update_stock", "repository")
 		return appErr
