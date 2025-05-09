@@ -13,7 +13,7 @@ import (
 	apierrors "github.com/narender/common/apierrors"
 )
 
-func (s *productService) BuyProduct(ctx context.Context, name string, quantity int) (remainingStock int, appErr *apierrors.AppError) {
+func (s *productService) BuyProduct(ctx context.Context, name string, quantity int) (revenue float64, appErr *apierrors.AppError) {
 	newCtx, span := commontrace.StartSpan(ctx,
 		attribute.String(metric.AttrProductName, name),
 		attribute.Int("product.purchase_quantity", quantity),
@@ -56,7 +56,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		appErr = apierrors.NewAppError(apierrors.ErrCodeInsufficientStock, errMsg, nil)
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, apierrors.ErrCodeInsufficientStock, "buy_product", "service")
-		return product.Stock, appErr // Return current stock with the error
+		return 0, appErr // Return zero revenue with the error
 	}
 	s.logger.DebugContext(ctx, "Shop Manager: Stock available for purchase")
 
@@ -73,21 +73,21 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		appErr = repoUpdateErr
 		// Track error metrics
 		metric.IncrementErrorCount(ctx, repoUpdateErr.Code, "buy_product", "service")
-		return product.Stock, appErr // Return pre-update stock if update fails
+		return 0, appErr // Return zero revenue if update fails
 	}
 
-	remainingStock = newStock
-	span.SetAttributes(attribute.Int("product.remaining_stock", remainingStock))
+	// Calculate revenue for the purchase
+	revenue = product.Price * float64(quantity)
+	span.SetAttributes(attribute.Float64("product.revenue", revenue))
+	span.SetAttributes(attribute.Int("product.remaining_stock", newStock))
 
 	// --- Metrics Reporting for Sale ---
-	revenue := product.Price * float64(quantity)
-
 	metric.IncrementRevenueTotal(ctx, revenue, product.Name, product.Category)
 	metric.IncrementItemsSoldCount(ctx, int64(quantity), product.Name, product.Category)
 	s.logger.InfoContext(ctx, "Shop Manager: Sales metrics reported", slog.String("product_name", product.Name), slog.Float64("revenue", revenue), slog.Int("quantity_sold", quantity))
 	// --- End Metrics Reporting ---
 
-	s.logger.InfoContext(ctx, "Shop Manager: Purchase processed successfully", slog.String("product_name", name), slog.Int("remaining_stock", remainingStock))
+	s.logger.InfoContext(ctx, "Shop Manager: Purchase processed successfully", slog.String("product_name", name), slog.Float64("revenue", revenue), slog.Int("remaining_stock", newStock))
 
-	return remainingStock, appErr
+	return revenue, appErr
 }

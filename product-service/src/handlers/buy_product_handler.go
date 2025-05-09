@@ -55,7 +55,7 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 	}
 
 	h.logger.InfoContext(ctx, "Front Desk: Asking shop manager to process purchase", slog.String("product_name", productName), slog.Int("quantity", quantity))
-	remainingStock, appErr := h.service.BuyProduct(ctx, productName, quantity)
+	revenue, appErr := h.service.BuyProduct(ctx, productName, quantity)
 	if appErr != nil {
 		if span != nil {
 			span.SetStatus(codes.Error, appErr.Error())
@@ -67,14 +67,14 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 	h.logger.InfoContext(ctx, "Front Desk: Purchase successful!",
 		slog.String("product_name", productName),
 		slog.Int("quantity_bought", quantity),
-		slog.Int("remaining_stock", remainingStock),
+		slog.Float64("revenue", revenue),
 	)
 
-	span.SetAttributes(attribute.Int("product.remaining_stock", remainingStock))
+	span.SetAttributes(attribute.Float64("product.revenue", revenue))
 	err = c.Status(http.StatusOK).JSON(apiresponses.NewSuccessResponse(fiber.Map{
-		"productName":    productName,
-		"quantity":       quantity,
-		"remainingStock": remainingStock,
+		"productName": productName,
+		"quantity":    quantity,
+		"revenue":     revenue,
 	}))
 	return
 }

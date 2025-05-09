@@ -16,7 +16,7 @@ type ProductService interface {
 	GetByName(ctx context.Context, name string) (models.Product, *apierrors.AppError)
 	UpdateStock(ctx context.Context, name string, newStock int) *apierrors.AppError
 	GetByCategory(ctx context.Context, category string) ([]models.Product, *apierrors.AppError)
-	BuyProduct(ctx context.Context, name string, quantity int) (remainingStock int, appErr *apierrors.AppError)
+	BuyProduct(ctx context.Context, name string, quantity int) (revenue float64, appErr *apierrors.AppError)
 }
 
 type productService struct {
