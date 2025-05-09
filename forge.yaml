@@ -1,1 +1,1 @@
-model: anthropic/claude-3.5-sonnet
+model: openai/gpt-4o-mini-search-preview

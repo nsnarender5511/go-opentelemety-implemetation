@@ -19,7 +19,7 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 		slog.String("operation", "get_all_products"),
 		slog.String("event_type", "product_list_processing"))
 
-	newCtx, span := commontrace.StartSpan(ctx)
+	newCtx, span := commontrace.StartSpan(ctx, "product_service", "get_all_products")
 	ctx = newCtx // Update ctx if StartSpan modifies it
 	defer func() {
 		var telemetryErr error

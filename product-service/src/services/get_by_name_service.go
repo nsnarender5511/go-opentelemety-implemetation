@@ -16,7 +16,7 @@ import (
 func (s *productService) GetByName(ctx context.Context, name string) (product models.Product, appErr *apierrors.AppError) {
 	productNameAttr := attribute.String("product.name", name)
 
-	newCtx, span := commontrace.StartSpan(ctx, productNameAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_service", "get_by_name", productNameAttr)
 	ctx = newCtx // Update ctx
 	defer func() {
 		var telemetryErr error

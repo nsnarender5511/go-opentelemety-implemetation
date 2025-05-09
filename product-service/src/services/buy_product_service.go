@@ -14,7 +14,7 @@ import (
 )
 
 func (s *productService) BuyProduct(ctx context.Context, name string, quantity int) (revenue float64, appErr *apierrors.AppError) {
-	newCtx, span := commontrace.StartSpan(ctx,
+	newCtx, span := commontrace.StartSpan(ctx, "product_service", "buy_product",
 		attribute.String(metric.AttrProductName, name),
 		attribute.Int("product.purchase_quantity", quantity),
 	)

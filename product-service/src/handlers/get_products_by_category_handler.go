@@ -44,7 +44,7 @@ func (h *ProductHandler) GetProductsByCategory(c *fiber.Ctx) (err error) {
 	}
 
 	categoryAttr := attribute.String("product.category", category)
-	newCtx, span := commontrace.StartSpan(ctx, categoryAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_handler", "get_products_by_category", categoryAttr)
 	ctx = newCtx
 	defer func() {
 		var telemetryErr error

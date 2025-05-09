@@ -24,7 +24,7 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 		slog.String("client_ip", c.IP()),
 		slog.String("user_agent", c.Get("User-Agent")))
 
-	newCtx, span := commontrace.StartSpan(ctx)
+	newCtx, span := commontrace.StartSpan(ctx, "product_handler", "get_all_products")
 	ctx = newCtx
 	defer func() {
 		var telemetryErr error

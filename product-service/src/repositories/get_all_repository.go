@@ -18,7 +18,8 @@ import (
 )
 
 func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.Product, appErr *apierrors.AppError) {
-	newCtx, span := commontrace.StartSpan(ctx, attribute.String("repository.operation", "GetAll"))
+	newCtx, span := commontrace.StartSpan(ctx, "product_repository", "get_all",
+		attribute.String("repository.operation", "GetAll"))
 	ctx = newCtx // Update ctx if StartSpan modifies it
 	defer func() {
 		var telemetryErr error

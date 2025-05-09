@@ -60,7 +60,7 @@ func (h *ProductHandler) GetProductByName(c *fiber.Ctx) (err error) {
 
 	productNameAttr := attribute.String("product.name", productName)
 
-	newCtx, span := commontrace.StartSpan(ctx, productNameAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_handler", "get_product_by_name", productNameAttr)
 	ctx = newCtx
 	defer func() {
 		var telemetryErr error

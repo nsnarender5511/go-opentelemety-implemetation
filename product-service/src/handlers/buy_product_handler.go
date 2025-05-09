@@ -66,7 +66,7 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 		slog.Int("quantity", quantity),
 		slog.String("operation", "buy_product"))
 
-	newCtx, span := commontrace.StartSpan(ctx,
+	newCtx, span := commontrace.StartSpan(ctx, "product_handler", "buy_product",
 		attribute.String("product.name", productName),
 		attribute.Int("product.purchase_quantity", quantity))
 	ctx = newCtx

@@ -22,7 +22,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 	attrs := []attribute.KeyValue{productNameAttr, newStockAttr}
 
-	ctx, span := commontrace.StartSpan(ctx, attrs...)
+	ctx, span := commontrace.StartSpan(ctx, "product_repository", "update_stock", attrs...)
 	var opErr error
 	defer func() {
 		if appErr != nil && opErr == nil {
@@ -43,7 +43,8 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 
 	r.logger.DebugContext(ctx, "Accessing product database",
 		slog.String("component", "product_repository"),
-		slog.String("product_name", name))
+		slog.String("product_name", name),
+		slog.String("operation", "database_read"))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
@@ -69,7 +70,8 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 
 	r.logger.DebugContext(ctx, "Verifying product exists",
 		slog.String("component", "product_repository"),
-		slog.String("product_name", name))
+		slog.String("product_name", name),
+		slog.String("operation", "verify_product"))
 
 	product, ok := productsMap[name]
 	if !ok {
@@ -113,7 +115,8 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		slog.Int("old_stock", oldStock),
 		slog.Int("new_stock", newStock),
 		slog.Int("stock_change", stockDiff),
-		slog.String("stock_change_type", stockChangeType))
+		slog.String("stock_change_type", stockChangeType),
+		slog.String("operation", "stock_update"))
 
 	if writeErr := r.database.Write(ctx, productsMap); writeErr != nil {
 		errMsg := "Failed to write updated product data"
@@ -145,6 +148,7 @@ func (r *productRepository) UpdateStock(ctx context.Context, name string, newSto
 		slog.Int("old_stock", oldStock),
 		slog.Int("new_stock", newStock),
 		slog.String("operation", "update_stock"),
+		slog.String("status", "success"),
 		slog.String("event_type", "stock_update_completed"))
 
 	return nil

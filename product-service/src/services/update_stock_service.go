@@ -17,7 +17,7 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 	productNameAttr := attribute.String(metric.AttrProductName, name)
 	newStockAttr := attribute.Int("product.new_stock", newStock)
 
-	newCtx, span := commontrace.StartSpan(ctx, productNameAttr, newStockAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_service", "update_stock", productNameAttr, newStockAttr)
 	ctx = newCtx // Update ctx
 	defer func() {
 		var telemetryErr error

@@ -18,7 +18,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 	// Remove request ID extraction from context
 
 	productNameAttr := attribute.String("product.name", name)
-	newCtx, span := commontrace.StartSpan(ctx, productNameAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_repository", "get_by_name", productNameAttr)
 	ctx = newCtx // Update ctx
 	defer func() {
 		var telemetryErr error

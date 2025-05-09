@@ -18,7 +18,7 @@ import (
 
 func (r *productRepository) GetByCategory(ctx context.Context, category string) (filteredProducts []models.Product, appErr *apierrors.AppError) {
 	categoryAttr := attribute.String("product.category", category)
-	newCtx, span := commontrace.StartSpan(ctx, categoryAttr)
+	newCtx, span := commontrace.StartSpan(ctx, "product_repository", "get_by_category", categoryAttr)
 	ctx = newCtx // Update ctx
 	defer func() {
 		var telemetryErr error

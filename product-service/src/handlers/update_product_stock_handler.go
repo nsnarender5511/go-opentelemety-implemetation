@@ -64,7 +64,7 @@ func (h *ProductHandler) UpdateProductStock(c *fiber.Ctx) (err error) {
 		slog.Int("new_stock", newStock),
 		slog.String("operation", "update_product_stock"))
 
-	newCtx, span := commontrace.StartSpan(c.UserContext(),
+	newCtx, span := commontrace.StartSpan(c.UserContext(), "product_handler", "update_product_stock",
 		attribute.String("product.name", productName),
 		attribute.Int("product.update_stock_to", newStock))
 	ctx = newCtx

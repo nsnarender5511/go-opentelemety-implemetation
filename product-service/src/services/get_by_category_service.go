@@ -20,7 +20,8 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 		slog.String("operation", "get_products_by_category"),
 		slog.String("event_type", "category_products_processing"))
 
-	newCtx, span := commontrace.StartSpan(ctx, attribute.String("product.category", category))
+	newCtx, span := commontrace.StartSpan(ctx, "product_service", "get_by_category",
+		attribute.String("product.category", category))
 	ctx = newCtx // Update ctx
 	defer func() {
 		var telemetryErr error
