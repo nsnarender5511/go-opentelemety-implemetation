@@ -19,9 +19,13 @@ type Config struct {
 	SERVICE_VERSION string `env:"SERVICE_VERSION" envDefault:"unknown"`
 
 	// Debug/Simulation Settings
-	SimulateDelayEnabled bool `env:"SIMULATE_DELAY_ENABLED" envDefault:"false"`
-	SimulateDelayMinMs   int  `env:"SIMULATE_DELAY_MIN_MS" envDefault:"10"`
-	SimulateDelayMaxMs   int  `env:"SIMULATE_DELAY_MAX_MS" envDefault:"100"`
+	SimulateDelayEnabled           bool    `env:"SIMULATE_DELAY_ENABLED" envDefault:"false"`
+	SimulateDelayMinMs             int     `env:"SIMULATE_DELAY_MIN_MS" envDefault:"10"`
+	SimulateDelayMaxMs             int     `env:"SIMULATE_DELAY_MAX_MS" envDefault:"100"`
+	SimulateRandomErrorEnabled     bool    `env:"SIMULATE_RANDOM_ERROR_ENABLED" envDefault:"false"`
+	SimulateOverallErrorChance     float64 `env:"SIMULATE_OVERALL_ERROR_CHANCE" envDefault:"0.1"`
+	SimulateApplicationErrorWeight int     `env:"SIMULATE_APPLICATION_ERROR_WEIGHT" envDefault:"1"`
+	SimulateBusinessErrorWeight    int     `env:"SIMULATE_BUSINESS_ERROR_WEIGHT" envDefault:"1"`
 }
 
 // NOTE: Removed GetProductionConfig, GetDevelopmentConfig, commonConfig functions
