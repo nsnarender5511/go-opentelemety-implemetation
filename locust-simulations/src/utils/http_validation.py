@@ -5,16 +5,6 @@ import json
 logger = logging.getLogger("validators")
 
 def validate_response(response, checks: List[Callable]) -> bool:
-    """
-    Run a series of validation checks on a response.
-    
-    Args:
-        response: The HTTP response object
-        checks: List of validator functions to run
-        
-    Returns:
-        True if all checks pass, False otherwise
-    """
     success = True
     for check in checks:
         try:
@@ -27,15 +17,6 @@ def validate_response(response, checks: List[Callable]) -> bool:
     return success
 
 def check_status_code(expected_code: int) -> Callable:
-    """
-    Create a validator for status code.
-    
-    Args:
-        expected_code: Expected HTTP status code
-        
-    Returns:
-        Validator function
-    """
     def _check(response) -> bool:
         if response.status_code != expected_code:
             logger.warning(f"Expected status {expected_code}, got {response.status_code}")
@@ -44,15 +25,6 @@ def check_status_code(expected_code: int) -> Callable:
     return _check
 
 def check_content_type(expected_type: str = "application/json") -> Callable:
-    """
-    Create a validator for content type.
-    
-    Args:
-        expected_type: Expected content type
-        
-    Returns:
-        Validator function
-    """
     def _check(response) -> bool:
         content_type = response.headers.get('Content-Type', '')
         if expected_type not in content_type:
@@ -62,15 +34,6 @@ def check_content_type(expected_type: str = "application/json") -> Callable:
     return _check
 
 def check_json_contains(expected_fields: List[str]) -> Callable:
-    """
-    Create a validator that checks if JSON response contains required fields.
-    
-    Args:
-        expected_fields: List of field names expected in the response
-        
-    Returns:
-        Validator function
-    """
     def _check(response) -> bool:
         try:
             data = response.json()
@@ -85,15 +48,6 @@ def check_json_contains(expected_fields: List[str]) -> Callable:
     return _check
 
 def check_product_schema(response) -> bool:
-    """
-    Check if response contains a valid product schema.
-    
-    Args:
-        response: HTTP response object
-        
-    Returns:
-        True if response has valid product schema, False otherwise
-    """
     try:
         product = response.json()
         required_fields = ["name", "description", "price", "stock", "category"]
@@ -107,15 +61,6 @@ def check_product_schema(response) -> bool:
         return False
 
 def check_products_list_schema(response) -> bool:
-    """
-    Check if response contains a valid products list schema.
-    
-    Args:
-        response: HTTP response object
-        
-    Returns:
-        True if response has valid products list schema, False otherwise
-    """
     try:
         data = response.json()
         products = None

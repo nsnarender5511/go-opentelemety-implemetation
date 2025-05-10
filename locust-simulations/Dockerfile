@@ -20,7 +20,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # Make script executable
-RUN chmod +x scripts/run_tests.sh
+# RUN chmod +x scripts/run_tests.sh
 
 # Expose the Locust web interface port
 EXPOSE 8089

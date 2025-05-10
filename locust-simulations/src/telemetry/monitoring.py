@@ -18,7 +18,6 @@ try:
     from opentelemetry.sdk.resources import Resource, SERVICE_NAME
     
     def setup_opentelemetry():
-        """Initialize OpenTelemetry based on environment variables."""
         global otel_initialized
         
         # Only initialize once
@@ -64,12 +63,10 @@ try:
             logger.error(f"Failed to initialize OpenTelemetry: {e}")
     
     def _register_telemetry_handlers():
-        """Register Locust event handlers for OpenTelemetry integration."""
         tracer = trace.get_tracer(__name__)
         
         @events.request.add_listener
         def on_request(request_type, name, response_time, response_length, exception, **kwargs):
-            """Create spans for each request."""
             with tracer.start_as_current_span(f"{request_type} {name}") as span:
                 span.set_attribute("http.method", request_type)
                 span.set_attribute("http.url", name)
@@ -85,7 +82,6 @@ try:
         
         @events.test_start.add_listener
         def on_test_start(environment, **kwargs):
-            """Create span for test start."""
             with tracer.start_as_current_span("locust_test_start") as span:
                 span.set_attribute("test.type", "load_test")
                 span.set_attribute("test.start_time", time.time())
@@ -101,7 +97,6 @@ try:
         
         @events.test_stop.add_listener
         def on_test_stop(environment, **kwargs):
-            """Create span for test completion."""
             with tracer.start_as_current_span("locust_test_stop") as span:
                 span.set_attribute("test.end_time", time.time())
                 
@@ -123,5 +118,4 @@ except ImportError:
     logger.warning("OpenTelemetry packages not installed, telemetry features disabled")
     
     def setup_opentelemetry():
-        """Stub function when OpenTelemetry is not available."""
         logger.warning("OpenTelemetry packages not installed, telemetry features disabled") 

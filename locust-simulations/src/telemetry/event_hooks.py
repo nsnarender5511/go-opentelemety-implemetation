@@ -21,11 +21,9 @@ custom_stats = {
 request_response_times = {}
 
 def register_stats_event_handlers():
-    """Register event handlers for custom statistics tracking."""
     
     @events.request.add_listener
     def on_request(request_type, name, response_time, response_length, exception, **kwargs):
-        """Track custom metrics based on request type and outcome."""
         # Track response times
         if name not in request_response_times:
             request_response_times[name] = []
@@ -54,7 +52,6 @@ def register_stats_event_handlers():
     
     @events.test_start.add_listener
     def on_test_start(environment, **kwargs):
-        """Reset statistics when test starts."""
         # Reset custom stats
         for key in custom_stats:
             custom_stats[key] = 0
@@ -66,7 +63,6 @@ def register_stats_event_handlers():
     
     @events.test_stop.add_listener
     def on_test_stop(environment, **kwargs):
-        """Generate reports when test completes."""
         # Print custom statistics to console
         logger.info("\n=== Custom Statistics ===")
         for key, value in custom_stats.items():
@@ -112,7 +108,6 @@ stats_interval = 60  # Log stats every 60 seconds
 
 @events.request.add_listener
 def log_periodic_stats(request_type, name, response_time, response_length, exception, **kwargs):
-    """Log stats at regular intervals during the test."""
     global last_stats_time
     
     current_time = time.time()

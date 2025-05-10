@@ -20,8 +20,8 @@ services:
       - SERVICE_NAME=product-simulator
     networks:
       - otel_internal-network
-    depends_on:
-      - nginx
+    # depends_on:
+    #   - nginx
     volumes:
       - ./locust-simulations/results:/app/results
       - ./locust-simulations/src:/app/src

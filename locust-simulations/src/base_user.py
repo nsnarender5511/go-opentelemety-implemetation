@@ -1,7 +1,3 @@
-"""
-Base User for Load Testing
-This file defines the BaseAPIUser class with common functionality for all API users.
-"""
 import os
 import logging
 import time
@@ -16,10 +12,9 @@ from src.utils.http_validation import validate_response, check_status_code, chec
 # Configure logging
 logger = logging.getLogger("base_user")
 
+shared_data = SharedData()
+
 class BaseAPIUser(HttpUser):
-    """
-    Base class with common functionality for all API users.
-    """
     
     wait_time = between(1, 3)
     
@@ -31,19 +26,9 @@ class BaseAPIUser(HttpUser):
         self.service_name = ""    # Default empty name, to be overridden by subclasses
         
     def on_start(self):
-        """Initialize shared data on start"""
-        self.shared_data = SharedData()  # Use global instance
+        self.shared_data = shared_data
     
     def _get_path(self, endpoint):
-        """
-        Convert endpoint path based on whether nginx proxy is used
-        
-        Args:
-            endpoint: The endpoint path (e.g., "/health")
-            
-        Returns:
-            The full path with prefix if using nginx proxy
-        """
         if self.use_nginx_proxy and self.service_prefix:
             # For nginx proxy, prepend /prefix/
             return f"/{self.service_prefix}{endpoint}"
@@ -51,15 +36,6 @@ class BaseAPIUser(HttpUser):
         return endpoint
     
     def _can_execute_task(self, task_name):
-        """
-        Return True if the task can be executed, False otherwise
-        
-        Args:
-            task_name: The name of the task to check
-            
-        Returns:
-            True if task can be executed, False otherwise
-        """
         max_executions_arg = f"max_{task_name}"
         max_executions = getattr(self.environment.parsed_options, max_executions_arg, -1) if hasattr(self.environment, "parsed_options") else -1
         
@@ -71,28 +47,10 @@ class BaseAPIUser(HttpUser):
         return current_count < max_executions
     
     def _increment_task_count(self, task_name):
-        """
-        Increment the task count and return the new value
-        
-        Args:
-            task_name: The name of the task to increment
-            
-        Returns:
-            The new count after incrementing
-        """
         self.task_counts[task_name] = self.task_counts.get(task_name, 0) + 1
         return self.task_counts[task_name]
     
     def _extract_products(self, response: ResponseContextManager) -> List[Dict[str, Any]]:
-        """
-        Extract products from a response in a consistent way regardless of format
-        
-        Args:
-            response: HTTP response object
-            
-        Returns:
-            List of product dictionaries
-        """
         try:
             data = response.json()
             
@@ -124,18 +82,6 @@ class BaseAPIUser(HttpUser):
             return []
     
     def _retry_request(self, request_func, name, validators=None, max_retries=3):
-        """
-        Helper to retry API requests with exponential backoff
-        
-        Args:
-            request_func: Function that makes the HTTP request
-            name: Name of the request for logging
-            validators: List of validation functions to apply
-            max_retries: Maximum number of retry attempts
-            
-        Returns:
-            Response object or None if all retries failed
-        """
         retry_delay = 1
         
         for attempt in range(max_retries):
@@ -170,16 +116,6 @@ class BaseAPIUser(HttpUser):
         return None
     
     def process_products_response(self, response, update_shared_data=True):
-        """
-        Process product response and optionally update shared data
-        
-        Args:
-            response: HTTP response object
-            update_shared_data: Whether to update shared data with products
-            
-        Returns:
-            List of extracted products or None
-        """
         if response and response.status_code == 200:
             products = self._extract_products(response)
             if products and update_shared_data:
