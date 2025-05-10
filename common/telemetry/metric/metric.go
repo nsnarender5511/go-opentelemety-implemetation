@@ -158,11 +158,6 @@ func UpdateProductStockLevels(ctx context.Context, productName, productCategory 
 		ProductName:     productName,
 		ProductCategory: productCategory,
 	}
-	slog.DebugContext(ctx, "Updated product stock level",
-		slog.String(AttrProductName, productName),
-		slog.String(AttrProductCategory, productCategory),
-		slog.Int64(AttrStockLevel, stockLevel),
-	)
 }
 
 func IncrementRevenueTotal(ctx context.Context, revenue float64, productName, productCategory string) {
