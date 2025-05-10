@@ -16,8 +16,7 @@ import (
 func (s *productService) GetAll(ctx context.Context) (products []models.Product, appErr *apierrors.AppError) {
 	s.logger.DebugContext(ctx, "Initializing service layer processing for complete product catalog retrieval",
 		slog.String("component", "product_service"),
-		slog.String("operation", "get_all_products"),
-		slog.String("event_type", "product_list_processing"))
+		slog.String("operation", "get_all_products"))
 
 	newCtx, span := commontrace.StartSpan(ctx, "product_service", "get_all_products")
 	ctx = newCtx // Update ctx if StartSpan modifies it
@@ -44,9 +43,7 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
 			slog.String("component", "product_service"),
-			slog.String("operation", "get_all_products"),
-			slog.String("event_type", "product_list_retrieval_failed"))
-
+			slog.String("operation", "get_all_products"))
 		if span != nil { // Check if span is valid before using
 			span.SetStatus(codes.Error, repoErr.Message)
 		}
@@ -60,7 +57,6 @@ func (s *productService) GetAll(ctx context.Context) (products []models.Product,
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_service"),
 		slog.String("operation", "get_all_products"),
-		slog.String("event_type", "products_retrieved"),
 		slog.String("status", "success"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {

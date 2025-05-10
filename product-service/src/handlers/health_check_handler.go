@@ -11,12 +11,10 @@ func (h *ProductHandler) HealthCheck(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 
 	// Get request ID
-	requestID := c.Locals("requestID").(string)
 
 	h.logger.DebugContext(ctx, "Health check requested",
-		slog.String("request_id", requestID),
-		slog.String("path", c.Path()),
-		slog.String("event_type", "health_check"))
+		slog.String("component", "product_handler"),
+		slog.String("operation", "health_check"))
 
 	// Create response with request ID
 	response := fiber.Map{

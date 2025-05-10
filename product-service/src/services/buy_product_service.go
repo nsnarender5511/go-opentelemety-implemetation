@@ -31,8 +31,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("quantity", quantity),
-		slog.String("operation", "buy_product"),
-		slog.String("event_type", "purchase_initiated"))
+		slog.String("operation", "buy_product"))
 
 	s.logger.DebugContext(ctx, "Retrieving product stock information",
 		slog.String("component", "product_service"),
@@ -46,8 +45,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 			slog.String("product_name", name),
 			slog.String("error", repoGetErr.Error()),
 			slog.String("error_code", repoGetErr.Code),
-			slog.String("operation", "buy_product"),
-			slog.String("event_type", "product_lookup_failed"))
+			slog.String("operation", "buy_product"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoGetErr.Message)
@@ -70,11 +68,9 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		s.logger.WarnContext(ctx, "Purchase rejected: insufficient stock",
 			slog.String("component", "product_service"),
 			slog.String("product_name", name),
-			slog.Int("requested", quantity),
 			slog.Int("available", product.Stock),
-			slog.String("error_code", apierrors.ErrCodeInsufficientStock),
-			slog.String("operation", "buy_product"),
-			slog.String("event_type", "purchase_rejected"))
+			slog.String("error", apierrors.ErrCodeInsufficientStock),
+			slog.String("operation", "buy_product"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, "Insufficient stock")
@@ -97,8 +93,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		slog.String("product_name", name),
 		slog.Int("available", product.Stock),
 		slog.Int("requested", quantity),
-		slog.String("operation", "stock_verification"),
-		slog.String("event_type", "stock_verified"))
+		slog.String("operation", "stock_verification"))
 
 	newStock := product.Stock - quantity
 	s.logger.DebugContext(ctx, "Calculating inventory update",
@@ -120,8 +115,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 			slog.String("product_name", name),
 			slog.String("error", repoUpdateErr.Error()),
 			slog.String("error_code", repoUpdateErr.Code),
-			slog.String("operation", "buy_product"),
-			slog.String("event_type", "inventory_update_failed"))
+			slog.String("operation", "buy_product"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoUpdateErr.Message)
@@ -156,8 +150,7 @@ func (s *productService) BuyProduct(ctx context.Context, name string, quantity i
 		slog.Float64("revenue", revenue),
 		slog.Int("remaining_stock", newStock),
 		slog.String("operation", "buy_product"),
-		slog.String("status", "success"),
-		slog.String("event_type", "purchase_completed"))
+		slog.String("status", "success"))
 
 	return revenue, appErr
 }

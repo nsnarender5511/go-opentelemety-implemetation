@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional
 
 from locust import HttpUser, task, between, tag, events
 from locust.clients import ResponseContextManager
-import json
 import random
 import time
 from typing import List
@@ -27,6 +26,45 @@ shared_data = SharedData()
 
 class SimulationUser(BaseAPIUser):
     
+    DEFAULT_TASK_WEIGHTS = {
+        "browse_all_products": 15,
+        "get_products_by_category": 15,
+        "get_product_by_name": 20,
+        "update_product_stock": 5,
+        "buy_product": 20,
+        "health_check": 25,
+    }
+    
+    @staticmethod
+    def configure_parser(parser):
+        # Add arguments for task weights and max_executions
+        for task_name, default_weight in SimulationUser.DEFAULT_TASK_WEIGHTS.items():
+            # Weight argument
+            parser.add_argument(
+                f"--weight-{task_name.replace('_', '-')}",
+                type=int,
+                env_var=f"LOCUST_WEIGHT_{task_name.upper()}",
+                default=None,  # Default to None to detect if user set it
+                help=f"Weight for {task_name} task (default: {default_weight})"
+            )
+            # Max execution argument
+            parser.add_argument(
+                f"--max-{task_name.replace('_', '-')}",
+                type=int,
+                env_var=f"LOCUST_MAX_{task_name.upper()}",
+                default=-1,
+                help=f"Max executions for {task_name} task (-1=unlimited, 0=disabled)"
+            )
+
+        # Nginx proxy setting
+        parser.add_argument(
+            "--use-nginx-proxy", 
+            type=str, 
+            env_var="USE_NGINX_PROXY", 
+            default="false", 
+            help="Set to 'true' to route requests via Nginx proxy (e.g., /product-service/endpoint)"
+        )
+    
     wait_time = between(1, 3)
     
     def __init__(self, *args, **kwargs):
@@ -35,8 +73,51 @@ class SimulationUser(BaseAPIUser):
             "health_check": 100 # Default, can be overridden by command line
         }
         self.possible_categories = []
+
+        # Dynamically build self.tasks
+        weighted_tasks_list = []
+        for task_name, default_weight in self.DEFAULT_TASK_WEIGHTS.items():
+            arg_name = f"weight_{task_name}" 
+            
+            user_weight_input_str = None # Stores the raw string from env/arg
+            if hasattr(self.environment, "parsed_options") and self.environment.parsed_options is not None:
+                # getattr might return '' if env var is set but empty, or None if not set
+                raw_user_weight = getattr(self.environment.parsed_options, arg_name, None)
+                if raw_user_weight is not None: # Ensure it's not None before checking if it's an empty string
+                    user_weight_input_str = str(raw_user_weight) # Ensure it's a string for consistent handling
+            
+            actual_weight = default_weight
+            if user_weight_input_str is not None: # Check if user provided any input
+                if user_weight_input_str == '': # Specifically handle empty string case
+                    logger.warning(f"User-defined weight for task '{task_name}' is an empty string. Using default weight {default_weight}.")
+                    # actual_weight remains default_weight
+                else:
+                    try:
+                        user_weight_int = int(user_weight_input_str)
+                        if user_weight_int >= 0: # Weights must be non-negative
+                            actual_weight = user_weight_int
+                        else:
+                            logger.warning(f"User-defined weight '{user_weight_input_str}' for task '{task_name}' is negative. Using default weight {default_weight}.")
+                            # actual_weight remains default_weight
+                    except ValueError:
+                        logger.warning(f"Could not convert user-defined weight '{user_weight_input_str}' for task '{task_name}' to int. Using default weight {default_weight}.")
+                        # actual_weight remains default_weight
+            
+            if actual_weight > 0:
+                task_method = getattr(type(self), task_name, None)
+                if task_method:
+                    for _ in range(actual_weight): # Append task_method actual_weight times
+                        weighted_tasks_list.append(task_method)
+                else:
+                    logger.warning(f"Task method {task_name} not found in SimulationUser for dynamic weighting.")
+        
+        self.tasks = weighted_tasks_list # Assign the constructed list to self.tasks
+        
+        if not self.tasks:
+            logger.error("No tasks were assigned weights > 0 or no task methods found. SimulationUser will have no tasks to run!")
     
     def on_start(self):
+        super().on_start()
         self.shared_data = shared_data # Use the global instance
         if not self.shared_data.get_products():
             self._load_initial_products()
@@ -49,11 +130,6 @@ class SimulationUser(BaseAPIUser):
             # Extract unique categories from product data
             self.possible_categories = list(set(product.get("category", "") for product in products if product.get("category")))
             logger.info(f"Extracted categories from product data: {self.possible_categories}")
-        
-        if not self.possible_categories:
-            # Fallback to defaults if no categories were found
-            self.possible_categories = ["Electronics", "Apparel", "Books", "Kitchenware", "Furniture"]
-            logger.info(f"Using default categories: {self.possible_categories}")
     
     def _load_initial_products(self):
         max_retries = 3
@@ -90,46 +166,6 @@ class SimulationUser(BaseAPIUser):
         logger.error(f"Failed to load initial product data after {max_retries} attempts")
         return False
     
-    def _extract_products(self, response: ResponseContextManager) -> List[Dict[str, Any]]:
-        try:
-            data = response.json()
-            
-            # Case 1: Object where each key is a product name
-            if isinstance(data, dict) and not "data" in data:
-                # Convert object with product names as keys to a list of products
-                products_list = []
-                for product_name, product_data in data.items():
-                    if isinstance(product_data, dict) and "name" in product_data:
-                        products_list.append(product_data)
-                    elif not isinstance(product_data, dict) and product_name == "error":
-                        # Skip error messages
-                        logger.warning(f"API error response: {product_data}")
-                        continue
-                    else:
-                        logger.warning(f"Unexpected product data format: {type(product_data)}")
-                return products_list
-                
-            # Case 2: Response has a "data" field containing the products
-            elif isinstance(data, dict) and "data" in data:
-                products_list = data["data"]
-                # If data is an object with product names as keys, convert to list
-                if isinstance(products_list, dict):
-                    return [product for _, product in products_list.items() if isinstance(product, dict)]
-                return products_list
-                
-            # Case 3: Response is a direct list of products
-            elif isinstance(data, list):
-                products_list = data
-                return products_list
-                
-            else:
-                logger.warning(f"Unexpected response structure from API: {type(data)}")
-                return []
-        except Exception as e:
-            logger.error(f"Error extracting products: {e}")
-            return []
-    
-    @task(70)
     @tag("browse")
     def browse_all_products(self):
         task_name = "browse_all_products"
@@ -150,7 +186,6 @@ class SimulationUser(BaseAPIUser):
         )
         self.process_products_response(response, update_shared_data=True)
     
-    @task(50)
     @tag("browse", "category")
     def get_products_by_category(self):
         task_name = "get_products_by_category"
@@ -174,7 +209,6 @@ class SimulationUser(BaseAPIUser):
         )
         self.process_products_response(response, update_shared_data=False) # Don't necessarily update all products from category view
 
-    @task(40)
     @tag("shopping", "details")
     def get_product_by_name(self):
         task_name = "get_product_by_name"
@@ -200,7 +234,6 @@ class SimulationUser(BaseAPIUser):
             validators=[check_status_code(200), check_content_type()]
         )
 
-    @task(5)
     @tag("admin", "inventory")
     def update_product_stock(self):
         task_name = "update_product_stock"
@@ -227,7 +260,6 @@ class SimulationUser(BaseAPIUser):
             validators=[check_status_code(200), check_content_type()]
         )
 
-    @task(15)
     @tag("shopping", "purchase")
     def buy_product(self):
         task_name = "buy_product"
@@ -256,7 +288,6 @@ class SimulationUser(BaseAPIUser):
         )
         # Custom logic for buy_product response can be added here if needed
 
-    @task(2)
     @tag("health")
     def health_check(self):
         task_name = "health_check"
@@ -281,16 +312,9 @@ class SimulationUser(BaseAPIUser):
 
 @events.init_command_line_parser.add_listener
 def _(parser):
-    # Task execution limits
-    parser.add_argument("--max-health-check", type=int, env_var="LOCUST_MAX_HEALTH_CHECK", default=-1, help="Max executions for health_check (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-browse-all-products", type=int, env_var="LOCUST_MAX_BROWSE_ALL_PRODUCTS", default=-1, help="Max executions for browse_all_products (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-get-products-by-category", type=int, env_var="LOCUST_MAX_GET_PRODUCTS_BY_CATEGORY", default=-1, help="Max executions for get_products_by_category (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-get-product-by-name", type=int, env_var="LOCUST_MAX_GET_PRODUCT_BY_NAME", default=-1, help="Max executions for get_product_by_name (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-update-product-stock", type=int, env_var="LOCUST_MAX_UPDATE_PRODUCT_STOCK", default=-1, help="Max executions for update_product_stock (-1=unlimited, 0=disabled)")
-    parser.add_argument("--max-buy-product", type=int, env_var="LOCUST_MAX_BUY_PRODUCT", default=-1, help="Max executions for buy_product (-1=unlimited, 0=disabled)")
-    
-    # Nginx proxy setting
-    parser.add_argument("--use-nginx-proxy", type=str, env_var="USE_NGINX_PROXY", default="false", help="Set to 'true' to route requests via Nginx proxy (e.g., /product-service/endpoint)")
+    SimulationUser.configure_parser(parser)
+    # Any other truly global (non-SimulationUser specific) arguments 
+    # could remain here or be added by other listeners.
 
 # Ensure telemetry is set up if enabled
 from src.telemetry.monitoring import setup_opentelemetry

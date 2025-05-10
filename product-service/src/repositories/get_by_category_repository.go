@@ -41,7 +41,7 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
 		slog.String("category", category),
 		slog.String("component", "product_repository"),
-		slog.String("database_operation", "read"))
+		slog.String("operation", "read_from_database"))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
@@ -79,7 +79,7 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 		slog.String("category", category),
 		slog.String("component", "product_repository"),
 		slog.Int("total_products", len(productsMap)),
-		slog.String("filter_operation", "category_match"))
+		slog.String("operation", "category_match"))
 
 	filteredProducts = make([]models.Product, 0)
 	for _, p := range productsMap {
@@ -103,8 +103,7 @@ func (r *productRepository) GetByCategory(ctx context.Context, category string) 
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_by_category"),
-		slog.String("status", "success"),
-		slog.String("event_type", "category_products_retrieved"))
+		slog.String("status", "success"))
 
 	return filteredProducts, appErr // appErr is nil here if successful
 }

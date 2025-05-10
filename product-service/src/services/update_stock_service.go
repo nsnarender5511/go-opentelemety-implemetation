@@ -38,8 +38,7 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("new_stock", newStock),
-		slog.String("operation", "update_stock"),
-		slog.String("event_type", "stock_update_processing"))
+		slog.String("operation", "update_stock"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		appErr = simAppErr
@@ -61,8 +60,7 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 			slog.String("product_name", name),
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
-			slog.String("operation", "update_stock"),
-			slog.String("event_type", "stock_update_failed"))
+			slog.String("operation", "update_stock"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoErr.Message)
@@ -85,9 +83,7 @@ func (s *productService) UpdateStock(ctx context.Context, name string, newStock 
 		slog.String("component", "product_service"),
 		slog.String("product_name", name),
 		slog.Int("new_stock", newStock),
-		slog.String("operation", "update_stock"),
-		slog.String("status", "success"),
-		slog.String("event_type", "stock_update_completed"))
+		slog.String("operation", "update_stock"))
 
 	return appErr
 }

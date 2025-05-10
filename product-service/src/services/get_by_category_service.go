@@ -17,8 +17,7 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 	s.logger.InfoContext(ctx, "Initializing service layer processing for category-based product filtering",
 		slog.String("category", category),
 		slog.String("component", "product_service"),
-		slog.String("operation", "get_products_by_category"),
-		slog.String("event_type", "category_products_processing"))
+		slog.String("operation", "get_products_by_category"))
 
 	newCtx, span := commontrace.StartSpan(ctx, "product_service", "get_by_category",
 		attribute.String("product.category", category))
@@ -48,8 +47,7 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
 			slog.String("component", "product_service"),
-			slog.String("operation", "get_products_by_category"),
-			slog.String("event_type", "category_products_retrieval_failed"))
+			slog.String("operation", "get_products_by_category"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoErr.Message)
@@ -66,9 +64,7 @@ func (s *productService) GetByCategory(ctx context.Context, category string) (pr
 		slog.String("category", category),
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_service"),
-		slog.String("operation", "get_products_by_category"),
-		slog.String("status", "success"),
-		slog.String("event_type", "category_products_retrieved"))
+		slog.String("operation", "get_products_by_category"))
 
 	return products, appErr
 }

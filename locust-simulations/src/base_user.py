@@ -3,18 +3,18 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Callable
 
-from locust import HttpUser, between, events
+from locust import HttpUser, between
 from locust.clients import ResponseContextManager
 
 from src.utils.shared_data import SharedData
-from src.utils.http_validation import validate_response, check_status_code, check_content_type
+from src.utils.http_validation import validate_response
+from src.utils.product_parser import parse_products_from_data
 
 # Configure logging
 logger = logging.getLogger("base_user")
 
-shared_data = SharedData()
-
 class BaseAPIUser(HttpUser):
+    abstract = True
     
     wait_time = between(1, 3)
     
@@ -26,7 +26,7 @@ class BaseAPIUser(HttpUser):
         self.service_name = ""    # Default empty name, to be overridden by subclasses
         
     def on_start(self):
-        self.shared_data = shared_data
+        pass
     
     def _get_path(self, endpoint):
         if self.use_nginx_proxy and self.service_prefix:
@@ -52,33 +52,11 @@ class BaseAPIUser(HttpUser):
     
     def _extract_products(self, response: ResponseContextManager) -> List[Dict[str, Any]]:
         try:
-            data = response.json()
-            
-            # Case 1: Standard API wrapper with data field
-            if isinstance(data, dict) and "data" in data and "status" in data:
-                data = data["data"]
-                
-            # Case 2: Response is a direct list of products
-            if isinstance(data, list):
-                return data
-                
-            # Case 3: Response is a dictionary with product names as keys
-            if isinstance(data, dict):
-                products_list = []
-                for product_name, product_data in data.items():
-                    if isinstance(product_data, dict) and "name" in product_data:
-                        products_list.append(product_data)
-                    elif not isinstance(product_data, dict) and product_name == "error":
-                        logger.warning(f"API error response: {product_data}")
-                        continue
-                    else:
-                        logger.warning(f"Unexpected product data format: {type(product_data)}")
-                return products_list
-                
-            logger.warning(f"Unexpected response structure from API: {type(data)}")
-            return []
+            json_data = response.json()
+            return parse_products_from_data(json_data, logger)
         except Exception as e:
-            logger.error(f"Error extracting products: {e}")
+            logger.error(f"Error extracting products: {e} - Response text: {response.text[:500]}")
+            response.failure(f"Failed to parse JSON response: {e}")
             return []
     
     def _retry_request(self, request_func, name, validators=None, max_retries=3):

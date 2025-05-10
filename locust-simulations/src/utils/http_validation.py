@@ -1,6 +1,12 @@
 import logging
-from typing import List, Dict, Any, Callable, Optional
-import json
+from typing import List, Dict, Any, Callable, Optional, Union
+# import json # Already commented/removed, ensure it stays that way if present
+
+# Remove the problematic relative import of BaseAPIUser
+# from ..base_user import BaseAPIUser # REMOVE THIS LINE
+
+# Import the new utility function
+from .product_parser import parse_products_from_data # Assuming product_parser.py is in the same 'utils' directory
 
 logger = logging.getLogger("validators")
 
@@ -16,11 +22,18 @@ def validate_response(response, checks: List[Callable]) -> bool:
             success = False
     return success
 
-def check_status_code(expected_code: int) -> Callable:
+def check_status_code(expected_codes: Union[int, List[int]]) -> Callable:
     def _check(response) -> bool:
-        if response.status_code != expected_code:
-            logger.warning(f"Expected status {expected_code}, got {response.status_code}")
-            return False
+        if isinstance(expected_codes, list):
+            # Handle a list of expected codes
+            if response.status_code not in expected_codes:
+                logger.warning(f"Expected status to be one of {expected_codes}, got {response.status_code}")
+                return False
+        else:
+            # Handle a single expected code (integer)
+            if response.status_code != expected_codes:
+                logger.warning(f"Expected status {expected_codes}, got {response.status_code}")
+                return False
         return True
     return _check
 
@@ -62,84 +75,32 @@ def check_product_schema(response) -> bool:
 
 def check_products_list_schema(response) -> bool:
     try:
-        data = response.json()
-        products = None
+        json_payload = response.json()
+        # Use the imported utility function to parse products
+        products = parse_products_from_data(json_payload, logger) 
         
-        # Case 1: Object with product names as keys
-        if isinstance(data, dict) and not "data" in data:
-            # Check if at least one product exists and has required fields
-            if not data:
-                return True  # Empty response is valid
-                
-            # Get first product to check schema
-            first_product_name = next(iter(data))
-            first_product = data[first_product_name]
+        if products is None: 
+            response.failure("Failed to parse product data for schema check (parser returned None)")
+            return False
             
-            if not isinstance(first_product, dict):
-                logger.warning(f"Expected product to be a dictionary")
-                return False
-                
-            # Check minimal product fields in first product
-            required_fields = ["name", "description", "price"]
-            for field in required_fields:
-                if field not in first_product:
-                    logger.warning(f"Product missing required field: {field}")
-                    return False
-            
+        if not products:  
             return True
         
-        # Case 2: Response has a "data" field (wrapper format)
-        elif isinstance(data, dict) and "data" in data:
-            products = data["data"]
-            
-            # Handle case where data is an object with product names as keys
-            if isinstance(products, dict):
-                if not products:
-                    return True  # Empty response is valid
-                
-                # Get first product to check schema
-                first_product_name = next(iter(products))
-                first_product = products[first_product_name]
-                
-                if not isinstance(first_product, dict):
-                    logger.warning(f"Expected product to be a dictionary")
-                    return False
-                    
-                required_fields = ["name", "description", "price"]
-                for field in required_fields:
-                    if field not in first_product:
-                        logger.warning(f"Product missing required field: {field}")
-                        return False
-                
-                return True
-            
-        # Case 3: Response data is a direct list
-        elif isinstance(data, list):
-            products = data
-        else:
-            logger.warning(f"Expected products list or object, got: {type(data)}")
+        first_product = products[0]
+        if not isinstance(first_product, dict):
+            logger.warning(f"Product in list is not a dictionary. Got: {type(first_product)}")
+            response.failure("Product in list is not a dictionary.")
             return False
         
-        # For array responses, check if it's a list
-        if products is not None and isinstance(products, list):
-            # If list is empty, that's valid (could be filtering result)
-            if not products:
-                return True
-            
-            # Check first item for schema
-            if not isinstance(products[0], dict):
-                logger.warning(f"Expected product to be a dictionary")
+        required_fields = ["name", "description", "price"]
+        for field in required_fields:
+            if field not in first_product:
+                logger.warning(f"Product list item missing required field: '{field}'. Product: {first_product}")
+                response.failure(f"Product list item missing required field: '{field}'")
                 return False
-            
-            # Check minimal product fields in first item
-            required_fields = ["name", "description", "price"]
-            for field in required_fields:
-                if field not in products[0]:
-                    logger.warning(f"Product list item missing required field: {field}")
-                    return False
-        
         return True
         
     except Exception as e:
-        logger.warning(f"Products list schema validation error: {e}")
+        logger.warning(f"Products list schema validation error: {e} - Response text: {response.text[:500]}")
+        response.failure(f"Products list schema validation error: {e}")
         return False 

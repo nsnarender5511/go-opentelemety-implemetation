@@ -40,6 +40,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 
 	r.logger.DebugContext(ctx, "Accessing product database",
 		slog.String("component", "product_repository"),
+		slog.String("operation", "access_database"),
 		slog.String("product_name", name))
 
 	var productsMap map[string]models.Product
@@ -48,6 +49,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 		errMsg := "Failed to read product data from database"
 		r.logger.ErrorContext(ctx, "Database access error during product lookup",
 			slog.String("component", "product_repository"),
+			slog.String("operation", "database_access_error"),
 			slog.String("error", err.Error()),
 			slog.String("product_name", name),
 			slog.String("error_code", apierrors.ErrCodeDatabaseAccess),
@@ -63,6 +65,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 
 	r.logger.DebugContext(ctx, "Searching for product in database",
 		slog.String("component", "product_repository"),
+		slog.String("operation", "search_for_product"),
 		slog.String("product_name", name))
 
 	product, exists := productsMap[name]
@@ -71,6 +74,7 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 
 		r.logger.WarnContext(ctx, "Product not found in database",
 			slog.String("component", "product_repository"),
+			slog.String("operation", "product_not_found"),
 			slog.String("product_name", name),
 			slog.String("error_code", apierrors.ErrCodeProductNotFound),
 			slog.String("operation", "get_by_name"))
@@ -92,11 +96,13 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (product
 
 	r.logger.InfoContext(ctx, "Product found successfully",
 		slog.String("component", "product_repository"),
+		slog.String("operation", "product_found"),
 		slog.String("product_name", product.Name),
 		slog.String("category", product.Category))
 
 	r.logger.DebugContext(ctx, "Retrieved product details",
 		slog.String("component", "product_repository"),
+		slog.String("operation", "retrieve_product_details"),
 		slog.String("product_name", product.Name),
 		slog.Int("stock", product.Stock),
 		slog.Float64("price", product.Price))

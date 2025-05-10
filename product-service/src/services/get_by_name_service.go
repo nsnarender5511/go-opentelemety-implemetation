@@ -34,8 +34,7 @@ func (s *productService) GetByName(ctx context.Context, name string) (product mo
 	s.logger.InfoContext(ctx, "Processing product details request",
 		slog.String("component", "product_service"),
 		slog.String("product_name", name),
-		slog.String("operation", "get_by_name"),
-		slog.String("event_type", "product_details_processing"))
+		slog.String("operation", "get_by_name"))
 
 	if simAppErr := debugutils.Simulate(ctx); simAppErr != nil {
 		appErr = simAppErr
@@ -54,8 +53,7 @@ func (s *productService) GetByName(ctx context.Context, name string) (product mo
 			slog.String("product_name", name),
 			slog.String("error", repoErr.Error()),
 			slog.String("error_code", repoErr.Code),
-			slog.String("operation", "get_by_name"),
-			slog.String("event_type", "product_lookup_failed"))
+			slog.String("operation", "get_by_name"))
 
 		if span != nil {
 			span.SetStatus(codes.Error, repoErr.Message)
@@ -73,9 +71,7 @@ func (s *productService) GetByName(ctx context.Context, name string) (product mo
 	s.logger.InfoContext(ctx, "Product details retrieved successfully",
 		slog.String("component", "product_service"),
 		slog.String("product_name", product.Name),
-		slog.String("operation", "get_by_name"),
-		slog.String("status", "success"),
-		slog.String("event_type", "product_details_retrieved"))
+		slog.String("operation", "get_by_name"))
 
 	return product, appErr
 }

@@ -40,7 +40,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 
 	r.logger.DebugContext(ctx, "Executing database read operation to access product data",
 		slog.String("component", "product_repository"),
-		slog.String("database_operation", "read"))
+		slog.String("operation", "read_from_database"))
 
 	var productsMap map[string]models.Product
 	err := r.database.Read(ctx, &productsMap)
@@ -76,7 +76,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 	r.logger.DebugContext(ctx, "Converting database entity map to product array structure",
 		slog.String("component", "product_repository"),
 		slog.Int("product_count", len(productsMap)),
-		slog.String("database_operation", "entity_transformation"))
+		slog.String("operation", "entity_transformation"))
 
 	productsSlice = make([]models.Product, 0, len(productsMap))
 	for _, p := range productsMap {
@@ -87,6 +87,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 			slog.Float64("product_price", p.Price),
 			slog.Int("stock", p.Stock),
 			slog.String("component", "product_repository"))
+			slog.String("operation", "entity_processing")
 	}
 
 	// Update product stock levels for telemetry
@@ -101,8 +102,7 @@ func (r *productRepository) GetAll(ctx context.Context) (productsSlice []models.
 		slog.Int("product_count", productCount),
 		slog.String("component", "product_repository"),
 		slog.String("operation", "get_all_products"),
-		slog.String("status", "success"),
-		slog.String("event_type", "products_retrieved"))
+		slog.String("status", "success"))
 
 	return productsSlice, appErr // appErr is nil here if successful
 }

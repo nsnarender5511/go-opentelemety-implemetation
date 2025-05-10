@@ -21,20 +21,16 @@ func (h *ProductHandler) GetProductsByCategory(c *fiber.Ctx) (err error) {
 
 	h.logger.InfoContext(ctx, "Initiating category-filtered product retrieval request",
 		slog.String("category", category),
-		slog.String("path", c.Path()),
-		slog.String("method", c.Method()),
 		slog.String("operation", "get_products_by_category"),
-		slog.String("event_type", "category_products_requested"),
-		slog.String("client_ip", c.IP()),
+		slog.String("component", "product_handler"),
 		slog.String("user_agent", c.Get("User-Agent")))
 
 	if category == "" {
 		h.logger.WarnContext(ctx, "Request validation failed: required category parameter not provided",
 			slog.String("error_code", apierrors.ErrCodeRequestValidation),
 			slog.String("operation", "get_products_by_category"),
-			slog.String("validation_error", "missing_required_parameter"),
-			slog.String("parameter_name", "category"),
-			slog.String("path", c.Path()))
+			slog.String("component", "product_handler"),
+			slog.String("parameter_name", "category"))
 
 		err = apierrors.NewApplicationError(
 			apierrors.ErrCodeRequestValidation,
@@ -79,7 +75,6 @@ func (h *ProductHandler) GetProductsByCategory(c *fiber.Ctx) (err error) {
 		slog.String("category", category),
 		slog.Int("product_count", productCount),
 		slog.String("operation", "get_products_by_category"),
-		slog.String("event_type", "category_products_retrieved"),
 		slog.String("status", "success"))
 
 	span.SetAttributes(attribute.Int("products.returned.count", productCount))

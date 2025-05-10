@@ -17,11 +17,8 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	ctx := c.UserContext()
 
 	h.logger.InfoContext(ctx, "Initiating request processing for retrieving all products",
-		slog.String("path", c.Path()),
-		slog.String("method", c.Method()),
+		slog.String("component", "product_handler"),
 		slog.String("operation", "get_all_products"),
-		slog.String("event_type", "products_list_requested"),
-		slog.String("client_ip", c.IP()),
 		slog.String("user_agent", c.Get("User-Agent")))
 
 	newCtx, span := commontrace.StartSpan(ctx, "product_handler", "get_all_products")
@@ -55,8 +52,8 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) (err error) {
 	productCount := len(products)
 	h.logger.InfoContext(ctx, "Product catalog retrieval operation completed successfully",
 		slog.Int("product_count", productCount),
+		slog.String("component", "product_handler"),
 		slog.String("operation", "get_all_products"),
-		slog.String("event_type", "products_retrieved"),
 		slog.String("status", "success"))
 
 	span.SetAttributes(attribute.Int("products.count", productCount))
