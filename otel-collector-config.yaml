@@ -22,17 +22,6 @@ receivers:
 
 
 processors:
-  # resource:
-  #   attributes:
-  #     - key: service.name
-  #       value: "${SERVICE_NAME}"
-  #       action: upsert
-  #     - key: service.version
-  #       value: "${SERVICE_VERSION}"
-  #       action: upsert
-  #     - key: host.name
-  #       value: "narenders-local-host"
-  #       action: upsert
   resourcedetection:
     detectors: [env, docker]
     timeout: 2s
