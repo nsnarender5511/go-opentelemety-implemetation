@@ -3,49 +3,185 @@ networks:
     driver: bridge
 
 
-services:
-  product-service:
-    build:
-      context: .
-      dockerfile: ./product-service/Dockerfile
-    # expose:
-    #   - "8082"
-    ports:
-      - "8082:8082"
-    volumes:
-      - ./product-service/data.json:/app/data.json
-    environment:
-      - ENVIRONMENT=production
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATA_FILE_PATH=/app/data.json
-      - OTEL_SERVICE_NAME=product-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development,service.version=1.0.0
-    networks:
-      - otel_internal-network
-
-    
+services:    
   product-simulator:
+    container_name: simulator-service
     build:
-      context: ./tests
+      context: ./locust-simulations
       dockerfile: Dockerfile
+    ports:
+      - "8089:8089"
     environment:
-      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - PRODUCT_SERVICE_URL=http://nginx:80
+      - USE_NGINX_PROXY=true
+      - LOAD_SHAPE=stages
+      - OTEL_ENDPOINT=otel-collector:4317
+      - OTEL_ENABLED=false
+      - SERVICE_NAME=product-simulator
     networks:
       - otel_internal-network
+    # depends_on:
+    #   - nginx
+    volumes:
+      - ./locust-simulations/results:/app/results
+      - ./locust-simulations/src:/app/src
+    command: ["locust", "-f", "locustfile.py", "--host=${PRODUCT_SERVICE_URL}", "--class-picker"]
+    restart: unless-stopped
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
-    container_name: otel-collector
+    container_name: local-otel-collector
+    user: "0:0"
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/hostfs:ro
     ports:
       - "4317:4317"
       - "4318:4318"
       - "13133:13133"
       - "55679:55679"
+    networks:
+      - otel_internal-network
+    environment:
+      - OTEL_RESOURCE_HOST_NAME=${OTEL_RESOURCE_HOST_NAME}
+      - SIGNOZ_ENDPOINT=${SIGNOZ_ENDPOINT}
+      - SIGNOZ_INGESTION_KEY=${SIGNOZ_INGESTION_KEY}
+
+
+  product-service-1:
+    container_name: nsh-store-1
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
+    env_file:
+       - .env
+    environment:
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+      - SERVICE_NAME=nsh-store-1
+      - SERVICE_VERSION=v1.0.0
+      - SIMULATE_DELAY_ENABLED=false
+      - SIMULATE_RANDOM_ERROR_ENABLED=false
+    networks:
+      - otel_internal-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  
+  product-service-2:
+    container_name: nsh-store-2
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
+    env_file:
+       - .env
+    environment:
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+      - SERVICE_NAME=nsh-store-2
+      - SERVICE_VERSION=v1.1.0-beta
+      - SIMULATE_DELAY_ENABLED=true
+      - SIMULATE_DELAY_MIN_MS=10
+      - SIMULATE_DELAY_MAX_MS=50
+      - SIMULATE_RANDOM_ERROR_ENABLED=true
+      - SIMULATE_OVERALL_ERROR_CHANCE=0.02
+    networks:
+      - otel_internal-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 100M
+
+  product-service-3:
+    container_name: nsh-store-3
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
+    env_file:
+       - .env
+    environment:
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+      - SERVICE_NAME=nsh-store-3
+      - SERVICE_VERSION=v1.0.0
+      - SIMULATE_DELAY_ENABLED=true
+      - SIMULATE_DELAY_MIN_MS=500
+      - SIMULATE_DELAY_MAX_MS=1500
+      - SIMULATE_RANDOM_ERROR_ENABLED=false
+    networks:
+      - otel_internal-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  product-service-4:
+    container_name: nsh-store-4
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
+    env_file:
+       - .env
+    environment:
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+      - SERVICE_NAME=nsh-store-4
+      - SERVICE_VERSION=v1.0.0
+      - SIMULATE_DELAY_ENABLED=false
+      - SIMULATE_RANDOM_ERROR_ENABLED=true
+      - SIMULATE_OVERALL_ERROR_CHANCE=0.30
+    networks:
+      - otel_internal-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 96M
+
+  product-service-5:
+    container_name: nsh-store-5
+    build:
+      context: .
+      dockerfile: ./product-service/Dockerfile
+    env_file:
+       - .env
+    environment:
+      - OTEL_ENDPOINT=otel-collector:4317
+      - PRODUCT_DATA_FILE_PATH=/product-service/data.json
+      - SERVICE_NAME=nsh-store-5
+      - SERVICE_VERSION=v1.0.0
+      - SIMULATE_DELAY_ENABLED=true
+      - SIMULATE_DELAY_MIN_MS=200
+      - SIMULATE_DELAY_MAX_MS=800
+      - SIMULATE_RANDOM_ERROR_ENABLED=true
+      - SIMULATE_OVERALL_ERROR_CHANCE=0.15
+    networks:
+      - otel_internal-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - otel_internal-network
 

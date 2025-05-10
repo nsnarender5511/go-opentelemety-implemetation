@@ -2,87 +2,91 @@ package globals
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
+	"reflect"
 	"sync"
 
+	"github.com/caarlos0/env/v10"
+	"github.com/joho/godotenv"
 	"github.com/narender/common/config"
-	"github.com/narender/common/log"
-	"github.com/narender/common/telemetry"
+	commonLog "github.com/narender/common/log"
+	commonOtel "github.com/narender/common/telemetry"
 )
 
 var (
 	cfg    *config.Config
 	logger *slog.Logger
-	// once ensures that initialization logic runs exactly once.
-	once sync.Once
-	err  error
+	once   sync.Once
 )
 
-// Init initializes global configuration, logging, and telemetry setup.
-// It ensures this initialization happens only once using sync.Once.
-// Returns an error if any initialization step fails.
+// Init loads configuration and initializes logger/telemetry once.
+// Returns an error if initialization fails.
 func Init() error {
+	var initErr error
 	once.Do(func() {
-
-		cfg, err = config.LoadConfig("production")
-		if err != nil {
-			err = fmt.Errorf("failed to load config during init: %w", err)
-			return
-		}
-		if cfg == nil {
-			err = fmt.Errorf("config loaded as nil without error during init")
-			return
+		if err := godotenv.Load(); err != nil {
+			log.Println("Info: .env file not found or error loading, proceeding with environment variables.")
 		}
 
-		if initErr := log.Init(cfg.LOG_LEVEL, cfg.ENVIRONMENT); initErr != nil {
-
-			err = fmt.Errorf("failed to initialize logger during init: %w", initErr)
-
-			fmt.Printf("CRITICAL: Logger initialization failed: %v\n", err)
-
+		currentCfg := &config.Config{}
+		if err := env.Parse(currentCfg); err != nil {
+			log.Printf("CRITICAL: Failed to parse configuration from environment: %+v\n", err)
+			initErr = fmt.Errorf("failed to parse configuration: %w", err)
 			return
 		}
-		logger = log.L
+		cfg = currentCfg
+
+		fmt.Println("--- Loaded Configuration ---")
+		val := reflect.ValueOf(cfg).Elem()
+		typ := val.Type()
+		for i := 0; i < val.NumField(); i++ {
+			fieldName := typ.Field(i).Name
+			fieldValue := val.Field(i).Interface()
+			fmt.Printf("Key: %s, Value: %v\n", fieldName, fieldValue)
+		}
+		fmt.Println("--------------------------")
+
+		if err := commonLog.Init(cfg.LOG_LEVEL, cfg.ENVIRONMENT); err != nil {
+			log.Printf("CRITICAL: Logger initialization failed: %v\n", err)
+			initErr = fmt.Errorf("failed to initialize logger: %w", err)
+			return
+		}
+		logger = commonLog.L
 		if logger == nil {
-			err = fmt.Errorf("log.Init() succeeded but log.L is nil")
+			log.Println("CRITICAL: Logger initialized successfully but global logger is nil")
+			initErr = fmt.Errorf("logger nil after successful initialization")
 			return
 		}
+		logger.Info("Logger initialized", slog.String("level", cfg.LOG_LEVEL))
 
-		if err = telemetry.InitTelemetry(cfg); err != nil {
-			err = fmt.Errorf("failed to initialize telemetry setup during init: %w", err)
-
-			logger.Error("Telemetry initialization failed", slog.Any("error", err))
-
+		if err := commonOtel.InitTelemetry(cfg); err != nil {
+			logger.Error("Failed to initialize OpenTelemetry", slog.Any("error", err))
+			initErr = fmt.Errorf("failed to initialize telemetry: %w", err)
 			return
 		}
+		logger.Info("OpenTelemetry initialized", slog.String("endpoint", cfg.OTEL_ENDPOINT))
 
+		logger.Info("Application Globals Initialized Successfully.")
 	})
 
-	return err
+	return initErr
 }
 
-// Cfg returns the loaded configuration, panicking if Init hasn't been successfully called.
+// Cfg returns the loaded configuration.
+// Panics if Init() was not called or failed.
 func Cfg() *config.Config {
 	if cfg == nil {
-		panic("configuration not initialized: call globals.Init() first and check error")
+		panic("FATAL: Configuration accessed before successful initialization. Call globals.Init() at application start and check for errors.")
 	}
 	return cfg
 }
 
-// Logger returns the initialized logger, panicking if Init hasn't been successfully called.
+// Logger returns the initialized global logger.
+// Panics if Init() was not called or failed.
 func Logger() *slog.Logger {
 	if logger == nil {
-		panic("logger not initialized: call globals.Init() first and check error")
+		panic("FATAL: Logger accessed before successful initialization. Call globals.Init() at application start and check for errors.")
 	}
-	return logger
-}
-
-// GetCfg returns the loaded configuration, potentially nil if Init failed or wasn't called.
-func GetCfg() *config.Config {
-	return cfg
-}
-
-// GetLogger returns the initialized logger, potentially nil if Init failed or wasn't called.
-func GetLogger() *slog.Logger {
 	return logger
 }

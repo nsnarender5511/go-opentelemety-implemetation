@@ -3,34 +3,32 @@ package metric
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"sync"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
-type MetricsController interface {
-	End(ctx context.Context, err *error, additionalAttrs ...attribute.KeyValue)
-	IncrementProductCreated(ctx context.Context)
-	IncrementProductUpdated(ctx context.Context)
+// productStockDetail holds the stock level and associated attributes for a product.
+// This is used as the value in the latestProductStock map.
+type productStockDetail struct {
+	StockLevel      int64
+	ProductName     string
+	ProductCategory string
 }
-
-type metricsControllerImpl struct {
-	startTime time.Time
-}
-
-// --- Global Variables ---
 
 var (
-	meter      = otel.Meter("common/telemetry/metric")
-	counters   = make(map[string]metric.Int64Counter)
-	histograms = make(map[string]metric.Float64Histogram)
-	gauges     = make(map[string]metric.Int64ObservableGauge)
+	meter           = otel.Meter("common/telemetry/metric")
+	counters        = make(map[string]metric.Int64Counter)
+	float64Counters = make(map[string]metric.Float64Counter)
+	histograms      = make(map[string]metric.Float64Histogram)
+	gauges          = make(map[string]metric.Int64ObservableGauge)
 
 	// Storage for latest product stock levels for the observable gauge
-	latestProductStock      = make(map[string]int64)
+	// Key is productName
+	latestProductStock      = make(map[string]productStockDetail)
 	latestProductStockMutex sync.RWMutex
 )
 
@@ -53,12 +51,17 @@ func init() {
 			gauge := createInt64ObservableGauge(name, cfg.Description, cfg.Unit)
 			if gauge != nil {
 				gauges[name] = gauge
-				if name == ProductInventoryCountMetric {
+				if name == ProductStockCountMetric {
 					_, err := meter.RegisterCallback(observeProductStock, gauge)
 					if err != nil {
 						slog.Error("Failed to register callback for gauge", slog.String("metric", name), slog.Any("error", err))
 					}
 				}
+			}
+		case floatCounterType: // New case
+			counter := createFloat64Counter(name, cfg.Description, cfg.Unit)
+			if counter != nil {
+				float64Counters[name] = counter
 			}
 		default:
 			slog.Warn("Unknown metric type in configuration", slog.String("metric", name), slog.String("type", string(cfg.Type)))
@@ -67,83 +70,6 @@ func init() {
 }
 
 // --- Public Functions / Constructors ---
-
-func StartMetricsTimer() MetricsController {
-	return &metricsControllerImpl{
-		startTime: time.Now(),
-	}
-}
-
-// UpdateProductStockLevels provides the latest snapshot of product stock levels.
-// This should be called periodically or after operations that change stock levels
-// (e.g., after fetching all products).
-// The provided map should contain product ID -> current stock count.
-func UpdateProductStockLevels(newStockLevels map[string]int64) {
-	latestProductStockMutex.Lock()
-	defer latestProductStockMutex.Unlock()
-
-	// Clear the old map before populating with new data
-	clear(latestProductStock)
-
-	// Populate with the new stock levels
-	for id, stock := range newStockLevels {
-		latestProductStock[id] = stock
-	}
-	// Optional: Log that levels were updated
-	slog.Debug("Updated product stock levels for metrics", slog.Int("product_count", len(latestProductStock)))
-}
-
-// --- Methods for metricsControllerImpl ---
-
-func (mc *metricsControllerImpl) End(ctx context.Context, errPtr *error, additionalAttrs ...attribute.KeyValue) {
-	duration := time.Since(mc.startTime)
-	durationMs := float64(duration.Microseconds()) / 1000.0
-
-	isError := errPtr != nil && *errPtr != nil
-
-	baseAttrs := []attribute.KeyValue{
-		attribute.Bool("app.error", isError),
-	}
-	attrs := append(baseAttrs, additionalAttrs...)
-
-	opt := metric.WithAttributes(attrs...)
-
-	if operationsTotal, ok := counters[TotalOperationsMetric]; ok { // TotalOperationsMetric is defined in custom_metrics.go
-		operationsTotal.Add(ctx, 1, opt)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalOperationsMetric+"' not found or initialized")
-	}
-
-	if durationMillis, ok := histograms[DurationMsMetric]; ok { // DurationMsMetric is defined in custom_metrics.go
-		durationMillis.Record(ctx, durationMs, opt)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+DurationMsMetric+"' not found or initialized")
-	}
-
-	if isError {
-		if errorsTotal, ok := counters[ErrorsTotalMetric]; ok { // ErrorsTotalMetric is defined in custom_metrics.go
-			errorsTotal.Add(ctx, 1, opt)
-		} else {
-			slog.WarnContext(ctx, "Metric '"+ErrorsTotalMetric+"' not found or initialized")
-		}
-	}
-}
-
-func (mc *metricsControllerImpl) IncrementProductCreated(ctx context.Context) {
-	if productCreationCounter, ok := counters[TotalProductCreationsMetric]; ok { // TotalProductCreationsMetric is defined in custom_metrics.go
-		productCreationCounter.Add(ctx, 1)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalProductCreationsMetric+"' not found or initialized")
-	}
-}
-
-func (mc *metricsControllerImpl) IncrementProductUpdated(ctx context.Context) {
-	if productUpdateCounter, ok := counters[TotalProductUpdatesMetric]; ok { // TotalProductUpdatesMetric is defined in custom_metrics.go
-		productUpdateCounter.Add(ctx, 1)
-	} else {
-		slog.WarnContext(ctx, "Metric '"+TotalProductUpdatesMetric+"' not found or initialized")
-	}
-}
 
 // --- Helper Functions ---
 
@@ -183,6 +109,18 @@ func createInt64ObservableGauge(name, description, unit string) metric.Int64Obse
 	return gauge
 }
 
+func createFloat64Counter(name, description, unit string) metric.Float64Counter {
+	counter, err := meter.Float64Counter(
+		name,
+		metric.WithDescription(description),
+		metric.WithUnit(unit),
+	)
+	if err != nil {
+		slog.Error("Failed to initialize float64 counter", slog.String("metric", name), slog.Any("error", err))
+	}
+	return counter
+}
+
 // --- Callback Functions ---
 
 // observeProductStock is the callback function for the product inventory gauge.
@@ -191,20 +129,79 @@ func observeProductStock(ctx context.Context, observer metric.Observer) error {
 	latestProductStockMutex.RLock()
 	defer latestProductStockMutex.RUnlock()
 
-	gauge, ok := gauges[ProductInventoryCountMetric]
+	gauge, ok := gauges[ProductStockCountMetric]
 	if !ok {
-		slog.ErrorContext(ctx, "Failed to find gauge instrument in callback", slog.String("metric", ProductInventoryCountMetric))
-		// Returning an error might stop further callbacks depending on the SDK implementation,
-		// so we log and return nil to be safe.
+		slog.ErrorContext(ctx, "Failed to find gauge instrument in callback", slog.String("metric", ProductStockCountMetric))
 		return nil
 	}
 
-	for productID, stock := range latestProductStock {
+	for productNameKey, detail := range latestProductStock {
 		// Observe the current stock level for this product ID
-		productAttribute := attribute.String("product.id", productID)
-		observer.ObserveInt64(gauge, stock, metric.WithAttributes(productAttribute))
+		attrs := attribute.NewSet(
+			attribute.String(AttrProductName, productNameKey),
+			attribute.String(AttrProductCategory, detail.ProductCategory),
+			attribute.String(AttrCustomMetric, "true"),
+		)
+		observer.ObserveInt64(gauge, detail.StockLevel, metric.WithAttributeSet(attrs))
 	}
-
-	// slog.DebugContext(ctx, "observeProductStock called - placeholder implementation") // Placeholder log removed
 	return nil
+}
+
+// UpdateProductStockLevels updates the in-memory store of product stock levels.
+// This function is called when new stock data is available.
+// productName is the map key and also stored in the detail struct.
+func UpdateProductStockLevels(ctx context.Context, productName, productCategory string, stockLevel int64) {
+	latestProductStockMutex.Lock()
+	defer latestProductStockMutex.Unlock()
+	latestProductStock[productName] = productStockDetail{
+		StockLevel:      stockLevel,
+		ProductName:     productName,
+		ProductCategory: productCategory,
+	}
+}
+
+func IncrementRevenueTotal(ctx context.Context, revenue float64, productName, productCategory string) {
+	counter, ok := float64Counters[AppRevenueTotalMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppRevenueTotalMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String(AttrRevenue, strconv.FormatFloat(revenue, 'f', -1, 64)),
+		attribute.String(AttrProductName, productName),
+		attribute.String(AttrProductCategory, productCategory),
+		attribute.String(AttrCustomMetric, "true"),
+	)
+	counter.Add(ctx, revenue, metric.WithAttributeSet(attrs))
+}
+
+func IncrementItemsSoldCount(ctx context.Context, quantity int64, productName, productCategory string) {
+	counter, ok := counters[AppItemsSoldCountMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppItemsSoldCountMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String(AttrProductName, productName),
+		attribute.String(AttrProductCategory, productCategory),
+		attribute.String(AttrQuantity, strconv.FormatInt(quantity, 10)),
+		attribute.String(AttrCustomMetric, "true"),
+	)
+	counter.Add(ctx, quantity, metric.WithAttributeSet(attrs))
+}
+
+// IncrementErrorCount tracks errors by type, operation, and component
+func IncrementErrorCount(ctx context.Context, errorType, operation, component string) {
+	counter, ok := counters[AppErrorCountMetric]
+	if !ok {
+		slog.WarnContext(ctx, "Failed to find counter", slog.String("metric", AppErrorCountMetric))
+		return
+	}
+	attrs := attribute.NewSet(
+		attribute.String(AttrErrorType, errorType),
+		attribute.String(AttrOperation, operation),
+		attribute.String(AttrComponent, component),
+		attribute.String(AttrCustomMetric, "true"),
+	)
+	counter.Add(ctx, 1, metric.WithAttributeSet(attrs))
 }

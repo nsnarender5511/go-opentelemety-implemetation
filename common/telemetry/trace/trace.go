@@ -2,9 +2,7 @@ package trace
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/narender/common/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -24,26 +22,36 @@ type StatusMapperFunc func(error) codes.Code
 
 // StartSpan begins a new OTel span, inferring the operation name from the caller.
 // It uses a static tracer name and adds standard code attributes.
-func StartSpan(ctx context.Context, initialAttrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	operationName := utils.GetCallerFunctionName(3)
+// Enhanced to include component and operation as standard attributes.
+func StartSpan(ctx context.Context, component, operation string, initialAttrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	// Add component and operation as standard attributes
+	standardAttrs := []attribute.KeyValue{
+		attribute.String("component", component),
+		attribute.String("operation", operation),
+	}
+
+	// Combine standard and custom attributes
+	allAttrs := append(standardAttrs, initialAttrs...)
+
+	operationName := component + " :: " + operation
 	tracerName := "static-tracer-for-now"
 	tracer := otel.Tracer(tracerName)
 
-	parentSpanContext := trace.SpanContextFromContext(ctx)
-	fmt.Printf("[DEBUG] StartSpan called | operation: %s | hasParent: %t | parentTraceID: %s | parentSpanID: %s\n",
-		operationName,
-		parentSpanContext.IsValid(),
-		parentSpanContext.TraceID().String(),
-		parentSpanContext.SpanID().String(),
-	)
+	// parentSpanContext := trace.SpanContextFromContext(ctx)
+	// fmt.Printf("[DEBUG] StartSpan called | operation: %s | hasParent: %t | parentTraceID: %s | parentSpanID: %s\n",
+	// 	operationName,
+	// 	parentSpanContext.IsValid(),
+	// 	parentSpanContext.TraceID().String(),
+	// 	parentSpanContext.SpanID().String(),
+	// )
 
 	opts := []trace.SpanStartOption{
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(semconv.CodeFunctionKey.String(operationName)),
 		trace.WithAttributes(semconv.CodeNamespaceKey.String(tracerName)),
 	}
-	if len(initialAttrs) > 0 {
-		opts = append(opts, trace.WithAttributes(initialAttrs...))
+	if len(allAttrs) > 0 {
+		opts = append(opts, trace.WithAttributes(allAttrs...))
 	}
 
 	newCtx, span := tracer.Start(ctx, operationName, opts...)

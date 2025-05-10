@@ -27,59 +27,103 @@ func NewFileDatabase() *FileDatabase {
 
 // Read loads data from the JSON file into the dest interface{}.
 func (db *FileDatabase) Read(ctx context.Context, dest interface{}) (opErr error) {
+	// Get request ID from context if available
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
 	// Start DB Span
 	ctx, spanner := commontrace.StartSpan(ctx,
+		"file_database",
+		"read",
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("READ"),
 	)
 	defer commontrace.EndSpan(spanner, &opErr, nil)
 
-	db.logger.DebugContext(ctx, "FileDB: Reading data from file", slog.String("file_path", db.filePath))
+	db.logger.DebugContext(ctx, "Database file access initiated",
+		slog.String("file_path", db.filePath),
+		slog.String("request_id", requestID),
+		slog.String("operation", "read_database"))
 
 	fileContent, err := os.ReadFile(db.filePath)
 	if err != nil {
-		db.logger.ErrorContext(ctx, "FileDB: Failed to read data file", slog.String("file_path", db.filePath), slog.Any("error", err))
+		db.logger.ErrorContext(ctx, "Database file read error",
+			slog.String("file_path", db.filePath),
+			slog.String("error", err.Error()),
+			slog.String("request_id", requestID),
+			slog.String("operation", "read_database"))
 		opErr = err // Assign error to opErr
 		return opErr
 	}
 
 	err = json.Unmarshal(fileContent, dest)
 	if err != nil {
-		db.logger.ErrorContext(ctx, "FileDB: Failed to unmarshal JSON data", slog.String("file_path", db.filePath), slog.Any("error", err))
+		db.logger.ErrorContext(ctx, "JSON parsing error",
+			slog.String("file_path", db.filePath),
+			slog.String("error", err.Error()),
+			slog.String("request_id", requestID),
+			slog.String("operation", "parse_json"))
 		opErr = err // Assign error to opErr
 		return opErr
 	}
 
-	db.logger.DebugContext(ctx, "FileDB: Data read and unmarshalled successfully", slog.String("file_path", db.filePath))
+	db.logger.DebugContext(ctx, "Database data read successfully",
+		slog.String("file_path", db.filePath),
+		slog.String("request_id", requestID),
+		slog.String("operation", "read_database"))
 	return nil // Success
 }
 
 // Write marshals the data interface{} to JSON and writes it to the file, overwriting existing content.
 func (db *FileDatabase) Write(ctx context.Context, data interface{}) (opErr error) {
+	// Get request ID from context if available
+	var requestID string
+	if id, ok := ctx.Value("requestID").(string); ok {
+		requestID = id
+	}
+
 	// Start DB Span
 	ctx, spanner := commontrace.StartSpan(ctx,
+		"file_database",
+		"write",
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("WRITE"),
 	)
 	defer commontrace.EndSpan(spanner, &opErr, nil)
 
-	db.logger.DebugContext(ctx, "FileDB: Writing data to file", slog.String("file_path", db.filePath))
+	db.logger.DebugContext(ctx, "Database file write initiated",
+		slog.String("file_path", db.filePath),
+		slog.String("request_id", requestID),
+		slog.String("operation", "write_database"))
 
 	jsonData, err := json.MarshalIndent(data, "", "  ") // Use MarshalIndent for readability
 	if err != nil {
-		db.logger.ErrorContext(ctx, "FileDB: Failed to marshal data to JSON", slog.String("file_path", db.filePath), slog.Any("error", err))
+		db.logger.ErrorContext(ctx, "JSON serialization error",
+			slog.String("file_path", db.filePath),
+			slog.String("error", err.Error()),
+			slog.String("request_id", requestID),
+			slog.String("operation", "serialize_json"))
 		opErr = err // Assign error to opErr
 		return opErr
 	}
 
 	err = os.WriteFile(db.filePath, jsonData, 0644) // 0644 provides read/write for owner, read for others
 	if err != nil {
-		db.logger.ErrorContext(ctx, "FileDB: Failed to write data file", slog.String("file_path", db.filePath), slog.Any("error", err))
+		db.logger.ErrorContext(ctx, "Database file write error",
+			slog.String("file_path", db.filePath),
+			slog.String("error", err.Error()),
+			slog.String("request_id", requestID),
+			slog.String("operation", "write_database"))
 		opErr = err // Assign error to opErr
 		return opErr
 	}
 
-	db.logger.DebugContext(ctx, "FileDB: Data written successfully", slog.String("file_path", db.filePath))
+	db.logger.DebugContext(ctx, "Database data written successfully",
+		slog.String("file_path", db.filePath),
+		slog.String("request_id", requestID),
+		slog.String("operation", "write_database"))
 	return nil // Success
 }
 

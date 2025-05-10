@@ -17,7 +17,7 @@ import (
 
 func InitTelemetry(cfg *config.Config) error {
 
-	res, err := otelemetryResource.NewResource(context.Background())
+	res, err := otelemetryResource.NewResource(context.Background(), cfg.SERVICE_NAME, cfg.SERVICE_VERSION)
 	if err != nil {
 
 		log.Printf("ERROR: Failed to create OTel resource: %v\n", err)
@@ -33,7 +33,7 @@ func InitTelemetry(cfg *config.Config) error {
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		}
 
-		if err := traceExporter.SetupOtlpTraceExporter(ctx, cfg.OTEL_ENDPOINT, connOpts, res); err != nil {
+		if err := traceExporter.SetupOtlpTraceExporter(ctx, cfg, connOpts, res); err != nil {
 			log.Printf("ERROR: OTLP Trace exporter setup failed: %v\n", err)
 			return fmt.Errorf("trace exporter setup failed: %w", err)
 		}

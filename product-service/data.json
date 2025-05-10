@@ -1,56 +1,142 @@
 {
-  "prod_2b4d5390-e041-4535-a20e-2f7cc0fe5498": {
-    "productID": "prod_2b4d5390-e041-4535-a20e-2f7cc0fe5498",
-    "name": "Simulated Product 434d0f",
-    "description": "Created by simulation script",
-    "price": 183.24,
-    "stock": 36,
-    "category": "",
-    "tags": null
+  "Blender Pro": {
+    "name": "Blender Pro",
+    "description": "High-speed blender for smoothies",
+    "price": 7499.00,
+    "stock": 300,
+    "category": "Kitchenware"
   },
-  "prod_639827b5-0c84-40a0-97a8-a7de44428052": {
-    "productID": "prod_639827b5-0c84-40a0-97a8-a7de44428052",
-    "name": "Simulated Product 2580ae",
-    "description": "Created by simulation script",
-    "price": 272.49,
-    "stock": 19,
-    "category": "",
-    "tags": null
+  "Bookshelf Unit": {
+    "name": "Bookshelf Unit",
+    "description": "5-tier bookshelf",
+    "price": 9899.00,
+    "stock": 284,
+    "category": "Furniture"
   },
-  "prod_6797e8a2-c41e-417f-87d5-36386d7905b4": {
-    "productID": "prod_6797e8a2-c41e-417f-87d5-36386d7905b4",
-    "name": "Simulated Product 826412",
-    "description": "Created by simulation script",
-    "price": 462.03,
-    "stock": 116,
-    "category": "",
-    "tags": null
+  "Children's Picture Book": {
+    "name": "Children's Picture Book",
+    "description": "Colorful illustrated book for kids",
+    "price": 799.00,
+    "stock": 268,
+    "category": "Books"
   },
-  "prod_b1f64417-1ff4-4933-94a6-bb3cd46b42fa": {
-    "productID": "prod_b1f64417-1ff4-4933-94a6-bb3cd46b42fa",
-    "name": "Simulated Product 8a51a4",
-    "description": "Created by simulation script",
-    "price": 495.57,
-    "stock": 64,
-    "category": "",
-    "tags": null
+  "Coffee Mug": {
+    "name": "Coffee Mug",
+    "description": "Large ceramic mug",
+    "price": 999.00,
+    "stock": 398,
+    "category": "Kitchenware"
   },
-  "prod_bb357ae8-7378-4623-9039-5b4780c01012": {
-    "productID": "prod_bb357ae8-7378-4623-9039-5b4780c01012",
-    "name": "Simulated Product 743811",
-    "description": "Created by simulation script",
-    "price": 322.06,
-    "stock": 31,
-    "category": "",
-    "tags": null
+  "Cookbook: Global Cuisine": {
+    "name": "Cookbook: Global Cuisine",
+    "description": "Recipes from around the world",
+    "price": 1999.00,
+    "stock": 471,
+    "category": "Books"
   },
-  "prod_d990b992-2f35-4115-9f9b-399855a6281f": {
-    "productID": "prod_d990b992-2f35-4115-9f9b-399855a6281f",
-    "name": "Simulated Product d86efe",
-    "description": "Created by simulation script",
-    "price": 320.1,
-    "stock": 103,
-    "category": "",
-    "tags": null
+  "Gaming Console": {
+    "name": "Gaming Console",
+    "description": "Next-gen gaming console",
+    "price": 1999.00,
+    "stock": 209,
+    "category": "Electronics"
+  },
+  "History of Ancient Rome": {
+    "name": "History of Ancient Rome",
+    "description": "Comprehensive historical account",
+    "price": 2499.00,
+    "stock": 219,
+    "category": "Books"
+  },
+  "Laptop Pro": {
+    "name": "Laptop Pro",
+    "description": "High-end laptop",
+    "price": 15000.00,
+    "stock": 59,
+    "category": "Electronics"
+  },
+  "Men's T-Shirt": {
+    "name": "Men's T-Shirt",
+    "description": "Cotton crew-neck t-shirt",
+    "price": 1599.00,
+    "stock": 99,
+    "category": "Apparel"
+  },
+  "Mystery Novel Vol. 1": {
+    "name": "Mystery Novel Vol. 1",
+    "description": "A thrilling mystery",
+    "price": 1249.00,
+    "stock": 43,
+    "category": "Books"
+  },
+  "Office Chair": {
+    "name": "Office Chair",
+    "description": "Ergonomic chair",
+    "price": 2999.00,
+    "stock": 168,
+    "category": "Furniture"
+  },
+  "Running Shoes": {
+    "name": "Running Shoes",
+    "description": "Lightweight running shoes",
+    "price": 6999.00,
+    "stock": 495,
+    "category": "Apparel"
+  },
+  "Sci-Fi Saga Part 1": {
+    "name": "Sci-Fi Saga Part 1",
+    "description": "Epic space adventure",
+    "price": 1499.00,
+    "stock": 114,
+    "category": "Books"
+  },
+  "Self-Help Guide": {
+    "name": "Self-Help Guide",
+    "description": "A guide to personal development",
+    "price": 1399.00,
+    "stock": 326,
+    "category": "Books"
+  },
+  "Smart Speaker": {
+    "name": "Smart Speaker",
+    "description": "Voice-activated smart speaker",
+    "price": 6499.00,
+    "stock": 399,
+    "category": "Electronics"
+  },
+  "Standing Desk": {
+    "name": "Standing Desk",
+    "description": "Adjustable height standing desk",
+    "price": 29999.00,
+    "stock": 149,
+    "category": "Furniture"
+  },
+  "Toaster Oven": {
+    "name": "Toaster Oven",
+    "description": "Compact toaster oven",
+    "price": 4599.00,
+    "stock": 486,
+    "category": "Kitchenware"
+  },
+  "Winter Jacket": {
+    "name": "Winter Jacket",
+    "description": "Insulated winter jacket",
+    "price": 9999.00,
+    "stock": 11,
+    "category": "Apparel"
+  },
+  "Wireless Mouse": {
+    "name": "Wireless Mouse",
+    "description": "Silent click mouse",
+    "price": 1999.00,
+    "stock": 353,
+    "category": "Electronics"
+  },
+  "Women's Jeans": {
+    "name": "Women's Jeans",
+    "description": "Slim fit denim jeans",
+    "price": 3999.00,
+    "stock": 144,
+    "category": "Apparel"
   }
 }

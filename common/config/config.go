@@ -1,60 +1,32 @@
 package config
 
+// Config defines the application configuration structure using environment variables.
 type Config struct {
-	ENVIRONMENT          string `env:"ENVIRONMENT,default=development"`
-	PRODUCT_SERVICE_PORT string `env:"PRODUCT_SERVICE_PORT,default=8082"`
-	LOG_LEVEL            string `env:"LOG_LEVEL,default=info"`
-	OTEL_ENDPOINT        string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,default=otel-collector:4317"`
+	// Core App Settings
+	ENVIRONMENT               string `env:"ENVIRONMENT,required" envDefault:"development"`
+	PRODUCT_SERVICE_PORT      string `env:"PRODUCT_SERVICE_PORT,required" envDefault:"8082"`
+	MASTER_STORE_SERVICE_PORT string `env:"MASTER_STORE_SERVICE_PORT,required" envDefault:"8083"`
+	LOG_LEVEL                 string `env:"LOG_LEVEL" envDefault:"info"`
+	// Default path set for container environment; override for local dev using .env or env var.
+	PRODUCT_DATA_FILE_PATH string `env:"PRODUCT_DATA_FILE_PATH,required" envDefault:"/product-service/data.json"`
+	// URL for the product service API
+	PRODUCT_SERVICE_URL string `env:"PRODUCT_SERVICE_URL" envDefault:"http://product-service:8082"`
 
-	PRODUCT_DATA_FILE_PATH string `mapstructure:"PRODUCT_DATA_FILE_PATH"`
+	// Telemetry Settings
+	// Default endpoint suitable for local development; override in Docker.
+	OTEL_ENDPOINT   string `env:"OTEL_ENDPOINT,required" envDefault:"localhost:4317"`
+	SERVICE_NAME    string `env:"SERVICE_NAME" envDefault:"product-service"`
+	SERVICE_VERSION string `env:"SERVICE_VERSION" envDefault:"unknown"`
 
-	SimulateDelayEnabled bool `mapstructure:"SIMULATE_DELAY_ENABLED"`
-	SimulateDelayMinMs   int  `mapstructure:"SIMULATE_DELAY_MIN_MS"`
-	SimulateDelayMaxMs   int  `mapstructure:"SIMULATE_DELAY_MAX_MS"`
+	// Debug/Simulation Settings
+	SimulateDelayEnabled           bool    `env:"SIMULATE_DELAY_ENABLED" envDefault:"false"`
+	SimulateDelayMinMs             int     `env:"SIMULATE_DELAY_MIN_MS" envDefault:"10"`
+	SimulateDelayMaxMs             int     `env:"SIMULATE_DELAY_MAX_MS" envDefault:"100"`
+	SimulateRandomErrorEnabled     bool    `env:"SIMULATE_RANDOM_ERROR_ENABLED" envDefault:"false"`
+	SimulateOverallErrorChance     float64 `env:"SIMULATE_OVERALL_ERROR_CHANCE" envDefault:"0.1"`
+	SimulateApplicationErrorWeight int     `env:"SIMULATE_APPLICATION_ERROR_WEIGHT" envDefault:"1"`
+	SimulateBusinessErrorWeight    int     `env:"SIMULATE_BUSINESS_ERROR_WEIGHT" envDefault:"1"`
 }
 
-func LoadConfig(env string) (*Config, error) {
-	cfg := commonConfig()
-
-	if env == "production" {
-		prodCfg := GetProductionConfig()
-		cfg.OTEL_ENDPOINT = prodCfg.OTEL_ENDPOINT
-		cfg.ENVIRONMENT = prodCfg.ENVIRONMENT
-	} else {
-		devCfg := GetDevelopmentConfig()
-		cfg.OTEL_ENDPOINT = devCfg.OTEL_ENDPOINT
-		cfg.ENVIRONMENT = devCfg.ENVIRONMENT
-	}
-
-	return cfg, nil
-}
-
-func GetProductionConfig() *Config {
-	// Keep these minimal, only environment differences
-	return &Config{
-		OTEL_ENDPOINT: "otel-collector:4317",
-		ENVIRONMENT:   "production",
-	}
-}
-
-func GetDevelopmentConfig() *Config {
-	// Keep these minimal, only environment differences
-	return &Config{
-		OTEL_ENDPOINT: "localhost:4317",
-		ENVIRONMENT:   "development",
-	}
-}
-
-func commonConfig() *Config {
-	// Base configuration for all environments
-	return &Config{
-		PRODUCT_SERVICE_PORT:   "8082",
-		LOG_LEVEL:              "debug",
-		PRODUCT_DATA_FILE_PATH: "/app/data.json",
-		SimulateDelayEnabled:   true,
-		SimulateDelayMinMs:     10,
-		SimulateDelayMaxMs:     100,
-		// Set a default environment maybe? Or let LoadConfig handle it.
-		// ENVIRONMENT: "development",
-	}
-}
+// NOTE: Removed GetProductionConfig, GetDevelopmentConfig, commonConfig functions
+// Configuration is now loaded directly from environment variables / .env file.

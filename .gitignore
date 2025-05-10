@@ -14,13 +14,19 @@
 # Anomalous src file if generated
 product-service/src/src
 
-# Go Build Artifacts
-product-service/product-service
-bin/
-
-*/data.json
-
-
-
+# Locust logs and results 
+locust-simulations/locust.log
+locust-simulations/results/custom_stats_*.csv
+locust-simulations/results/response_times_*.csv
+locust-simulations/venv/
+locust-simulations/results/
 
 
+
+
+
+
+
+
+# Ignore Python bytecode cache
+__pycache__/

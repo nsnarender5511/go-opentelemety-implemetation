@@ -8,51 +8,57 @@ receivers:
     collection_interval: 10s
     timeout: 100s
     api_version: "1.47"
+  hostmetrics:
+    collection_interval: 10s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      network:
+      filesystem:
+  nginx:
+    endpoint: "http://nginx:80/nginx_status"
 
 
 processors:
-  batch: {}
-
-  resource:
-    attributes:
-      - key: host.name
-        value: "testing_metrics"
-        action: upsert
+  resourcedetection:
+    detectors: [env, docker]
+    timeout: 2s
+    # override: false # uncomment if you want SDK attributes to always take precedence
 
 
 exporters:
   otlp: 
-    endpoint: "ingest.in.signoz.cloud:443"
+    endpoint: "${SIGNOZ_ENDPOINT}"
     tls:
       insecure: false
     headers:
-      signoz-ingestion-key: dtsa409InZNwTUjVBS7WPrNLBsANF1ZnZJXd
+      signoz-ingestion-key: "${SIGNOZ_INGESTION_KEY}"
   debug:
     verbosity: detailed
 
 extensions:
   health_check: {}
-  pprof: {}
-  zpages: {}
 
 service:
   telemetry:
     logs:
       level: "debug"
       encoding: "json"
-  # extensions: [health_check, pprof, zpages]
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resource]
+      processors: [resourcedetection]
       exporters: [otlp]
     metrics:
-      receivers: [otlp, docker_stats]
-      processors: [resource]
+      receivers: [docker_stats, hostmetrics, nginx, otlp]
+      processors: [resourcedetection]
       exporters: [otlp, debug]
     logs:
       receivers: [otlp]
-      processors: [batch, resource]
+      processors: [resourcedetection]
       exporters: [otlp]
 
 
