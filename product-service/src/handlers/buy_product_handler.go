@@ -30,6 +30,8 @@ func (h *ProductHandler) BuyProduct(c *fiber.Ctx) (err error) {
 			slog.String("component", "product_handler"),
 			slog.String("error", parseErr.Error()),
 			slog.String("operation", "buy_product"))
+		
+		
 
 		err = apierrors.NewApplicationError(
 			apierrors.ErrCodeRequestValidation,
