@@ -37,7 +37,7 @@
   "Gaming Console": {
     "name": "Gaming Console",
     "description": "Next-gen gaming console",
-    "price": 41999.00,
+    "price": 1999.00,
     "stock": 209,
     "category": "Electronics"
   },
@@ -51,7 +51,7 @@
   "Laptop Pro": {
     "name": "Laptop Pro",
     "description": "High-end laptop",
-    "price": 125999.00,
+    "price": 15000.00,
     "stock": 59,
     "category": "Electronics"
   },
@@ -72,7 +72,7 @@
   "Office Chair": {
     "name": "Office Chair",
     "description": "Ergonomic chair",
-    "price": 20999.00,
+    "price": 2999.00,
     "stock": 168,
     "category": "Furniture"
   },
