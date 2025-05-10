@@ -35,6 +35,8 @@ func (db *FileDatabase) Read(ctx context.Context, dest interface{}) (opErr error
 
 	// Start DB Span
 	ctx, spanner := commontrace.StartSpan(ctx,
+		"file_database",
+		"read",
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("READ"),
 	)
@@ -84,6 +86,8 @@ func (db *FileDatabase) Write(ctx context.Context, data interface{}) (opErr erro
 
 	// Start DB Span
 	ctx, spanner := commontrace.StartSpan(ctx,
+		"file_database",
+		"write",
 		semconv.DBSystemKey.String("file"),
 		semconv.DBOperationKey.String("WRITE"),
 	)
