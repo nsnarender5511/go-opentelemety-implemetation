@@ -7,7 +7,7 @@ receivers:
     endpoint: "unix:///var/run/docker.sock"
     collection_interval: 10s
     timeout: 100s
-    api_version: "1.47"
+    api_version: "1.45"
   hostmetrics:
     collection_interval: 10s
     root_path: /hostfs
